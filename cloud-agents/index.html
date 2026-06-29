@@ -1,0 +1,2909 @@
+
+<!doctype html>
+<html lang="zh" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Agent framework, multi-agent orchestration, and runtime harness research notes.">
+      
+      
+      
+        <link rel="canonical" href="https://chiga0.github.io/agent-research/cloud-agents/">
+      
+      
+        <link rel="prev" href="..">
+      
+      
+        <link rel="next" href="../multi-agent/research-on-multi-agent-orchestration-frameworks/">
+      
+      
+      <link rel="icon" href="../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.6.15">
+    
+    
+      
+        <title>企业级 Cloud Agents 框架与运行时技术调研报告 - Agent Research</title>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/stylesheets/main.342714a4.min.css">
+      
+        
+        <link rel="stylesheet" href="../assets/stylesheets/palette.06af60db.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="blue">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#cloud-agents" class="md-skip">
+          跳转至
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="页眉">
+    <a href=".." title="Agent Research" class="md-header__button md-logo" aria-label="Agent Research" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Agent Research
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              企业级 Cloud Agents 框架与运行时技术调研报告
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="blue"  aria-label="切换到深色模式"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="切换到深色模式" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m17.75 4.09-2.53 1.94.91 3.06-2.63-1.81-2.63 1.81.91-3.06-2.53-1.94L12.44 4l1.06-3 1.06 3zm3.5 6.91-1.64 1.25.59 1.98-1.7-1.17-1.7 1.17.59-1.98L15.75 11l2.06-.05L18.5 9l.69 1.95zm-2.28 4.95c.83-.08 1.72 1.1 1.19 1.85-.32.45-.66.87-1.08 1.27C15.17 23 8.84 23 4.94 19.07c-3.91-3.9-3.91-10.24 0-14.14.4-.4.82-.76 1.27-1.08.75-.53 1.93.36 1.85 1.19-.27 2.86.69 5.83 2.89 8.02a9.96 9.96 0 0 0 8.02 2.89m-1.64 2.02a12.08 12.08 0 0 1-7.8-3.47c-2.17-2.19-3.33-5-3.49-7.82-2.81 3.14-2.7 7.96.31 10.98 3.02 3.01 7.84 3.12 10.98.31"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="blue"  aria-label="切换到浅色模式"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="切换到浅色模式" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 7a5 5 0 0 1 5 5 5 5 0 0 1-5 5 5 5 0 0 1-5-5 5 5 0 0 1 5-5m0 2a3 3 0 0 0-3 3 3 3 0 0 0 3 3 3 3 0 0 0 3-3 3 3 0 0 0-3-3m0-7 2.39 3.42C13.65 5.15 12.84 5 12 5s-1.65.15-2.39.42zM3.34 7l4.16-.35A7.2 7.2 0 0 0 5.94 8.5c-.44.74-.69 1.5-.83 2.29zm.02 10 1.76-3.77a7.131 7.131 0 0 0 2.38 4.14zM20.65 7l-1.77 3.79a7.02 7.02 0 0 0-2.38-4.15zm-.01 10-4.14.36c.59-.51 1.12-1.14 1.54-1.86.42-.73.69-1.5.83-2.29zM12 22l-2.41-3.44c.74.27 1.55.44 2.41.44.82 0 1.63-.17 2.37-.44z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="搜索" placeholder="搜索" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="查找">
+        
+        <button type="reset" class="md-search__icon md-icon" title="清空当前内容" aria-label="清空当前内容" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            正在初始化搜索引擎
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/chiga0/agent-research" title="前往仓库" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 6.7.2 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2024 Fonticons, Inc.--><path d="M439.55 236.05 244 40.45a28.87 28.87 0 0 0-40.81 0l-40.66 40.63 51.52 51.52c27.06-9.14 52.68 16.77 43.39 43.68l49.66 49.66c34.23-11.8 61.18 31 35.47 56.69-26.49 26.49-70.21-2.87-56-37.34L240.22 199v121.85c25.3 12.54 22.26 41.85 9.08 55a34.34 34.34 0 0 1-48.55 0c-17.57-17.6-11.07-46.91 11.25-56v-123c-20.8-8.51-24.6-30.74-18.64-45L142.57 101 8.45 235.14a28.86 28.86 0 0 0 0 40.81l195.61 195.6a28.86 28.86 0 0 0 40.8 0l194.69-194.69a28.86 28.86 0 0 0 0-40.81"/></svg>
+  </div>
+  <div class="md-source__repository">
+    chiga0/agent-research
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="导航栏" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href=".." title="Agent Research" class="md-nav__button md-logo" aria-label="Agent Research" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    Agent Research
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/chiga0/agent-research" title="前往仓库" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 6.7.2 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2024 Fonticons, Inc.--><path d="M439.55 236.05 244 40.45a28.87 28.87 0 0 0-40.81 0l-40.66 40.63 51.52 51.52c27.06-9.14 52.68 16.77 43.39 43.68l49.66 49.66c34.23-11.8 61.18 31 35.47 56.69-26.49 26.49-70.21-2.87-56-37.34L240.22 199v121.85c25.3 12.54 22.26 41.85 9.08 55a34.34 34.34 0 0 1-48.55 0c-17.57-17.6-11.07-46.91 11.25-56v-123c-20.8-8.51-24.6-30.74-18.64-45L142.57 101 8.45 235.14a28.86 28.86 0 0 0 0 40.81l195.61 195.6a28.86 28.86 0 0 0 40.8 0l194.69-194.69a28.86 28.86 0 0 0 0-40.81"/></svg>
+  </div>
+  <div class="md-source__repository">
+    chiga0/agent-research
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href=".." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    首页
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    Cloud Agents
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            Cloud Agents
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    企业级 Cloud Agents 框架与运行时技术调研报告
+    
+  </span>
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    企业级 Cloud Agents 框架与运行时技术调研报告
+    
+  </span>
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="目录">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      目录
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      执行摘要
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#cloud-agents_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      Cloud Agents 的定义
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Cloud Agents 的定义">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#remote-control-agent" class="md-nav__link">
+    <span class="md-ellipsis">
+      与 Remote-control Agent 的差异
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#cloud-agents_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      Cloud Agents 的最小能力集
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      参考架构
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_3" class="md-nav__link">
+    <span class="md-ellipsis">
+      成熟方案调研
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="成熟方案调研">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#1-langsmith-deployment-langgraph" class="md-nav__link">
+    <span class="md-ellipsis">
+      1. LangSmith Deployment / LangGraph
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#2-microsoft-foundry-azure-ai-foundry-agent-service-microsoft-agent-framework-autogen" class="md-nav__link">
+    <span class="md-ellipsis">
+      2. Microsoft Foundry / Azure AI Foundry Agent Service / Microsoft Agent Framework / AutoGen
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#3-amazon-bedrock-agentcore-amazon-bedrock-agents" class="md-nav__link">
+    <span class="md-ellipsis">
+      3. Amazon Bedrock AgentCore / Amazon Bedrock Agents
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#4-google-gemini-enterprise-agent-platform-agent-runtime-adk" class="md-nav__link">
+    <span class="md-ellipsis">
+      4. Google Gemini Enterprise Agent Platform / Agent Runtime / ADK
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#5-openai-agents-sdk-responses-api-assistants-like-thread-model" class="md-nav__link">
+    <span class="md-ellipsis">
+      5. OpenAI Agents SDK / Responses API / Assistants-like Thread Model
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#6-crewai-enterprise-amp" class="md-nav__link">
+    <span class="md-ellipsis">
+      6. CrewAI Enterprise / AMP
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#7-dify" class="md-nav__link">
+    <span class="md-ellipsis">
+      7. Dify
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#8-letta" class="md-nav__link">
+    <span class="md-ellipsis">
+      8. Letta
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#9-temporal-durable-execution" class="md-nav__link">
+    <span class="md-ellipsis">
+      9. Temporal / Durable Execution 基础设施
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_4" class="md-nav__link">
+    <span class="md-ellipsis">
+      协议与标准
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="协议与标准">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#mcp" class="md-nav__link">
+    <span class="md-ellipsis">
+      MCP：工具与上下文接入协议
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#a2aagent-to-agent" class="md-nav__link">
+    <span class="md-ellipsis">
+      A2A：Agent-to-Agent 通信协议
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#opentelemetryagent" class="md-nav__link">
+    <span class="md-ellipsis">
+      OpenTelemetry：Agent 可观测的底座
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_5" class="md-nav__link">
+    <span class="md-ellipsis">
+      能力矩阵
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="能力矩阵">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#_6" class="md-nav__link">
+    <span class="md-ellipsis">
+      总体成熟度对比
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#cloud-agents_3" class="md-nav__link">
+    <span class="md-ellipsis">
+      Cloud Agents 分层选型
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_7" class="md-nav__link">
+    <span class="md-ellipsis">
+      企业落地关键设计
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="企业落地关键设计">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#1" class="md-nav__link">
+    <span class="md-ellipsis">
+      1. 会话模型设计
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#2" class="md-nav__link">
+    <span class="md-ellipsis">
+      2. 多客户端连接
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#3" class="md-nav__link">
+    <span class="md-ellipsis">
+      3. 多实例与资源管理
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#4-trace" class="md-nav__link">
+    <span class="md-ellipsis">
+      4. Trace 与可观测性
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#5" class="md-nav__link">
+    <span class="md-ellipsis">
+      5. 审计与治理
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#6" class="md-nav__link">
+    <span class="md-ellipsis">
+      6. 稳定性与可用性
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_8" class="md-nav__link">
+    <span class="md-ellipsis">
+      推荐落地架构
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="推荐落地架构">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#a" class="md-nav__link">
+    <span class="md-ellipsis">
+      路线 A：云厂商托管优先
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#blanggraph" class="md-nav__link">
+    <span class="md-ellipsis">
+      路线 B：LangGraph 平台化自建
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ctemporal-agent-sdk" class="md-nav__link">
+    <span class="md-ellipsis">
+      路线 C：Temporal + Agent SDK 自研运行时
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ddify-crewai" class="md-nav__link">
+    <span class="md-ellipsis">
+      路线 D：Dify / CrewAI 快速产品化
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_9" class="md-nav__link">
+    <span class="md-ellipsis">
+      建设路线图
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="建设路线图">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#1cloud-agent-mvp" class="md-nav__link">
+    <span class="md-ellipsis">
+      阶段 1：Cloud Agent MVP
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#2_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      阶段 2：生产运行时
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#3-agent" class="md-nav__link">
+    <span class="md-ellipsis">
+      阶段 3：企业 Agent 平台
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_10" class="md-nav__link">
+    <span class="md-ellipsis">
+      选型建议
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="选型建议">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#cloud-agents_4" class="md-nav__link">
+    <span class="md-ellipsis">
+      如果你要做企业级 Cloud Agents 平台
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#_11" class="md-nav__link">
+    <span class="md-ellipsis">
+      如果企业已经押注某个云
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#_12" class="md-nav__link">
+    <span class="md-ellipsis">
+      如果目标是快速交付内部应用
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#_13" class="md-nav__link">
+    <span class="md-ellipsis">
+      不建议的做法
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_14" class="md-nav__link">
+    <span class="md-ellipsis">
+      结论
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_15" class="md-nav__link">
+    <span class="md-ellipsis">
+      参考资料
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    多 Agent
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            多 Agent
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../multi-agent/research-on-multi-agent-orchestration-frameworks/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    生产级多 Agent 系统编排与运行屏障工程
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    其他 Agent
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            其他 Agent
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../other-agents/qwen-code-core-sdk-agent-architecture/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Qwen Code Core 与 SDK Agent 架构分析
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="目录">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      目录
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      执行摘要
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#cloud-agents_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      Cloud Agents 的定义
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Cloud Agents 的定义">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#remote-control-agent" class="md-nav__link">
+    <span class="md-ellipsis">
+      与 Remote-control Agent 的差异
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#cloud-agents_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      Cloud Agents 的最小能力集
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      参考架构
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_3" class="md-nav__link">
+    <span class="md-ellipsis">
+      成熟方案调研
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="成熟方案调研">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#1-langsmith-deployment-langgraph" class="md-nav__link">
+    <span class="md-ellipsis">
+      1. LangSmith Deployment / LangGraph
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#2-microsoft-foundry-azure-ai-foundry-agent-service-microsoft-agent-framework-autogen" class="md-nav__link">
+    <span class="md-ellipsis">
+      2. Microsoft Foundry / Azure AI Foundry Agent Service / Microsoft Agent Framework / AutoGen
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#3-amazon-bedrock-agentcore-amazon-bedrock-agents" class="md-nav__link">
+    <span class="md-ellipsis">
+      3. Amazon Bedrock AgentCore / Amazon Bedrock Agents
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#4-google-gemini-enterprise-agent-platform-agent-runtime-adk" class="md-nav__link">
+    <span class="md-ellipsis">
+      4. Google Gemini Enterprise Agent Platform / Agent Runtime / ADK
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#5-openai-agents-sdk-responses-api-assistants-like-thread-model" class="md-nav__link">
+    <span class="md-ellipsis">
+      5. OpenAI Agents SDK / Responses API / Assistants-like Thread Model
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#6-crewai-enterprise-amp" class="md-nav__link">
+    <span class="md-ellipsis">
+      6. CrewAI Enterprise / AMP
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#7-dify" class="md-nav__link">
+    <span class="md-ellipsis">
+      7. Dify
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#8-letta" class="md-nav__link">
+    <span class="md-ellipsis">
+      8. Letta
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#9-temporal-durable-execution" class="md-nav__link">
+    <span class="md-ellipsis">
+      9. Temporal / Durable Execution 基础设施
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_4" class="md-nav__link">
+    <span class="md-ellipsis">
+      协议与标准
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="协议与标准">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#mcp" class="md-nav__link">
+    <span class="md-ellipsis">
+      MCP：工具与上下文接入协议
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#a2aagent-to-agent" class="md-nav__link">
+    <span class="md-ellipsis">
+      A2A：Agent-to-Agent 通信协议
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#opentelemetryagent" class="md-nav__link">
+    <span class="md-ellipsis">
+      OpenTelemetry：Agent 可观测的底座
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_5" class="md-nav__link">
+    <span class="md-ellipsis">
+      能力矩阵
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="能力矩阵">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#_6" class="md-nav__link">
+    <span class="md-ellipsis">
+      总体成熟度对比
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#cloud-agents_3" class="md-nav__link">
+    <span class="md-ellipsis">
+      Cloud Agents 分层选型
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_7" class="md-nav__link">
+    <span class="md-ellipsis">
+      企业落地关键设计
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="企业落地关键设计">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#1" class="md-nav__link">
+    <span class="md-ellipsis">
+      1. 会话模型设计
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#2" class="md-nav__link">
+    <span class="md-ellipsis">
+      2. 多客户端连接
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#3" class="md-nav__link">
+    <span class="md-ellipsis">
+      3. 多实例与资源管理
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#4-trace" class="md-nav__link">
+    <span class="md-ellipsis">
+      4. Trace 与可观测性
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#5" class="md-nav__link">
+    <span class="md-ellipsis">
+      5. 审计与治理
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#6" class="md-nav__link">
+    <span class="md-ellipsis">
+      6. 稳定性与可用性
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_8" class="md-nav__link">
+    <span class="md-ellipsis">
+      推荐落地架构
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="推荐落地架构">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#a" class="md-nav__link">
+    <span class="md-ellipsis">
+      路线 A：云厂商托管优先
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#blanggraph" class="md-nav__link">
+    <span class="md-ellipsis">
+      路线 B：LangGraph 平台化自建
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ctemporal-agent-sdk" class="md-nav__link">
+    <span class="md-ellipsis">
+      路线 C：Temporal + Agent SDK 自研运行时
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ddify-crewai" class="md-nav__link">
+    <span class="md-ellipsis">
+      路线 D：Dify / CrewAI 快速产品化
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_9" class="md-nav__link">
+    <span class="md-ellipsis">
+      建设路线图
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="建设路线图">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#1cloud-agent-mvp" class="md-nav__link">
+    <span class="md-ellipsis">
+      阶段 1：Cloud Agent MVP
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#2_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      阶段 2：生产运行时
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#3-agent" class="md-nav__link">
+    <span class="md-ellipsis">
+      阶段 3：企业 Agent 平台
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_10" class="md-nav__link">
+    <span class="md-ellipsis">
+      选型建议
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="选型建议">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#cloud-agents_4" class="md-nav__link">
+    <span class="md-ellipsis">
+      如果你要做企业级 Cloud Agents 平台
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#_11" class="md-nav__link">
+    <span class="md-ellipsis">
+      如果企业已经押注某个云
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#_12" class="md-nav__link">
+    <span class="md-ellipsis">
+      如果目标是快速交付内部应用
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#_13" class="md-nav__link">
+    <span class="md-ellipsis">
+      不建议的做法
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_14" class="md-nav__link">
+    <span class="md-ellipsis">
+      结论
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_15" class="md-nav__link">
+    <span class="md-ellipsis">
+      参考资料
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="cloud-agents">企业级 Cloud Agents 框架与运行时技术调研报告<a class="headerlink" href="#cloud-agents" title="Permanent link">&para;</a></h1>
+<blockquote>
+<p>调研时间：2026-06-30<br />
+调研对象：云端部署的企业 Agent 框架、托管 Agent 运行时、通信协议、可观测与治理基础设施<br />
+核心问题：Cloud Agents 是否只是把 Agent 部署到云上？如果不是，企业级 Cloud Agents 的标准形态、成熟方案和建设路径是什么？</p>
+</blockquote>
+<h2 id="_1">执行摘要<a class="headerlink" href="#_1" title="Permanent link">&para;</a></h2>
+<p>Cloud Agents 不是“把本地 Agent 搬到云服务器运行”这么简单。它更接近一种面向企业任务的云原生智能应用运行时，至少包含以下能力：</p>
+<ul>
+<li>多租户、多用户、多客户端入口的会话管理。</li>
+<li>多实例、多任务、多回合执行的资源调度与状态隔离。</li>
+<li>长任务的持久化、恢复、重试、补偿和人工介入。</li>
+<li>Agent、工具、数据、身份之间的安全边界与审计链路。</li>
+<li>Trace、日志、指标、成本、质量评估、提示词版本和模型调用的全链路观测。</li>
+<li>高可用、弹性伸缩、限流、队列化、灾备和发布回滚。</li>
+<li>与 MCP、A2A、OpenTelemetry、企业 IAM、Secrets、审批流、API 网关等基础设施协同。</li>
+</ul>
+<p>本报告的判断是：<strong>Cloud Agents 是企业 Agent 的必然选择，但成熟形态不会由单一 Agent 框架独立完成，而会演化成“Agent 编排框架 + 云端运行时 + 协议网关 + 可观测与治理平面 + 企业数据/工具接入层”的复合架构。</strong></p>
+<p>从当前市场看，成熟度较高的方案可分为四类：</p>
+<table>
+<thead>
+<tr>
+<th>类别</th>
+<th>代表方案</th>
+<th>成熟度判断</th>
+<th>适用场景</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>托管式 Agent 平台</td>
+<td>Microsoft Foundry / Azure AI Foundry Agent Service、Amazon Bedrock AgentCore、Google Gemini Enterprise Agent Platform / Agent Runtime</td>
+<td>企业治理、身份、观测和云资源集成较强</td>
+<td>强云厂商绑定、重合规、快速上线企业内部 Agent</td>
+</tr>
+<tr>
+<td>云原生 Agent 运行时</td>
+<td>LangSmith Deployment / LangGraph、CrewAI Enterprise / AMP</td>
+<td>Agent 工程体验强，适合自定义业务流</td>
+<td>复杂业务编排、多 Agent 流程、希望掌握应用层控制权</td>
+</tr>
+<tr>
+<td>Agent SDK / 编排框架</td>
+<td>OpenAI Agents SDK、Microsoft Agent Framework / AutoGen、Google ADK、LlamaIndex、Pydantic AI、Mastra</td>
+<td>适合作为应用层框架，本身不总是完整云端控制平面</td>
+<td>自研 Cloud Agent 平台或嵌入现有后端系统</td>
+</tr>
+<tr>
+<td>基础设施与治理组件</td>
+<td>Langfuse、Arize Phoenix、OpenTelemetry、Temporal、MCP、A2A、API Gateway、Kubernetes</td>
+<td>不是 Agent 框架，但决定生产可用性</td>
+<td>自建企业 Agent Runtime、跨框架标准化</td>
+</tr>
+</tbody>
+</table>
+<p>如果目标是建设企业级 Cloud Agents，而非单个 Demo，本报告建议采用“三层选型”：</p>
+<ol>
+<li><strong>业务编排层</strong>：LangGraph、Microsoft Agent Framework / AutoGen、Google ADK、OpenAI Agents SDK、CrewAI 等。</li>
+<li><strong>运行时层</strong>：LangSmith Deployment、Bedrock AgentCore、Microsoft Foundry / Azure AI Foundry Agent Service、Gemini Enterprise Agent Platform / Agent Runtime、Temporal + Kubernetes 自研运行时。</li>
+<li><strong>治理与观测层</strong>：OpenTelemetry + Langfuse/Phoenix/LangSmith + 云厂商 IAM/Audit/Secrets + MCP/A2A Gateway。</li>
+</ol>
+<h2 id="cloud-agents_1">Cloud Agents 的定义<a class="headerlink" href="#cloud-agents_1" title="Permanent link">&para;</a></h2>
+<h3 id="remote-control-agent">与 Remote-control Agent 的差异<a class="headerlink" href="#remote-control-agent" title="Permanent link">&para;</a></h3>
+<p>Remote-control Agent 通常强调“让模型控制一个远程环境”，例如浏览器、桌面、IDE、终端、虚拟机或容器。它的关键挑战是视觉/DOM/文件系统/命令行控制、沙箱隔离、回放和权限约束。</p>
+<p>Cloud Agents 更强调“让 Agent 成为可被企业系统稳定调用的云端服务”。它并不排斥浏览器控制、代码执行或远程桌面，但这些只是工具能力。Cloud Agents 的核心不是控制一个屏幕，而是把 Agent 变成具备工程边界的后端运行单元。</p>
+<table>
+<thead>
+<tr>
+<th>维度</th>
+<th>Remote-control Agent</th>
+<th>Cloud Agents</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>主要对象</td>
+<td>浏览器、桌面、IDE、终端、VM、容器</td>
+<td>企业任务、业务流程、数据系统、用户会话、工具网络</td>
+</tr>
+<tr>
+<td>交互形态</td>
+<td>单用户、单环境、强交互、近实时控制较多</td>
+<td>多用户、多客户端、多任务、异步与同步混合</td>
+</tr>
+<tr>
+<td>状态边界</td>
+<td>远程环境状态、屏幕状态、文件状态</td>
+<td>会话状态、任务状态、工作流状态、工具调用状态、审计状态</td>
+</tr>
+<tr>
+<td>主要难点</td>
+<td>操作可靠性、沙箱、环境复现、视觉/DOM 定位</td>
+<td>资源管理、通信协议、持久化、观测、审计、安全、可用性</td>
+</tr>
+<tr>
+<td>成熟度指标</td>
+<td>能否稳定完成远程操作</td>
+<td>能否作为企业级服务长期稳定运行</td>
+</tr>
+</tbody>
+</table>
+<h3 id="cloud-agents_2">Cloud Agents 的最小能力集<a class="headerlink" href="#cloud-agents_2" title="Permanent link">&para;</a></h3>
+<p>企业级 Cloud Agents 至少应具备以下最小能力：</p>
+<table>
+<thead>
+<tr>
+<th>能力域</th>
+<th>必备能力</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>会话与状态</td>
+<td>用户会话、线程、任务、运行实例、长期记忆、短期上下文、Artifacts 管理</td>
+</tr>
+<tr>
+<td>通信</td>
+<td>HTTP API、SSE/WebSocket 流式输出、Webhook、事件总线、A2A、MCP 工具网关</td>
+</tr>
+<tr>
+<td>多实例资源管理</td>
+<td>并发控制、队列、租户隔离、执行超时、取消、恢复、模型/工具配额</td>
+</tr>
+<tr>
+<td>工具与数据接入</td>
+<td>工具注册、工具权限、Secrets、数据连接器、沙箱执行、审批</td>
+</tr>
+<tr>
+<td>可观测性</td>
+<td>LLM Trace、Tool Trace、日志、指标、成本、Token、延迟、错误归因、评估数据</td>
+</tr>
+<tr>
+<td>治理审计</td>
+<td>IAM、RBAC、ABAC、租户隔离、审计日志、数据保留、PII/敏感数据策略</td>
+</tr>
+<tr>
+<td>高可用</td>
+<td>多副本、弹性伸缩、重试、幂等、检查点、灾备、发布回滚</td>
+</tr>
+<tr>
+<td>开发运维</td>
+<td>版本化、灰度发布、Prompt/Agent 配置管理、评估、CI/CD、回放调试</td>
+</tr>
+</tbody>
+</table>
+<h2 id="_2">参考架构<a class="headerlink" href="#_2" title="Permanent link">&para;</a></h2>
+<p>企业 Cloud Agents 更像一个云原生平台，而不是一个 Python 包。推荐的参考架构如下：</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>flowchart TB
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>    Clients[&quot;多客户端入口&lt;br/&gt;Web / Mobile / Slack / Teams / API / Workflow&quot;]
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>    Gateway[&quot;Agent API Gateway&lt;br/&gt;Auth / Rate Limit / SSE / WebSocket / Webhook&quot;]
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>    Session[&quot;Session &amp; Run Manager&lt;br/&gt;Thread / Run / Task / Artifact / Memory&quot;]
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>    Orchestrator[&quot;Agent Orchestrator&lt;br/&gt;Graph / Actor / Planner / Workflow&quot;]
+<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>    Runtime[&quot;Execution Runtime&lt;br/&gt;Queue / Worker / Sandbox / Model Router&quot;]
+<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>    Tools[&quot;Tool &amp; Data Gateway&lt;br/&gt;MCP / Connectors / DB / SaaS / Internal API&quot;]
+<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>    Observability[&quot;Observability Plane&lt;br/&gt;Trace / Logs / Metrics / Cost / Eval&quot;]
+<a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>    Governance[&quot;Governance Plane&lt;br/&gt;IAM / RBAC / Audit / Policy / Secrets&quot;]
+<a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a>    Storage[&quot;State Stores&lt;br/&gt;PostgreSQL / Redis / Object Storage / Vector DB&quot;]
+<a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a>    EventBus[&quot;Event Bus&lt;br/&gt;Kafka / PubSub / SQS / NATS / CloudEvents&quot;]
+<a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a>
+<a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a>    Clients --&gt; Gateway
+<a id="__codelineno-0-14" name="__codelineno-0-14" href="#__codelineno-0-14"></a>    Gateway --&gt; Session
+<a id="__codelineno-0-15" name="__codelineno-0-15" href="#__codelineno-0-15"></a>    Session --&gt; Orchestrator
+<a id="__codelineno-0-16" name="__codelineno-0-16" href="#__codelineno-0-16"></a>    Orchestrator --&gt; Runtime
+<a id="__codelineno-0-17" name="__codelineno-0-17" href="#__codelineno-0-17"></a>    Runtime --&gt; Tools
+<a id="__codelineno-0-18" name="__codelineno-0-18" href="#__codelineno-0-18"></a>    Runtime --&gt; Storage
+<a id="__codelineno-0-19" name="__codelineno-0-19" href="#__codelineno-0-19"></a>    Runtime --&gt; EventBus
+<a id="__codelineno-0-20" name="__codelineno-0-20" href="#__codelineno-0-20"></a>    Session --&gt; Storage
+<a id="__codelineno-0-21" name="__codelineno-0-21" href="#__codelineno-0-21"></a>    Orchestrator --&gt; Observability
+<a id="__codelineno-0-22" name="__codelineno-0-22" href="#__codelineno-0-22"></a>    Runtime --&gt; Observability
+<a id="__codelineno-0-23" name="__codelineno-0-23" href="#__codelineno-0-23"></a>    Tools --&gt; Observability
+<a id="__codelineno-0-24" name="__codelineno-0-24" href="#__codelineno-0-24"></a>    Gateway --&gt; Governance
+<a id="__codelineno-0-25" name="__codelineno-0-25" href="#__codelineno-0-25"></a>    Session --&gt; Governance
+<a id="__codelineno-0-26" name="__codelineno-0-26" href="#__codelineno-0-26"></a>    Tools --&gt; Governance
+</code></pre></div>
+<p>这个架构的关键点是：</p>
+<ul>
+<li><strong>Gateway 不只是反向代理</strong>：它负责身份、租户、限流、连接保持、流式响应、Webhook 回调、客户端断线重连。</li>
+<li><strong>Session &amp; Run Manager 是 Cloud Agent 的中枢</strong>：用户看到的是对话，但系统内部必须区分 thread、run、step、tool call、artifact、checkpoint。</li>
+<li><strong>Orchestrator 不应承担所有职责</strong>：复杂流程可由 LangGraph / AutoGen / Microsoft Agent Framework / ADK / CrewAI 负责，但资源调度、审计、发布和租户隔离应在平台层完成。</li>
+<li><strong>Tool Gateway 是安全边界</strong>：企业 Agent 真正的风险通常发生在工具调用、数据访问和外部系统写操作。</li>
+<li><strong>Observability 与 Governance 必须是一等公民</strong>：上线后最常见的问题不是“模型不会回答”，而是“无法解释为什么调用了某个工具、花了多少钱、谁授权了、失败后如何恢复”。</li>
+</ul>
+<h2 id="_3">成熟方案调研<a class="headerlink" href="#_3" title="Permanent link">&para;</a></h2>
+<h3 id="1-langsmith-deployment-langgraph">1. LangSmith Deployment / LangGraph<a class="headerlink" href="#1-langsmith-deployment-langgraph" title="Permanent link">&para;</a></h3>
+<p>官方资料：</p>
+<ul>
+<li><a href="https://docs.langchain.com/langgraph-platform/">LangSmith Deployment</a></li>
+<li><a href="https://docs.langchain.com/langgraph-platform/deployment-options">LangGraph Platform Deployment Options</a></li>
+<li><a href="https://langchain-ai.github.io/langgraph/concepts/persistence/">LangGraph Persistence</a></li>
+<li><a href="https://docs.smith.langchain.com/observability/how_to_guides/tracing/trace_with_langgraph">LangSmith Tracing</a></li>
+</ul>
+<p>LangGraph 是当前最适合构建复杂、可控、可恢复 Agent 流程的开源编排框架之一。其核心抽象是状态图，开发者显式定义节点、边、条件路由、状态更新和检查点。LangSmith Deployment 则把 Agent 运行时平台化，官方文档将其描述为面向 Agent workloads 的 workflow orchestration runtime，支持 durable execution、real-time streaming、horizontal scaling，并通过 Agent Server 暴露 assistants、threads、runs 等执行模型。</p>
+<p><strong>核心能力</strong></p>
+<table>
+<thead>
+<tr>
+<th>维度</th>
+<th>能力评估</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>编排模型</td>
+<td>显式图状态机，适合复杂分支、循环、人机协同和可控业务流</td>
+</tr>
+<tr>
+<td>会话管理</td>
+<td>以 thread/run 为核心管理多轮会话与执行实例</td>
+</tr>
+<tr>
+<td>持久化</td>
+<td>Checkpointer 支持状态快照、时间旅行、恢复与调试</td>
+</tr>
+<tr>
+<td>云端部署</td>
+<td>支持 Cloud、Standalone Server、自托管完整平台等形态，围绕 Agent Server 暴露 API</td>
+</tr>
+<tr>
+<td>多实例</td>
+<td>通过平台服务、队列和 worker 承载并发执行</td>
+</tr>
+<tr>
+<td>Trace</td>
+<td>与 LangSmith 深度集成，具备 LLM/Tool/Graph 级 trace</td>
+</tr>
+<tr>
+<td>企业治理</td>
+<td>企业版提供团队、项目、权限、部署与观测能力，但底层 IAM/审计仍需结合云环境</td>
+</tr>
+</tbody>
+</table>
+<p><strong>优势</strong></p>
+<ul>
+<li>对状态、分支、循环、人工中断和恢复的控制力强。</li>
+<li>适合把 Agent 做成确定性更高的业务工作流，而不是纯聊天机器人。</li>
+<li>LangSmith 的 Trace 与评估生态成熟，调试体验好。</li>
+<li>对复杂业务非常友好，尤其是需要 checkpoint、回放、人工审批、长上下文状态演进的场景。</li>
+</ul>
+<p><strong>短板</strong></p>
+<ul>
+<li>开发者必须理解状态图和持久化模型，学习曲线高于角色式框架。</li>
+<li>Cloud governance 不是全部由 LangGraph 自身解决，仍需接入企业 IAM、审计、Secrets、网络策略。</li>
+<li>如果业务只是简单 RAG 问答，LangGraph 可能显得重。</li>
+</ul>
+<p><strong>适用判断</strong></p>
+<p>LangSmith Deployment / LangGraph 是自建企业 Cloud Agents 的强候选。如果企业希望保留应用层控制权，同时获得成熟的 Agent 状态管理和观测能力，它比纯云厂商黑盒 Agent 平台更灵活。</p>
+<h3 id="2-microsoft-foundry-azure-ai-foundry-agent-service-microsoft-agent-framework-autogen">2. Microsoft Foundry / Azure AI Foundry Agent Service / Microsoft Agent Framework / AutoGen<a class="headerlink" href="#2-microsoft-foundry-azure-ai-foundry-agent-service-microsoft-agent-framework-autogen" title="Permanent link">&para;</a></h3>
+<p>官方资料：</p>
+<ul>
+<li><a href="https://learn.microsoft.com/azure/ai-services/agents/overview">Azure AI Foundry Agent Service</a></li>
+<li><a href="https://learn.microsoft.com/azure/ai-services/agents/concepts/agents">Azure AI Foundry Agents Concepts</a></li>
+<li><a href="https://learn.microsoft.com/agent-framework/">Microsoft Agent Framework</a></li>
+<li><a href="https://microsoft.github.io/autogen/">AutoGen Documentation</a></li>
+</ul>
+<p>微软路线正在从早期 AutoGen 的多 Agent 对话框架，演进到 Microsoft Foundry / Azure AI Foundry Agent Service 与 Microsoft Agent Framework 的企业平台组合。当前官方文档将 Foundry Agent Service 定位为构建、部署、扩展 AI Agents 的托管平台，并提供 Prompt agents、Hosted agents、Responses API、Agent Runtime、工具、模型、观测、身份安全、发布版本等能力；Microsoft Agent Framework 则整合 Semantic Kernel 与 AutoGen 的经验，提供面向企业应用的 Agent 与 Workflow SDK。</p>
+<p><strong>核心能力</strong></p>
+<table>
+<thead>
+<tr>
+<th>维度</th>
+<th>能力评估</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>编排模型</td>
+<td>Agent + Workflow；AutoGen 强在多 Agent 对话和事件驱动协作</td>
+</tr>
+<tr>
+<td>会话管理</td>
+<td>Foundry Agent Service 管理 conversations、tool calls、agent lifecycle，并支持 session-level state persistence</td>
+</tr>
+<tr>
+<td>云端部署</td>
+<td>Azure 原生托管，支持无代码 Prompt agents 与容器化 Hosted agents</td>
+</tr>
+<tr>
+<td>企业治理</td>
+<td>与 Microsoft Entra、Azure RBAC、Private networking、Application Insights、Monitor、审计生态衔接较好</td>
+</tr>
+<tr>
+<td>多客户端</td>
+<td>适合作为企业应用后端，通过 API 接入 Teams、Web、业务系统</td>
+</tr>
+<tr>
+<td>Trace</td>
+<td>官方提供 end-to-end tracing、metrics、Application Insights 集成</td>
+</tr>
+<tr>
+<td>合规</td>
+<td>Azure 企业客户基础强，适合已有 Microsoft 生态的组织</td>
+</tr>
+</tbody>
+</table>
+<p><strong>优势</strong></p>
+<ul>
+<li>与 Microsoft 365、Teams、Azure 数据和身份生态天然贴近。</li>
+<li>对企业身份、安全、网络隔离、合规的支撑强。</li>
+<li>AutoGen 社区和研究生态仍有影响力，适合多 Agent 协作实验。</li>
+<li>Foundry Agent Service 的托管形态降低了自建运行时成本。</li>
+</ul>
+<p><strong>短板</strong></p>
+<ul>
+<li>平台绑定 Azure，跨云和自托管自由度低于 LangGraph + 自建运行时。</li>
+<li>Microsoft Agent Framework 与 Foundry Agent Service 的边界仍在演进，产品线名词较多，架构选型需要谨慎。</li>
+<li>AutoGen 适合多 Agent 研究和协作，但生产系统仍需补齐持久化、治理、发布、审计等平台能力。</li>
+</ul>
+<p><strong>适用判断</strong></p>
+<p>如果企业已经深度使用 Azure、Microsoft 365、Entra ID、Teams，Microsoft Foundry / Azure AI Foundry Agent Service 是当前最现实的 Cloud Agents 路线之一。它更像企业托管 Agent 平台，而不是单纯开发框架。</p>
+<h3 id="3-amazon-bedrock-agentcore-amazon-bedrock-agents">3. Amazon Bedrock AgentCore / Amazon Bedrock Agents<a class="headerlink" href="#3-amazon-bedrock-agentcore-amazon-bedrock-agents" title="Permanent link">&para;</a></h3>
+<p>官方资料：</p>
+<ul>
+<li><a href="https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/what-is-bedrock-agentcore.html">Amazon Bedrock AgentCore</a></li>
+<li><a href="https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/runtime.html">AgentCore Runtime</a></li>
+<li><a href="https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/memory.html">AgentCore Memory</a></li>
+<li><a href="https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/gateway.html">AgentCore Gateway</a></li>
+<li><a href="https://docs.aws.amazon.com/bedrock/latest/userguide/agents.html">Amazon Bedrock Agents</a></li>
+</ul>
+<p>AWS 的路线非常明确：Bedrock Agents 面向托管式 Agent 构建，而 Bedrock AgentCore 更像企业级 Agent 运行时组件集，包含 Runtime、Harness、Memory、Gateway、Identity、Code Interpreter、Browser、Observability、Evaluations、Optimization、Policy、Registry、Payments 等能力。AgentCore 的出现说明云厂商已经把 Agent 从“模型应用”提升为“云运行时工作负载”。</p>
+<p><strong>核心能力</strong></p>
+<table>
+<thead>
+<tr>
+<th>维度</th>
+<th>能力评估</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>编排模型</td>
+<td>Bedrock Agents 提供托管 Agent；AgentCore 更偏运行时组件</td>
+</tr>
+<tr>
+<td>Runtime</td>
+<td>支持部署和运行 Agent 工作负载，强调 session isolation、serverless scaling、异步 Agent 支撑</td>
+</tr>
+<tr>
+<td>Harness</td>
+<td>托管 Agent loop，可把模型、系统提示和工具组合成单 API 调用，并支持隔离 microVM 与自定义容器</td>
+</tr>
+<tr>
+<td>Memory</td>
+<td>提供短期/长期记忆能力，便于跨会话个性化和上下文延续</td>
+</tr>
+<tr>
+<td>Gateway</td>
+<td>面向工具、API、Lambda、MCP 等接入的统一入口</td>
+</tr>
+<tr>
+<td>Identity</td>
+<td>将 Agent 与企业身份、权限、资源访问绑定</td>
+</tr>
+<tr>
+<td>Observability</td>
+<td>接入 AWS 观测体系，支持 OTel 兼容 telemetry、CloudWatch、Trace 调试</td>
+</tr>
+<tr>
+<td>Governance</td>
+<td>Policy 和 Registry 能把工具、Agent、MCP Server、技能纳入审批、发现和策略管控</td>
+</tr>
+<tr>
+<td>沙箱工具</td>
+<td>Code Interpreter、Browser 等能力更接近 Cloud Agent 工具运行环境</td>
+</tr>
+</tbody>
+</table>
+<p><strong>优势</strong></p>
+<ul>
+<li>更接近企业 Cloud Agents 所需的基础设施组件化形态。</li>
+<li>与 AWS IAM、CloudWatch、VPC、Lambda、S3、Step Functions、SQS 等基础设施整合空间大。</li>
+<li>Runtime、Memory、Gateway、Identity 的产品拆分符合企业架构分层。</li>
+<li>Policy、Registry、Evaluations、Optimization 说明 AWS 正在把治理、质量和持续优化纳入 Agent 平台，而不是只提供运行容器。</li>
+<li>对多工具、多数据源、云资源自动化场景友好。</li>
+</ul>
+<p><strong>短板</strong></p>
+<ul>
+<li>AWS 绑定较强，跨云或本地部署成本高。</li>
+<li>AgentCore 是较新的产品形态，长期 API 稳定性和生态成熟度需要持续观察。</li>
+<li>如果企业需要强自定义的复杂图流程，仍可能需要 LangGraph、Temporal 或自研 orchestrator。</li>
+</ul>
+<p><strong>适用判断</strong></p>
+<p>Bedrock AgentCore 是当前最值得关注的 Cloud Agent 基础设施之一。它的价值不在于“又一个 Agent DSL”，而在于把运行、记忆、工具网关、身份、观测拆成云服务组件，贴近企业生产需求。</p>
+<h3 id="4-google-gemini-enterprise-agent-platform-agent-runtime-adk">4. Google Gemini Enterprise Agent Platform / Agent Runtime / ADK<a class="headerlink" href="#4-google-gemini-enterprise-agent-platform-agent-runtime-adk" title="Permanent link">&para;</a></h3>
+<p>官方资料：</p>
+<ul>
+<li><a href="https://google.github.io/adk-docs/">Google Agent Development Kit</a></li>
+<li><a href="https://cloud.google.com/vertex-ai/generative-ai/docs/agent-engine/overview">Vertex AI Agent Engine</a></li>
+<li><a href="https://cloud.google.com/vertex-ai/generative-ai/docs/agent-engine/deploy-adk">Deploy ADK agents to Agent Engine</a></li>
+<li><a href="https://cloud.google.com/products/gemini-enterprise">Gemini Enterprise Agent Platform</a></li>
+</ul>
+<p>Google 的 Agent 技术栈由 ADK、Gemini Enterprise Agent Platform / Agent Runtime、Agent Gateway、Sessions、Memory Bank、Sandbox、Agent Registry、Evaluation、Observability 等组成。早期 Vertex AI Agent Engine 的文档入口已被重定向到 Gemini Enterprise Agent Platform 的 Scale 体系，说明 Google 也在把 Agent 从单点托管服务升级为平台化运行时。</p>
+<p><strong>核心能力</strong></p>
+<table>
+<thead>
+<tr>
+<th>维度</th>
+<th>能力评估</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>编排模型</td>
+<td>ADK 支持 Agent、工具、会话、Artifacts、评估等开发能力</td>
+</tr>
+<tr>
+<td>云端部署</td>
+<td>Agent Runtime 提供托管运行、流量、修订、访问控制、日志、监控、tracing</td>
+</tr>
+<tr>
+<td>会话与状态</td>
+<td>平台提供 Sessions、Memory Bank，ADK 设计中也包含 Session、Memory、Artifact 等概念</td>
+</tr>
+<tr>
+<td>企业数据</td>
+<td>与 Google Cloud、BigQuery、Workspace、Vertex AI Search 等生态结合</td>
+</tr>
+<tr>
+<td>评估</td>
+<td>平台包含 Agent evaluation、online monitors、prompt optimization、example store 等能力</td>
+</tr>
+<tr>
+<td>治理</td>
+<td>借助 Google Cloud IAM、Agent Identity、Agent Gateway、Policy、Model Armor、Private Service Connect 等能力</td>
+</tr>
+</tbody>
+</table>
+<p><strong>优势</strong></p>
+<ul>
+<li>ADK + Agent Runtime 的开发到部署路径比较清晰。</li>
+<li>Google Cloud 数据、搜索和 AI 基础设施能力强。</li>
+<li>适合已有 BigQuery、Vertex AI、Workspace、Gemini Enterprise 生态的组织。</li>
+<li>对评估、Artifacts、Sessions、Memory Bank、Sandbox、Gateway、Registry 等概念的建模较完整。</li>
+</ul>
+<p><strong>短板</strong></p>
+<ul>
+<li>平台绑定 Google Cloud。</li>
+<li>Gemini Enterprise 与 Vertex AI Agent Engine、ADK 的产品边界需要结合具体场景理解。</li>
+<li>与 Azure/AWS 一样，复杂业务流程仍可能需要外部工作流引擎或自定义控制平面。</li>
+</ul>
+<p><strong>适用判断</strong></p>
+<p>Google 路线适合希望将 Agent 深度嵌入企业知识搜索、数据分析、Workspace 和 Google Cloud 应用的组织。它不是最中立的方案，但对 Google 生态用户有明显工程优势。</p>
+<h3 id="5-openai-agents-sdk-responses-api-assistants-like-thread-model">5. OpenAI Agents SDK / Responses API / Assistants-like Thread Model<a class="headerlink" href="#5-openai-agents-sdk-responses-api-assistants-like-thread-model" title="Permanent link">&para;</a></h3>
+<p>官方资料：</p>
+<ul>
+<li><a href="https://openai.github.io/openai-agents-python/">OpenAI Agents SDK</a></li>
+<li><a href="https://openai.github.io/openai-agents-python/tracing/">OpenAI Agents SDK Tracing</a></li>
+<li><a href="https://platform.openai.com/docs">OpenAI Platform Docs</a></li>
+</ul>
+<p>OpenAI Agents SDK 提供 Agent、工具、handoff、guardrails、tracing 等应用层能力。它适合构建轻量到中等复杂度的 Agent 应用，并与 OpenAI 模型和工具生态结合紧密。OpenAI 的平台 API 中也长期存在 thread/run/message 等云端会话模型思想，适合构建多轮、多工具的服务端应用。</p>
+<p><strong>核心能力</strong></p>
+<table>
+<thead>
+<tr>
+<th>维度</th>
+<th>能力评估</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>编排模型</td>
+<td>Agent、tool、handoff、guardrail、human-in-the-loop，偏 SDK 层</td>
+</tr>
+<tr>
+<td>Trace</td>
+<td>SDK 内置 tracing 概念，便于调试 Agent 调用链</td>
+</tr>
+<tr>
+<td>工具生态</td>
+<td>与 OpenAI 模型、内置工具和函数调用能力结合紧密</td>
+</tr>
+<tr>
+<td>会话</td>
+<td>SDK 提供 Sessions，并支持 SQLAlchemy、SQLite、Redis、MongoDB、Dapr、EncryptedSession 等扩展形态</td>
+</tr>
+<tr>
+<td>沙箱</td>
+<td>Sandbox agents 支持隔离 workspace、manifest 权限、resumable sandbox sessions</td>
+</tr>
+<tr>
+<td>云端运行时</td>
+<td>更偏开发 SDK 和模型平台，不等同于完整企业 Agent PaaS</td>
+</tr>
+<tr>
+<td>企业治理</td>
+<td>需要结合自建后端、云 IAM、日志审计和第三方 observability</td>
+</tr>
+</tbody>
+</table>
+<p><strong>优势</strong></p>
+<ul>
+<li>轻量、直接，适合快速构建服务端 Agent。</li>
+<li>与 OpenAI 最新模型和工具能力结合最紧。</li>
+<li>handoff 和 guardrails 抽象适合常见多 Agent/安全边界设计。</li>
+<li>2026 年版本已明显增强 session、sandbox、MCP、human-in-the-loop 和 tracing，作为 Cloud Agent 应用内核更完整。</li>
+</ul>
+<p><strong>短板</strong></p>
+<ul>
+<li>如果要做企业级 Cloud Agents，需要自建 session/run manager、队列、持久化、审计和高可用运行时。</li>
+<li>对跨模型、跨云、中立框架的诉求不如 LangGraph 或自研架构灵活。</li>
+</ul>
+<p><strong>适用判断</strong></p>
+<p>OpenAI Agents SDK 适合作为 Cloud Agent 的业务层 SDK，而不是单独承担完整企业 Agent 平台。它更像“Agent 应用开发内核”，企业需要在外侧补齐运行时和治理平面。</p>
+<h3 id="6-crewai-enterprise-amp">6. CrewAI Enterprise / AMP<a class="headerlink" href="#6-crewai-enterprise-amp" title="Permanent link">&para;</a></h3>
+<p>官方资料：</p>
+<ul>
+<li><a href="https://docs.crewai.com/">CrewAI Documentation</a></li>
+<li><a href="https://www.crewai.com/enterprise">CrewAI Enterprise</a></li>
+<li><a href="https://docs.crewai.com/en/enterprise/amp">CrewAI AMP</a></li>
+</ul>
+<p>CrewAI 的优势在于角色式 Agent 与任务协作抽象，开发体验接近“定义一个团队完成任务”。CrewAI Enterprise / AMP 则尝试把 Crew、Flow、部署、追踪、管理等能力平台化。</p>
+<p><strong>核心能力</strong></p>
+<table>
+<thead>
+<tr>
+<th>维度</th>
+<th>能力评估</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>编排模型</td>
+<td>Role + Goal + Task + Crew；也支持 Flow 等更结构化流程</td>
+</tr>
+<tr>
+<td>开发体验</td>
+<td>上手快，适合原型和角色分工明确的任务</td>
+</tr>
+<tr>
+<td>云端平台</td>
+<td>Enterprise / AMP 提供部署、管理、观测与企业能力</td>
+</tr>
+<tr>
+<td>多 Agent</td>
+<td>多角色协作是核心卖点</td>
+</tr>
+<tr>
+<td>Trace</td>
+<td>CrewAI 平台与外部 observability 集成逐步完善</td>
+</tr>
+</tbody>
+</table>
+<p><strong>优势</strong></p>
+<ul>
+<li>低门槛，业务人员和应用开发者容易理解。</li>
+<li>适合内容生成、调研、运营、销售支持、报告生成等角色分工明确的流程。</li>
+<li>Enterprise/AMP 说明其正从开源框架走向云端 Agent 平台。</li>
+</ul>
+<p><strong>短板</strong></p>
+<ul>
+<li>对复杂状态机、强确定性控制、严格事务边界的表达力弱于 LangGraph。</li>
+<li>企业级治理、审计、复杂资源调度能力仍需要结合平台版本或外部基础设施验证。</li>
+<li>容易在 Demo 阶段显得强，在复杂生产流程中需要大量工程补强。</li>
+</ul>
+<p><strong>适用判断</strong></p>
+<p>CrewAI 适合快速产品化角色协作型 Agent，但如果企业任务涉及复杂分支、长周期恢复、严格审批和强审计，需要谨慎评估平台层能力。</p>
+<h3 id="7-dify">7. Dify<a class="headerlink" href="#7-dify" title="Permanent link">&para;</a></h3>
+<p>官方资料：</p>
+<ul>
+<li><a href="https://docs.dify.ai/">Dify Documentation</a></li>
+<li><a href="https://github.com/langgenius/dify">Dify GitHub</a></li>
+<li><a href="https://docs.dify.ai/getting-started/install-self-hosted">Dify Self-hosted Deployment</a></li>
+</ul>
+<p>Dify 是面向企业和团队的低代码 LLM 应用平台，覆盖 Chatbot、Agent、Workflow、RAG、数据集、Prompt、工具、API 发布、日志等能力。它不是底层 Agent 编排框架，而是“Agent/LLM App 平台”。</p>
+<p><strong>核心能力</strong></p>
+<table>
+<thead>
+<tr>
+<th>维度</th>
+<th>能力评估</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>应用形态</td>
+<td>Chatbot、Agent、Workflow、RAG、API 发布</td>
+</tr>
+<tr>
+<td>部署</td>
+<td>支持云服务和自托管，适合企业私有化</td>
+</tr>
+<tr>
+<td>多客户端</td>
+<td>通过 Web App、API、嵌入式入口接入</td>
+</tr>
+<tr>
+<td>运维</td>
+<td>有日志、应用管理、数据集管理等平台能力</td>
+</tr>
+<tr>
+<td>治理</td>
+<td>企业版能力需结合版本验证，开源版更偏应用搭建</td>
+</tr>
+</tbody>
+</table>
+<p><strong>优势</strong></p>
+<ul>
+<li>非常适合构建企业内部 LLM 应用和工作流。</li>
+<li>自托管友好，降低从 Demo 到内部工具的门槛。</li>
+<li>对 RAG、数据集、Prompt、工作流、应用发布的产品化体验完整。</li>
+</ul>
+<p><strong>短板</strong></p>
+<ul>
+<li>底层复杂 Agent 状态控制和长周期任务恢复能力不如专门的 Agent runtime。</li>
+<li>高并发、多租户、审计、HA 等生产要求需要企业版和自建部署能力共同验证。</li>
+<li>更适合 LLM App 平台，而不是所有 Cloud Agent runtime 的底座。</li>
+</ul>
+<p><strong>适用判断</strong></p>
+<p>Dify 很适合作为企业低代码 Agent 应用门户和内部 AI 应用平台。如果目标是高度定制的多 Agent 云运行时，Dify 更适合作为上层应用平台或快速交付工具，而不是唯一底座。</p>
+<h3 id="8-letta">8. Letta<a class="headerlink" href="#8-letta" title="Permanent link">&para;</a></h3>
+<p>官方资料：</p>
+<ul>
+<li><a href="https://docs.letta.com/">Letta Documentation</a></li>
+<li><a href="https://docs.letta.com/guides/core-concepts/stateful-agents/">Letta Stateful Agents</a></li>
+<li><a href="https://docs.letta.com/guides/server/overview">Letta Server</a></li>
+</ul>
+<p>Letta 的核心价值是 stateful agents，即把 Agent 的记忆、状态、工具和长期人格/任务上下文作为服务端对象管理。它对 Cloud Agents 的启发很重要：企业 Agent 不应只是 stateless function calling，而应具备可查询、可调试、可迁移的状态边界。</p>
+<p><strong>核心能力</strong></p>
+<table>
+<thead>
+<tr>
+<th>维度</th>
+<th>能力评估</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>状态模型</td>
+<td>强调持久化 Agent state 与 memory</td>
+</tr>
+<tr>
+<td>服务端形态</td>
+<td>Letta Server 提供 API 管理 Agent</td>
+</tr>
+<tr>
+<td>记忆</td>
+<td>长期记忆和上下文管理是核心卖点</td>
+</tr>
+<tr>
+<td>应用场景</td>
+<td>长期助理、个性化 Agent、持续任务</td>
+</tr>
+</tbody>
+</table>
+<p><strong>优势</strong></p>
+<ul>
+<li>对“Agent 作为持久对象”的建模清晰。</li>
+<li>适合长期记忆、个性化和跨会话延续场景。</li>
+<li>可作为自研 Cloud Agent 的状态管理参考。</li>
+</ul>
+<p><strong>短板</strong></p>
+<ul>
+<li>与 LangGraph、云厂商平台相比，企业运行时生态和治理能力需要进一步评估。</li>
+<li>不适合单独承担复杂工作流编排和企业级多租户平台。</li>
+</ul>
+<p><strong>适用判断</strong></p>
+<p>Letta 值得作为“状态化 Agent 服务”的技术参考，尤其是长期记忆和 Agent 对象生命周期管理。但作为完整企业 Cloud Agents 平台还需要结合其他运行时组件。</p>
+<h3 id="9-temporal-durable-execution">9. Temporal / Durable Execution 基础设施<a class="headerlink" href="#9-temporal-durable-execution" title="Permanent link">&para;</a></h3>
+<p>官方资料：</p>
+<ul>
+<li><a href="https://docs.temporal.io/">Temporal Documentation</a></li>
+<li><a href="https://docs.temporal.io/temporal">Temporal Durable Execution</a></li>
+<li><a href="https://github.com/temporalio/samples-python/tree/main/ai_agent">Temporal AI Agent examples</a></li>
+</ul>
+<p>Temporal 不是 Agent 框架，但对 Cloud Agents 非常关键。企业 Agent 的大量问题本质上是长周期、分布式、不可靠外部调用下的 durable execution 问题：LLM 调用可能失败，工具可能超时，用户审批可能等待数天，容器可能重启，第三方 API 可能重复回调。Temporal 的 workflow、activity、retry、signal、query、timer、版本化等机制可为 Agent 提供可靠执行底座。</p>
+<p><strong>适用判断</strong></p>
+<p>当 Agent 任务涉及金融审批、供应链、工单、代码变更、数据处理、IT 自动化等长周期流程时，Temporal + Agent 编排框架是比单独 Agent SDK 更稳的路线。</p>
+<h2 id="_4">协议与标准<a class="headerlink" href="#_4" title="Permanent link">&para;</a></h2>
+<h3 id="mcp">MCP：工具与上下文接入协议<a class="headerlink" href="#mcp" title="Permanent link">&para;</a></h3>
+<p>官方资料：</p>
+<ul>
+<li><a href="https://modelcontextprotocol.io/">Model Context Protocol</a></li>
+<li><a href="https://modelcontextprotocol.io/specification">MCP Specification</a></li>
+</ul>
+<p>MCP 解决的是“模型/Agent 如何标准化连接工具和上下文”的问题。它把工具、资源、提示词、采样、传输、授权等进行协议化，正在成为 Agent 工具接入层的重要标准。</p>
+<p>在 Cloud Agents 中，MCP 不宜被简单理解为“本地工具插件协议”。企业更需要的是 <strong>MCP Gateway</strong>：</p>
+<ul>
+<li>统一管理 MCP Server 注册、版本和健康状态。</li>
+<li>给不同 Agent、租户、用户分配不同工具权限。</li>
+<li>记录每次工具调用的输入、输出、身份、审批和审计。</li>
+<li>将本地 stdio 工具迁移到远程 Streamable HTTP / SSE 等云端传输形态。</li>
+<li>为高风险工具增加策略拦截、人工审批、脱敏和回滚。</li>
+</ul>
+<h3 id="a2aagent-to-agent">A2A：Agent-to-Agent 通信协议<a class="headerlink" href="#a2aagent-to-agent" title="Permanent link">&para;</a></h3>
+<p>官方资料：</p>
+<ul>
+<li><a href="https://a2a-protocol.org/latest/">Agent2Agent Protocol</a></li>
+<li><a href="https://github.com/a2aproject/A2A">A2A GitHub</a></li>
+</ul>
+<p>A2A 面向 Agent 之间的互操作，关注任务、消息、Artifacts、流式状态更新、能力发现等。它适合解决跨团队、跨平台、跨供应商 Agent 协作的问题。</p>
+<p>在 Cloud Agents 中，A2A 的价值主要体现在：</p>
+<ul>
+<li>一个企业内部可能有多个 Agent 平台，不同 Agent 需要互相委托任务。</li>
+<li>SaaS 厂商可能暴露自己的 Agent 服务，企业 Agent 需要调用外部 Agent。</li>
+<li>多 Agent 不一定在同一进程、同一框架或同一云厂商内。</li>
+<li>A2A 可以成为 Agent Gateway 的 north-south 或 east-west 通信标准之一。</li>
+</ul>
+<h3 id="opentelemetryagent">OpenTelemetry：Agent 可观测的底座<a class="headerlink" href="#opentelemetryagent" title="Permanent link">&para;</a></h3>
+<p>官方资料：</p>
+<ul>
+<li><a href="https://opentelemetry.io/docs/specs/semconv/gen-ai/">OpenTelemetry Semantic Conventions for GenAI</a></li>
+<li><a href="https://opentelemetry.io/">OpenTelemetry</a></li>
+</ul>
+<p>Cloud Agents 的 trace 不能只停留在“LLM 请求日志”。生产环境至少需要串联：</p>
+<ul>
+<li>用户请求和客户端连接。</li>
+<li>Agent thread、run、step。</li>
+<li>LLM 调用、模型名、Token、延迟、错误、成本。</li>
+<li>Tool call、外部 API、数据库查询、文件读写、代码执行。</li>
+<li>MCP/A2A 调用链。</li>
+<li>人工审批、策略拦截、重试、取消和恢复。</li>
+</ul>
+<p>OpenTelemetry 的价值在于提供跨语言、跨服务、跨供应商的统一采集语义。LangSmith、Langfuse、Phoenix、云厂商 tracing 都可以作为上层呈现和分析工具，但底层最好保留 OTel 兼容性。</p>
+<h2 id="_5">能力矩阵<a class="headerlink" href="#_5" title="Permanent link">&para;</a></h2>
+<h3 id="_6">总体成熟度对比<a class="headerlink" href="#_6" title="Permanent link">&para;</a></h3>
+<p>评分说明：5 为非常成熟或原生支持，3 为可用但需要补强，1 为主要依赖自研或不适合。</p>
+<table>
+<thead>
+<tr>
+<th>方案</th>
+<th style="text-align: right;">云端运行时</th>
+<th style="text-align: right;">会话/状态</th>
+<th style="text-align: right;">多实例资源管理</th>
+<th style="text-align: right;">多客户端连接</th>
+<th style="text-align: right;">Trace/观测</th>
+<th style="text-align: right;">审计治理</th>
+<th style="text-align: right;">高可用</th>
+<th style="text-align: right;">框架中立性</th>
+<th>综合判断</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>LangSmith Deployment / LangGraph</td>
+<td style="text-align: right;">5</td>
+<td style="text-align: right;">5</td>
+<td style="text-align: right;">4</td>
+<td style="text-align: right;">4</td>
+<td style="text-align: right;">5</td>
+<td style="text-align: right;">3</td>
+<td style="text-align: right;">4</td>
+<td style="text-align: right;">4</td>
+<td>自建复杂 Cloud Agent 的强候选</td>
+</tr>
+<tr>
+<td>Microsoft Foundry / Azure AI Foundry Agent Service</td>
+<td style="text-align: right;">5</td>
+<td style="text-align: right;">5</td>
+<td style="text-align: right;">4</td>
+<td style="text-align: right;">4</td>
+<td style="text-align: right;">4</td>
+<td style="text-align: right;">5</td>
+<td style="text-align: right;">5</td>
+<td style="text-align: right;">2</td>
+<td>Microsoft 生态企业优先</td>
+</tr>
+<tr>
+<td>Bedrock AgentCore</td>
+<td style="text-align: right;">5</td>
+<td style="text-align: right;">4</td>
+<td style="text-align: right;">5</td>
+<td style="text-align: right;">4</td>
+<td style="text-align: right;">4</td>
+<td style="text-align: right;">5</td>
+<td style="text-align: right;">5</td>
+<td style="text-align: right;">3</td>
+<td>AWS 生态企业优先，运行时组件化突出</td>
+</tr>
+<tr>
+<td>Gemini Enterprise Agent Platform / ADK</td>
+<td style="text-align: right;">5</td>
+<td style="text-align: right;">5</td>
+<td style="text-align: right;">4</td>
+<td style="text-align: right;">4</td>
+<td style="text-align: right;">4</td>
+<td style="text-align: right;">5</td>
+<td style="text-align: right;">5</td>
+<td style="text-align: right;">3</td>
+<td>Google Cloud 数据与 Workspace 生态优先</td>
+</tr>
+<tr>
+<td>OpenAI Agents SDK</td>
+<td style="text-align: right;">3</td>
+<td style="text-align: right;">4</td>
+<td style="text-align: right;">2</td>
+<td style="text-align: right;">3</td>
+<td style="text-align: right;">4</td>
+<td style="text-align: right;">2</td>
+<td style="text-align: right;">2</td>
+<td style="text-align: right;">3</td>
+<td>应用层 SDK，需外接平台能力</td>
+</tr>
+<tr>
+<td>CrewAI Enterprise / AMP</td>
+<td style="text-align: right;">4</td>
+<td style="text-align: right;">3</td>
+<td style="text-align: right;">3</td>
+<td style="text-align: right;">3</td>
+<td style="text-align: right;">3</td>
+<td style="text-align: right;">3</td>
+<td style="text-align: right;">3</td>
+<td style="text-align: right;">3</td>
+<td>角色协作型 Agent 产品化快</td>
+</tr>
+<tr>
+<td>Dify</td>
+<td style="text-align: right;">4</td>
+<td style="text-align: right;">3</td>
+<td style="text-align: right;">3</td>
+<td style="text-align: right;">4</td>
+<td style="text-align: right;">3</td>
+<td style="text-align: right;">3</td>
+<td style="text-align: right;">3</td>
+<td style="text-align: right;">3</td>
+<td>低代码 LLM 应用平台</td>
+</tr>
+<tr>
+<td>Letta</td>
+<td style="text-align: right;">3</td>
+<td style="text-align: right;">5</td>
+<td style="text-align: right;">2</td>
+<td style="text-align: right;">3</td>
+<td style="text-align: right;">2</td>
+<td style="text-align: right;">2</td>
+<td style="text-align: right;">2</td>
+<td style="text-align: right;">3</td>
+<td>状态化 Agent 与长期记忆参考</td>
+</tr>
+<tr>
+<td>Temporal + 自研 Runtime</td>
+<td style="text-align: right;">4</td>
+<td style="text-align: right;">5</td>
+<td style="text-align: right;">5</td>
+<td style="text-align: right;">3</td>
+<td style="text-align: right;">4</td>
+<td style="text-align: right;">4</td>
+<td style="text-align: right;">5</td>
+<td style="text-align: right;">5</td>
+<td>长周期关键任务的可靠底座</td>
+</tr>
+</tbody>
+</table>
+<h3 id="cloud-agents_3">Cloud Agents 分层选型<a class="headerlink" href="#cloud-agents_3" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>层级</th>
+<th>要解决的问题</th>
+<th>可选方案</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Agent 开发层</td>
+<td>Prompt、工具、handoff、多 Agent、工作流</td>
+<td>LangGraph、OpenAI Agents SDK、Google ADK、Microsoft Agent Framework、CrewAI、LlamaIndex、Pydantic AI</td>
+</tr>
+<tr>
+<td>会话运行层</td>
+<td>thread/run/task、状态、队列、worker、checkpoint</td>
+<td>LangSmith Deployment、Microsoft Foundry Agent Service、AgentCore Runtime、Google Agent Runtime、Temporal、自研</td>
+</tr>
+<tr>
+<td>通信层</td>
+<td>多客户端、流式响应、Agent 间通信、工具协议</td>
+<td>HTTP/SSE/WebSocket、Webhook、MCP、A2A、CloudEvents、Kafka/NATS/SQS</td>
+</tr>
+<tr>
+<td>状态存储层</td>
+<td>记忆、Artifacts、向量、工作流状态</td>
+<td>PostgreSQL、Redis、S3/GCS/Blob、Vector DB、Checkpointer、Letta</td>
+</tr>
+<tr>
+<td>工具接入层</td>
+<td>企业 API、SaaS、数据库、代码执行、浏览器</td>
+<td>MCP Gateway、API Gateway、Lambda/Functions、Sandbox、Browser Runtime</td>
+</tr>
+<tr>
+<td>观测层</td>
+<td>Trace、日志、指标、成本、质量</td>
+<td>LangSmith、Langfuse、Phoenix、OpenTelemetry、CloudWatch、Azure Monitor、Cloud Logging</td>
+</tr>
+<tr>
+<td>治理层</td>
+<td>身份、权限、审计、策略、Secrets</td>
+<td>IAM/Entra/Google IAM、Vault/Secrets Manager、OPA、Audit Logs、DLP</td>
+</tr>
+</tbody>
+</table>
+<h2 id="_7">企业落地关键设计<a class="headerlink" href="#_7" title="Permanent link">&para;</a></h2>
+<h3 id="1">1. 会话模型设计<a class="headerlink" href="#1" title="Permanent link">&para;</a></h3>
+<p>Cloud Agents 的会话模型不应只保存 chat messages。建议至少建模：</p>
+<table>
+<thead>
+<tr>
+<th>对象</th>
+<th>含义</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Tenant</td>
+<td>企业、部门或业务域</td>
+</tr>
+<tr>
+<td>User</td>
+<td>真实用户或服务账号</td>
+</tr>
+<tr>
+<td>Client</td>
+<td>Web、Mobile、Teams、Slack、API、Webhook 等入口</td>
+</tr>
+<tr>
+<td>Conversation / Thread</td>
+<td>用户可感知的多轮上下文</td>
+</tr>
+<tr>
+<td>Run</td>
+<td>一次 Agent 执行实例，可同步或异步</td>
+</tr>
+<tr>
+<td>Step</td>
+<td>Agent 内部一步推理、工具调用、审批或子任务</td>
+</tr>
+<tr>
+<td>ToolCall</td>
+<td>工具调用记录，必须可审计</td>
+</tr>
+<tr>
+<td>Artifact</td>
+<td>文件、报告、表格、代码、图像等产物</td>
+</tr>
+<tr>
+<td>Checkpoint</td>
+<td>可恢复的执行状态</td>
+</tr>
+<tr>
+<td>Memory</td>
+<td>长期偏好、业务事实、可复用上下文</td>
+</tr>
+</tbody>
+</table>
+<p>推荐设计原则：</p>
+<ul>
+<li>Thread 与 Run 分离：同一对话中可有多次运行，运行可取消、重试、恢复。</li>
+<li>Step 具备幂等键：避免客户端重连、Webhook 重试导致重复执行。</li>
+<li>Artifact 不嵌入消息正文：统一存对象存储，并记录元数据、权限和版本。</li>
+<li>Memory 与 Conversation 分离：对话历史不等于长期记忆，长期记忆必须可审计、可删除、可迁移。</li>
+</ul>
+<h3 id="2">2. 多客户端连接<a class="headerlink" href="#2" title="Permanent link">&para;</a></h3>
+<p>企业 Cloud Agents 通常同时服务多个入口：</p>
+<ul>
+<li>Web Console。</li>
+<li>Slack / Teams / 飞书。</li>
+<li>移动端。</li>
+<li>后端 API。</li>
+<li>定时任务。</li>
+<li>事件触发器。</li>
+<li>外部 Agent 调用。</li>
+</ul>
+<p>推荐模式：</p>
+<ul>
+<li>短任务使用 HTTP request/response。</li>
+<li>长任务使用异步 Run + 轮询或 Webhook。</li>
+<li>实时输出使用 SSE；需要双向交互时使用 WebSocket。</li>
+<li>企业系统集成使用 Webhook + 幂等键 + 签名校验。</li>
+<li>Agent-to-Agent 使用 A2A 或内部任务协议。</li>
+<li>工具调用使用 MCP Gateway 或受控 API Gateway。</li>
+</ul>
+<p>关键工程点：</p>
+<ul>
+<li>客户端断线后可根据 run_id 恢复订阅。</li>
+<li>同一 run 只允许一个执行 owner，多个客户端只是观察者或审批者。</li>
+<li>人工审批应作为 step 状态持久化，而不是阻塞 worker 线程。</li>
+<li>流式输出和最终结果需要统一事件模型，避免 UI 与后端状态不一致。</li>
+</ul>
+<h3 id="3">3. 多实例与资源管理<a class="headerlink" href="#3" title="Permanent link">&para;</a></h3>
+<p>Cloud Agents 的资源管理不能只依赖容器自动扩缩容。Agent 执行有自己的资源语义：</p>
+<table>
+<thead>
+<tr>
+<th>资源</th>
+<th>管理策略</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>LLM 调用配额</td>
+<td>按租户、用户、Agent、模型限流</td>
+</tr>
+<tr>
+<td>Tool 并发</td>
+<td>高风险工具串行化，读工具可并发，写工具需幂等</td>
+</tr>
+<tr>
+<td>Worker 池</td>
+<td>按任务类型拆分：chat、workflow、code、browser、batch</td>
+</tr>
+<tr>
+<td>长任务</td>
+<td>队列化 + checkpoint + heartbeat</td>
+</tr>
+<tr>
+<td>沙箱</td>
+<td>每个 run 或 step 独立容器/微虚拟机，按风险分级</td>
+</tr>
+<tr>
+<td>记忆与向量检索</td>
+<td>按租户隔离索引，控制召回范围</td>
+</tr>
+<tr>
+<td>成本</td>
+<td>预算、熔断、模型降级、缓存</td>
+</tr>
+</tbody>
+</table>
+<p>推荐引入三类队列：</p>
+<ul>
+<li><strong>interactive queue</strong>：面向用户实时对话，低延迟、高优先级。</li>
+<li><strong>workflow queue</strong>：面向长流程和业务自动化，可恢复、可重试。</li>
+<li><strong>batch queue</strong>：面向批处理、调研、数据生成，低优先级、可抢占。</li>
+</ul>
+<h3 id="4-trace">4. Trace 与可观测性<a class="headerlink" href="#4-trace" title="Permanent link">&para;</a></h3>
+<p>Agent trace 的粒度建议至少覆盖：</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>request
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>  -&gt; auth_context
+<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>  -&gt; conversation/thread
+<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a>  -&gt; run
+<a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a>  -&gt; planner_step
+<a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a>  -&gt; model_call
+<a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a>  -&gt; tool_call
+<a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a>  -&gt; external_api/db
+<a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a>  -&gt; artifact_write
+<a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a>  -&gt; policy_check
+<a id="__codelineno-1-11" name="__codelineno-1-11" href="#__codelineno-1-11"></a>  -&gt; human_approval
+<a id="__codelineno-1-12" name="__codelineno-1-12" href="#__codelineno-1-12"></a>  -&gt; final_response
+</code></pre></div>
+<p>关键指标：</p>
+<ul>
+<li>P50/P95/P99 延迟。</li>
+<li>每个 run 的模型调用次数、Token、成本。</li>
+<li>Tool 调用成功率、超时率、重试次数。</li>
+<li>Agent loop 次数、最大深度、停止原因。</li>
+<li>人工审批等待时间。</li>
+<li>检索命中率、引用覆盖率。</li>
+<li>用户反馈、自动评估分、回归测试结果。</li>
+<li>每个版本的失败率和成本变化。</li>
+</ul>
+<p>推荐工具组合：</p>
+<ul>
+<li>使用 OpenTelemetry 作为底层 trace 语义。</li>
+<li>使用 LangSmith / Langfuse / Phoenix 作为 Agent Trace 和评估 UI。</li>
+<li>云原生日志与指标进入 CloudWatch / Azure Monitor / Cloud Logging。</li>
+<li>所有 ToolCall 与高风险操作写入不可篡改审计日志。</li>
+</ul>
+<h3 id="5">5. 审计与治理<a class="headerlink" href="#5" title="Permanent link">&para;</a></h3>
+<p>企业 Agent 的审计不能只记录“用户问了什么，模型答了什么”。必须覆盖：</p>
+<ul>
+<li>谁发起了任务。</li>
+<li>使用了哪个 Agent 版本和 Prompt 版本。</li>
+<li>调用了哪个模型。</li>
+<li>检索了哪些数据源和文档。</li>
+<li>调用了哪些工具。</li>
+<li>以谁的身份调用工具。</li>
+<li>是否经过策略检查或人工审批。</li>
+<li>输出了哪些 Artifact。</li>
+<li>是否写入了外部系统。</li>
+<li>失败、重试、取消、恢复的完整过程。</li>
+</ul>
+<p>治理建议：</p>
+<ul>
+<li>使用真实用户身份传播到工具层，避免所有工具以单一系统账号执行。</li>
+<li>对写操作工具实施审批、Dry-run、回滚或补偿动作。</li>
+<li>Secrets 不进入 Prompt，不进入 Trace 明文。</li>
+<li>高风险工具执行前做 Policy Check，执行后做审计落库。</li>
+<li>对长期记忆提供查看、修改、删除和保留期策略。</li>
+<li>对模型输入输出做敏感信息检测和数据保留策略。</li>
+</ul>
+<h3 id="6">6. 稳定性与可用性<a class="headerlink" href="#6" title="Permanent link">&para;</a></h3>
+<p>Cloud Agents 的高可用不只是多副本部署。Agent 的失败形态更复杂：</p>
+<table>
+<thead>
+<tr>
+<th>失败类型</th>
+<th>应对策略</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>LLM 超时或限流</td>
+<td>指数退避、模型降级、队列重试、预算熔断</td>
+</tr>
+<tr>
+<td>工具调用失败</td>
+<td>幂等重试、补偿动作、人工介入</td>
+</tr>
+<tr>
+<td>Agent 死循环</td>
+<td>最大步数、最大成本、最大时间、循环检测</td>
+</tr>
+<tr>
+<td>容器重启</td>
+<td>checkpoint + durable queue + run resume</td>
+</tr>
+<tr>
+<td>客户端断线</td>
+<td>run 状态持久化 + SSE/WebSocket 恢复订阅</td>
+</tr>
+<tr>
+<td>外部 API 重复回调</td>
+<td>幂等键 + 去重表</td>
+</tr>
+<tr>
+<td>模型输出不稳定</td>
+<td>结构化输出校验、guardrail、回放测试</td>
+</tr>
+<tr>
+<td>发布回归</td>
+<td>Agent 版本化、灰度、自动评估、快速回滚</td>
+</tr>
+</tbody>
+</table>
+<p>建议 SLO：</p>
+<ul>
+<li>交互式 Agent 首 Token 延迟：P95 &lt; 3-5 秒，视模型和工具而定。</li>
+<li>非工具调用普通问答完成：P95 &lt; 15 秒。</li>
+<li>工具型 run 状态可查询性：99.9%。</li>
+<li>Run 恢复成功率：&gt; 99%。</li>
+<li>审计日志写入成功率：&gt; 99.99%。</li>
+<li>高风险写操作无审计通过率：0。</li>
+</ul>
+<h2 id="_8">推荐落地架构<a class="headerlink" href="#_8" title="Permanent link">&para;</a></h2>
+<h3 id="a">路线 A：云厂商托管优先<a class="headerlink" href="#a" title="Permanent link">&para;</a></h3>
+<p>适合：</p>
+<ul>
+<li>企业已经重度使用 Azure/AWS/GCP。</li>
+<li>安全合规要求高，希望使用云厂商 IAM、审计、网络隔离。</li>
+<li>第一阶段目标是快速上线内部 Agent。</li>
+</ul>
+<p>推荐组合：</p>
+<table>
+<thead>
+<tr>
+<th>云</th>
+<th>推荐栈</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Azure</td>
+<td>Microsoft Foundry / Azure AI Foundry Agent Service + Microsoft Agent Framework + Entra ID + Azure Monitor + AI Search</td>
+</tr>
+<tr>
+<td>AWS</td>
+<td>Bedrock AgentCore + Bedrock Agents + IAM + CloudWatch + Lambda/Step Functions/SQS</td>
+</tr>
+<tr>
+<td>GCP</td>
+<td>ADK + Gemini Enterprise Agent Platform / Agent Runtime + Cloud IAM + Cloud Logging/Trace</td>
+</tr>
+</tbody>
+</table>
+<p>风险：</p>
+<ul>
+<li>平台绑定强。</li>
+<li>复杂业务流可能需要额外 workflow/orchestrator。</li>
+<li>跨云 Agent 协作和统一观测需要自己设计。</li>
+</ul>
+<h3 id="blanggraph">路线 B：LangGraph 平台化自建<a class="headerlink" href="#blanggraph" title="Permanent link">&para;</a></h3>
+<p>适合：</p>
+<ul>
+<li>需要复杂状态控制、人工审批、长周期任务和可恢复执行。</li>
+<li>希望保留模型、云、工具和观测选择权。</li>
+<li>工程团队有能力运营 Agent 平台。</li>
+</ul>
+<p>推荐组合：</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>LangGraph / LangSmith Deployment
+<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>+ PostgreSQL / Redis / Object Storage
+<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>+ MCP Gateway
+<a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a>+ OpenTelemetry
+<a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a>+ LangSmith or Langfuse/Phoenix
+<a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a>+ Kubernetes
+<a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a>+ 企业 IAM / Secrets / Audit
+</code></pre></div>
+<p>风险：</p>
+<ul>
+<li>自建平台运维成本更高。</li>
+<li>需要明确多租户、权限、审计和发布策略。</li>
+<li>团队需要理解状态图、checkpoint、并发与恢复。</li>
+</ul>
+<h3 id="ctemporal-agent-sdk">路线 C：Temporal + Agent SDK 自研运行时<a class="headerlink" href="#ctemporal-agent-sdk" title="Permanent link">&para;</a></h3>
+<p>适合：</p>
+<ul>
+<li>Agent 任务是关键业务流程的一部分。</li>
+<li>强依赖长周期执行、审批、补偿、幂等和事务一致性。</li>
+<li>企业已有成熟微服务和平台工程能力。</li>
+</ul>
+<p>推荐组合：</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>Temporal
+<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>+ OpenAI Agents SDK / Google ADK / Microsoft Agent Framework / LangGraph
+<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>+ 自研 Session &amp; Run Manager
+<a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a>+ 自研 Tool Gateway / MCP Gateway
+<a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a>+ OpenTelemetry + Langfuse/Phoenix
+<a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a>+ Kubernetes + Queue + Object Storage
+</code></pre></div>
+<p>风险：</p>
+<ul>
+<li>建设周期最长。</li>
+<li>需要平台团队和应用团队协作。</li>
+<li>初期不如托管平台快。</li>
+</ul>
+<h3 id="ddify-crewai">路线 D：Dify / CrewAI 快速产品化<a class="headerlink" href="#ddify-crewai" title="Permanent link">&para;</a></h3>
+<p>适合：</p>
+<ul>
+<li>目标是快速交付内部 AI 应用、RAG、调研、报告、运营助手。</li>
+<li>业务流程相对清晰，不需要极复杂的恢复和审计。</li>
+<li>团队希望低代码或角色式开发。</li>
+</ul>
+<p>推荐组合：</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>Dify or CrewAI Enterprise
+<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>+ 企业 SSO / Gateway
+<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a>+ 外部 Trace / Audit
+<a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a>+ 私有化部署或企业云版本
+</code></pre></div>
+<p>风险：</p>
+<ul>
+<li>遇到复杂状态机和长周期关键任务时可能需要迁移或深度定制。</li>
+<li>平台能力需按企业版实际功能验证。</li>
+</ul>
+<h2 id="_9">建设路线图<a class="headerlink" href="#_9" title="Permanent link">&para;</a></h2>
+<h3 id="1cloud-agent-mvp">阶段 1：Cloud Agent MVP<a class="headerlink" href="#1cloud-agent-mvp" title="Permanent link">&para;</a></h3>
+<p>目标：跑通企业可用的最小闭环。</p>
+<p>关键任务：</p>
+<ul>
+<li>定义 Agent API：create_run、get_run、cancel_run、stream_run、approve_step。</li>
+<li>建立 thread/run/step/tool_call/artifact 数据模型。</li>
+<li>接入一个 Agent 框架，例如 LangGraph 或 OpenAI Agents SDK。</li>
+<li>接入一个观测系统，例如 LangSmith、Langfuse 或 Phoenix。</li>
+<li>所有工具调用写入审计表。</li>
+<li>支持 SSE 流式响应和客户端断线后恢复查询。</li>
+</ul>
+<p>验收标准：</p>
+<ul>
+<li>能支撑多用户并发。</li>
+<li>能取消和查询长任务。</li>
+<li>能追踪一次完整 Agent 执行链路。</li>
+<li>能回答“谁在什么时候让 Agent 调用了什么工具”。</li>
+</ul>
+<h3 id="2_1">阶段 2：生产运行时<a class="headerlink" href="#2_1" title="Permanent link">&para;</a></h3>
+<p>目标：让 Cloud Agent 能稳定跑业务流程。</p>
+<p>关键任务：</p>
+<ul>
+<li>引入队列和 worker 池。</li>
+<li>增加 checkpoint 与 run resume。</li>
+<li>增加租户级、用户级、模型级限流。</li>
+<li>增加高风险工具审批。</li>
+<li>引入 Prompt/Agent 版本管理。</li>
+<li>建立自动评估和回归测试集。</li>
+<li>接入企业 IAM、Secrets、审计日志。</li>
+</ul>
+<p>验收标准：</p>
+<ul>
+<li>Worker 重启后任务可恢复。</li>
+<li>发布新 Agent 版本可灰度和回滚。</li>
+<li>模型或工具异常时有降级和告警。</li>
+<li>审计链路覆盖所有写操作。</li>
+</ul>
+<h3 id="3-agent">阶段 3：企业 Agent 平台<a class="headerlink" href="#3-agent" title="Permanent link">&para;</a></h3>
+<p>目标：从单个 Agent 应用升级为企业 Agent 平台。</p>
+<p>关键任务：</p>
+<ul>
+<li>建立 Agent Registry 和 Tool Registry。</li>
+<li>建立 MCP Gateway 与 A2A Gateway。</li>
+<li>支持多客户端入口统一接入。</li>
+<li>支持多租户资源配额和成本中心。</li>
+<li>支持跨 Agent 委托、协作和任务编排。</li>
+<li>支持统一评估、质量看板、成本看板。</li>
+<li>支持数据保留、长期记忆治理和合规报表。</li>
+</ul>
+<p>验收标准：</p>
+<ul>
+<li>新 Agent 可以按模板快速上线。</li>
+<li>工具权限可按租户、用户、Agent 精细分配。</li>
+<li>多个 Agent 可以通过标准协议协作。</li>
+<li>平台能解释质量、成本、风险和失败原因。</li>
+</ul>
+<h2 id="_10">选型建议<a class="headerlink" href="#_10" title="Permanent link">&para;</a></h2>
+<h3 id="cloud-agents_4">如果你要做企业级 Cloud Agents 平台<a class="headerlink" href="#cloud-agents_4" title="Permanent link">&para;</a></h3>
+<p>优先考虑：</p>
+<ol>
+<li>LangSmith Deployment / LangGraph + 自建运行时。</li>
+<li>Temporal + LangGraph / OpenAI Agents SDK / ADK。</li>
+<li>OpenTelemetry + Langfuse/Phoenix/LangSmith。</li>
+<li>MCP Gateway + 企业 IAM + 审计。</li>
+</ol>
+<p>理由：这一路线最中立，控制力强，适合沉淀企业内部 Agent 基础设施。</p>
+<h3 id="_11">如果企业已经押注某个云<a class="headerlink" href="#_11" title="Permanent link">&para;</a></h3>
+<p>优先考虑：</p>
+<ul>
+<li>Azure / Microsoft 生态：Microsoft Foundry / Azure AI Foundry Agent Service。</li>
+<li>AWS 生态：Bedrock AgentCore。</li>
+<li>Google 生态：Gemini Enterprise Agent Platform / Agent Runtime + ADK。</li>
+</ul>
+<p>理由：身份、网络、审计、日志、Secrets 和数据系统一体化会显著降低生产上线成本。</p>
+<h3 id="_12">如果目标是快速交付内部应用<a class="headerlink" href="#_12" title="Permanent link">&para;</a></h3>
+<p>优先考虑：</p>
+<ul>
+<li>Dify：RAG、工作流、内部 AI 应用平台。</li>
+<li>CrewAI Enterprise：角色协作型任务。</li>
+<li>OpenAI Agents SDK：轻量服务端 Agent。</li>
+</ul>
+<p>理由：开发速度快，适合探索业务价值。但应避免一开始就把它们当成完整企业运行时。</p>
+<h3 id="_13">不建议的做法<a class="headerlink" href="#_13" title="Permanent link">&para;</a></h3>
+<ul>
+<li>只用一个 Agent SDK 直接暴露公网 API，不做 run/session 持久化。</li>
+<li>把所有工具调用放在 Prompt 中隐式控制，不做权限和审计。</li>
+<li>所有用户共享同一长期记忆或向量索引。</li>
+<li>把 Trace 当成日志，而不是调试、评估、审计和成本治理的共同底座。</li>
+<li>用单个 WebSocket 连接承载长任务执行状态，不做服务端恢复。</li>
+<li>在没有幂等和补偿的情况下允许 Agent 执行写操作。</li>
+</ul>
+<h2 id="_14">结论<a class="headerlink" href="#_14" title="Permanent link">&para;</a></h2>
+<p>Cloud Agents 的成熟形态不是一个“更聪明的聊天机器人”，而是一种新的云端业务执行层。它把模型推理、工具调用、状态管理、企业身份、通信协议、审计、观测和高可用运行时组合在一起。</p>
+<p>从技术趋势看，行业正在形成几个明确方向：</p>
+<ul>
+<li><strong>Agent 平台化</strong>：Azure、AWS、Google 都在把 Agent 变成托管云服务。</li>
+<li><strong>运行时组件化</strong>：Runtime、Memory、Gateway、Identity、Observability 正在成为独立能力。</li>
+<li><strong>协议标准化</strong>：MCP 解决工具接入，A2A 解决 Agent 间互操作，OpenTelemetry 解决可观测语义。</li>
+<li><strong>状态与持久化成为核心</strong>：thread、run、step、checkpoint、artifact、memory 是 Cloud Agent 的基本工程对象。</li>
+<li><strong>治理前移</strong>：身份、权限、审计、审批、数据保留不能上线后再补。</li>
+</ul>
+<p>最终判断：<strong>Cloud Agents 确实是企业 Agent 的必然选择，但企业真正需要的不是单一框架，而是 Cloud Agent Runtime。框架负责让 Agent 会思考和协作，Runtime 负责让 Agent 可连接、可管理、可追踪、可审计、可恢复、可扩展。</strong></p>
+<h2 id="_15">参考资料<a class="headerlink" href="#_15" title="Permanent link">&para;</a></h2>
+<ul>
+<li><a href="https://docs.langchain.com/langgraph-platform/">LangSmith Deployment / LangGraph Platform docs</a></li>
+<li><a href="https://langchain-ai.github.io/langgraph/concepts/persistence/">LangGraph Persistence</a></li>
+<li><a href="https://docs.smith.langchain.com/observability/how_to_guides/tracing/trace_with_langgraph">LangSmith Tracing</a></li>
+<li><a href="https://learn.microsoft.com/azure/ai-services/agents/overview">Microsoft Foundry / Azure AI Foundry Agent Service</a></li>
+<li><a href="https://learn.microsoft.com/agent-framework/">Microsoft Agent Framework</a></li>
+<li><a href="https://microsoft.github.io/autogen/">AutoGen Documentation</a></li>
+<li><a href="https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/what-is-bedrock-agentcore.html">Amazon Bedrock AgentCore</a></li>
+<li><a href="https://docs.aws.amazon.com/bedrock/latest/userguide/agents.html">Amazon Bedrock Agents</a></li>
+<li><a href="https://google.github.io/adk-docs/">Google Agent Development Kit</a></li>
+<li><a href="https://cloud.google.com/vertex-ai/generative-ai/docs/agent-engine/overview">Google Agent Engine / Gemini Enterprise Agent Runtime docs</a></li>
+<li><a href="https://cloud.google.com/products/gemini-enterprise">Gemini Enterprise</a></li>
+<li><a href="https://openai.github.io/openai-agents-python/">OpenAI Agents SDK</a></li>
+<li><a href="https://docs.crewai.com/">CrewAI Documentation</a></li>
+<li><a href="https://www.crewai.com/enterprise">CrewAI Enterprise</a></li>
+<li><a href="https://docs.dify.ai/">Dify Documentation</a></li>
+<li><a href="https://docs.letta.com/">Letta Documentation</a></li>
+<li><a href="https://docs.temporal.io/">Temporal Documentation</a></li>
+<li><a href="https://modelcontextprotocol.io/">Model Context Protocol</a></li>
+<li><a href="https://a2a-protocol.org/latest/">Agent2Agent Protocol</a></li>
+<li><a href="https://opentelemetry.io/docs/specs/semconv/gen-ai/">OpenTelemetry GenAI Semantic Conventions</a></li>
+</ul>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  回到页面顶部
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      <script id="__config" type="application/json">{"base": "..", "features": ["navigation.instant", "navigation.sections", "navigation.top", "search.highlight", "search.suggest", "toc.follow"], "search": "../assets/javascripts/workers/search.d50fe291.min.js", "tags": null, "translations": {"clipboard.copied": "\u5df2\u590d\u5236", "clipboard.copy": "\u590d\u5236", "search.result.more.one": "\u5728\u8be5\u9875\u4e0a\u8fd8\u6709 1 \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.more.other": "\u5728\u8be5\u9875\u4e0a\u8fd8\u6709 # \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.none": "\u6ca1\u6709\u627e\u5230\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.one": "\u627e\u5230 1 \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.other": "# \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.placeholder": "\u952e\u5165\u4ee5\u5f00\u59cb\u641c\u7d22", "search.result.term.missing": "\u7f3a\u5c11", "select.version": "\u9009\u62e9\u5f53\u524d\u7248\u672c"}, "version": null}</script>
+    
+    
+      <script src="../assets/javascripts/bundle.56ea9cef.min.js"></script>
+      
+        <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+      
+    
+  </body>
+</html>
