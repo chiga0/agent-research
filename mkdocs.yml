@@ -1,0 +1,63 @@
+site_name: Agent Research
+site_description: Agent framework, multi-agent orchestration, and runtime harness research notes.
+site_url: https://chiga0.github.io/agent-research/
+repo_url: https://github.com/chiga0/agent-research
+repo_name: chiga0/agent-research
+
+theme:
+  name: material
+  language: zh
+  features:
+    - navigation.instant
+    - navigation.sections
+    - navigation.top
+    - search.highlight
+    - search.suggest
+    - toc.follow
+  palette:
+    - scheme: default
+      primary: indigo
+      accent: blue
+      toggle:
+        icon: material/weather-night
+        name: 切换到深色模式
+    - scheme: slate
+      primary: indigo
+      accent: blue
+      toggle:
+        icon: material/weather-sunny
+        name: 切换到浅色模式
+
+nav:
+  - 首页: index.md
+  - 多 Agent:
+      - 生产级多 Agent 系统编排与运行屏障工程: multi-agent/research-on-multi-agent-orchestration-frameworks.md
+  - 其他 Agent:
+      - Qwen Code Core 与 SDK Agent 架构分析: other-agents/qwen-code-core-sdk-agent-architecture.md
+
+markdown_extensions:
+  - admonition
+  - attr_list
+  - def_list
+  - md_in_html
+  - tables
+  - toc:
+      permalink: true
+  - pymdownx.arithmatex:
+      generic: true
+  - pymdownx.details
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+  - pymdownx.superfences
+  - pymdownx.tabbed:
+      alternate_style: true
+
+plugins:
+  - search:
+      lang:
+        - zh
+        - en
+
+extra_javascript:
+  - https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js
