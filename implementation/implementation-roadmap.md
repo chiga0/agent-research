@@ -22,7 +22,7 @@
 | P1 | 单 SAEU 最小闭环 | `in_progress` | 一个 qwen serve run 可创建、输入、订阅、取消、产出 artifact，adapter 不泄漏 qwen 私有 API |
 | P2 | 审计、权限、恢复硬化 | `not_started` | Event Store、Permission Service、Artifact Collector 可用 |
 | P3 | 多 SAEU 并发与任务队列 | `not_started` | 1-2 个 SAEU 并发运行，队列限流生效 |
-| P4 | Supervisor + Profile + SubAgent + SAEU 编排 | `not_started` | 常驻 supervisor 可基于 profile 选择 SubAgent 或 SAEU 执行任务 |
+| P4 | Supervisor + Profile + SAEU 编排 | `not_started` | 常驻 supervisor 可基于 profile 创建一个或多个 SAEU run；SubAgent 仅作为 SAEU 内部优化 |
 | P5 | 外部协议与替代组件评估 | `not_started` | ACP Streamable HTTP、A2A Gateway、E2B/Daytona、Temporal/LangGraph/Airflow 完成试点评估 |
 | P6 | Beta 稳定化 | `not_started` | 故障演练、回放、监控、备份、部署脚本完成 |
 
@@ -130,15 +130,15 @@
 | cleanup policy | `not_started` | workspace/artifact 按保留策略清理 |
 | 双 VPS worker 模式 | `deferred` | control plane 与 sandbox worker 分离 |
 
-## P4：Supervisor + Profile + SubAgent + SAEU 编排
+## P4：Supervisor + Profile + SAEU 编排
 
 状态：`not_started`
 
 目标：
 
-- 多 Agent 编排不直接编排 CLI，也不把所有 SubAgent 都升级为独立 daemon。
+- 多 Agent 编排不直接编排 CLI，也不直接编排 runtime 内部 SubAgent。
 - 实现 Profile Registry，内置 planner/coder/reviewer/tester/doc-writer，并允许用户复制、编辑、新增 profile。
-- 实现常驻 Project/Supervisor Agent，根据 profile、任务风险和资源策略选择 SubAgent 或 SAEU。
+- 实现常驻 Project/Supervisor SAEU，根据 profile、任务依赖和资源策略创建 SAEU run。
 - 实现 planner -> coder -> tester -> reviewer -> final report。
 
 任务：
@@ -148,8 +148,9 @@
 | mission/task 数据模型 | `not_started` | mission 可拆多个 task |
 | Profile Registry | `not_started` | 系统内置 profile + 用户自定义 profile + 版本化 resolved profile |
 | profile 定义 | `not_started` | planner/coder/tester/reviewer/doc-writer 权限、模型、workspace、artifact 要求不同 |
-| profile -> agent instance 映射 | `not_started` | 一个 profile 可启动多个 SubAgent 或 SAEU instance |
-| SubAgent/SAEU 调度策略 | `not_started` | 轻量任务走 SubAgent，高风险长任务走 SAEU；支持 OpenClaw 类 runtime 内部 sub-agent |
+| profile -> agent instance 映射 | `not_started` | 一个 profile 可启动多个 SAEU instance |
+| task -> SAEU 调度策略 | `not_started` | mission/task DAG 中的 task 默认创建 SAEU run |
+| runtime SubAgent 内部优化策略 | `deferred` | 仅作为 SAEU 内部能力；不进入 MVP 平台调度 |
 | task dependency | `not_started` | 支持串行和 fan-out/fan-in |
 | artifact handoff | `not_started` | 子任务只通过 artifact 传递结果 |
 | reviewer gate | `not_started` | 高风险 finding 阻塞合并 |

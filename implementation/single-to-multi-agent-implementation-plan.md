@@ -1,13 +1,13 @@
 # 从单 Agent 执行单元到多 Agent 编排
 
-> 结论：多 Agent 系统不应该直接编排“模型角色”，也不应该把所有内部 SubAgent 都强行升级成独立进程。更准确的分层是：常驻 Project/Supervisor Agent 负责长期目标和上下文，Agent runtime 内部可以使用 SubAgent 做轻量并行；只有需要平台治理、隔离、审计、恢复和跨客户端托管的子任务，才升级为 SAEU run。
+> 结论：为了降低系统不确定性，平台第一版不做“轻量任务走 SubAgent、重量任务走 SAEU”的动态判断。平台调度对象统一是 `mission -> task -> profile -> SAEU run`。SubAgent 只作为某个 SAEU runtime 内部的可选实现细节，不作为第一版平台调度原语。
 
 ## 总体路线
 
 ```text
 Phase 1: 单 SAEU 稳定
 Phase 2: 多 SAEU 并发
-Phase 3: Supervisor 拆分任务
+Phase 3: Supervisor 拆分任务并创建 SAEU run
 Phase 4: 子任务 artifact 合并
 Phase 5: A2A Gateway 对外互操作
 Phase 6: Temporal 或 durable workflow 接管长流程
@@ -16,7 +16,7 @@ Phase 6: Temporal 或 durable workflow 接管长流程
 关键原则：
 
 - 先让一个执行单元可靠，再让多个执行单元并发。
-- SubAgent 用于主 Agent 内部探索、评审、总结；SAEU 用于平台级执行边界。
+- 平台 task 默认创建 SAEU run；SubAgent 只允许作为 SAEU 内部优化。
 - 独立 SAEU 之间不共享可写 workspace。
 - Agent 间通信优先通过 artifact 和事件，不直接互相读写不受控内存。
 - Supervisor 负责规划、派发、合并、失败处理和人机协同。
@@ -24,10 +24,11 @@ Phase 6: Temporal 或 durable workflow 接管长流程
 
 ## 多 Agent 目标架构
 
-这张图不是要否定“一个主 Agent 管多个不同角色 SubAgent”的形态。相反，OpenClaw 这类系统里的主 Agent / sub-agent / 独立 workspace / background task 已经很接近目标形态。这里额外抽出 SAEU Queue 和 SAEU run，是为了把“Agent runtime 内部协作”和“云端平台治理边界”分开：
+这张图不是要否定“一个主 Agent 管多个不同角色 SubAgent”的形态。相反，OpenClaw 这类系统里的主 Agent / sub-agent / 独立 workspace / background task 已经很接近目标形态。但为了让开源项目和企业平台的语义稳定，第一版不把 SubAgent 暴露为平台调度对象。这里额外抽出 SAEU Queue 和 SAEU run，是为了确定一个统一边界：
 
 - 如果一个主 Agent 能安全地 spawn sub-agent，且 sub-agent 有自己的 workspace、session、timeout 和结果回传，那么它已经可以承担很多多角色编排。
-- 当这些 sub-agent 还需要被 Web/Kanban/API 独立观察、取消、恢复、计费、审计、跨机器调度或跨执行器替换时，它们就应该被平台登记为 task/run，并按 SAEU contract 管理。
+- 但平台层不判断某个 task 是否“足够轻量”。只要 task 进入 mission/task DAG，就创建 SAEU run。
+- 如果某个 SAEU runtime 内部自己用 SubAgent 来完成探索、评审、总结，那是该 SAEU 的内部优化；平台只看 SAEU 的事件、权限、artifact 和终态。
 - 所以图中的 SAEU 不是“比 SubAgent 更聪明的 Agent”，而是“被平台接管生命周期的 Agent run”。
 
 ```mermaid
@@ -37,7 +38,7 @@ flowchart TB
     SUP["Supervisor Agent / Orchestrator"]
     Queue["SAEU Queue"]
     Project["Project Agent<br/>resident memory"]
-    Sub["Runtime SubAgents<br/>explore/review/summarize"]
+    Sub["Runtime SubAgents<br/>internal optimization"]
     U1["SAEU: planner/coder"]
     U2["SAEU: coder"]
     U3["SAEU: reviewer"]
@@ -53,7 +54,7 @@ flowchart TB
     A2A --> RM
     RM --> Project
     Project --> SUP
-    Project --> Sub
+    Project -. internal only .-> Sub
     PR --> SUP
     PR --> Queue
     SUP --> Queue
@@ -83,9 +84,10 @@ flowchart TB
 
 ```text
 Profile 是模板：planner / coder / reviewer / tester / doc-writer / custom...
-Agent instance 是运行实体：由某个 profile 启动，可以是 SubAgent，也可以是 SAEU run。
+Agent instance 是运行实体：第一版统一由某个 profile 启动为 SAEU run。
 Supervisor 调度的是 task，不是直接调度“角色名”。
 Run Manager 管理的是 SAEU run，不理解 agent 的内部思考过程。
+SubAgent 不进入平台 task DAG，只作为 SAEU 内部实现细节。
 ```
 
 ## 编排对象
@@ -95,7 +97,7 @@ Run Manager 管理的是 SAEU run，不理解 agent 的内部思考过程。
 | 对象 | 含义 |
 | --- | --- |
 | `mission` | 用户的宏观目标 |
-| `task` | 可交给 SubAgent 或 SAEU 的子任务 |
+| `task` | 由 Supervisor 拆出的子任务，第一版统一映射为 SAEU run |
 | `run` | 某个 SAEU 的一次执行 |
 | `dependency` | 子任务之间的依赖 |
 | `artifact` | 子任务输出 |
@@ -111,9 +113,8 @@ Supervisor 可以先是规则系统，后续再变成 Agent。它负责：
 
 - 将 mission 拆成 tasks。
 - 给每个 task 选择 agent profile。
-- 判断任务留在 runtime SubAgent 内部执行，还是升级为 SAEU run。
+- 为每个 task 解析 profile 并创建 SAEU run。
 - 决定串行、并行或 fan-out/fan-in。
-- 为需要平台治理的 task 创建 SAEU run。
 - 监听子 run 事件。
 - 处理失败、超时、取消和权限升级。
 - 收集 artifact。
@@ -126,7 +127,7 @@ Supervisor 不负责：
 - 直接修改所有子 workspace。
 - 绕过 permission service。
 - 直接读取 qwen serve 私有 session 状态。
-- 把所有轻量子任务都强制拆成独立 daemon。
+- 直接调度 runtime 内部 SubAgent。
 
 ## Agent profile
 
@@ -157,14 +158,14 @@ Profile 不是 Agent instance。它更像“岗位说明书 + 权限模板 + 运
 | 概念 | 含义 | 例子 |
 | --- | --- | --- |
 | `profile` | 可复用模板 | `coder`、`reviewer`、`frontend-coder` |
-| `agent instance` | 一次实际启动的 Agent | `coder-1`、`coder-2`、`reviewer-a` |
+| `agent instance` | 一次实际启动的 SAEU Agent | `coder-1`、`coder-2`、`reviewer-a` |
 | `task assignment` | task 绑定到某个 profile 或 instance | `task_123 -> coder` |
 | `run` | 平台治理的一次执行 | `run_abc` 使用 `coder` profile 启动 |
 
 因此一个 profile 可以启动多个 Agent：
 
 - 两个 `coder` SAEU 并行修不同模块。
-- 一个 `reviewer` SubAgent 做轻量 diff review，另一个 `reviewer` SAEU 做高风险审查。
+- 多个 `reviewer` SAEU 并行审查不同 patch 或模块。
 - 用户自定义 `security-reviewer` profile，限制为只读、允许 grep、允许运行静态扫描，但禁止写 workspace。
 
 Profile 建议支持三层来源：
@@ -214,18 +215,20 @@ Profile 草案：
 
 ### 与 OpenClaw 类主 Agent + SubAgent 的关系
 
-如果一个 runtime 自身已经支持 sub-agent、独立 workspace 和 background task，那么可以把它视为“profile-aware runtime”。平台不需要把每个 sub-agent 都拆出来管理。推荐规则是：
+如果一个 runtime 自身已经支持 sub-agent、独立 workspace 和 background task，那么可以把它视为“profile-aware runtime”。但平台第一版仍然只创建 SAEU run，不直接创建 runtime sub-agent。
 
-| 场景 | 留在 runtime SubAgent | 升级为 SAEU run |
-| --- | --- | --- |
-| 主 Agent 短期派生阅读/总结/比较 | 是 | 否 |
-| sub-agent 有独立 workspace 但只回传摘要 | 是 | 通常否 |
-| 需要 Kanban 中单独可见、可取消、可恢复 | 否 | 是 |
-| 需要跨机器、跨执行器、跨租户调度 | 否 | 是 |
-| 需要独立计费、审计、权限审批 | 否 | 是 |
-| 需要多个 profile 实例并行跑高风险写操作 | 否 | 是 |
+| 场景 | 平台行为 |
+| --- | --- |
+| mission/task DAG 中出现一个 task | 创建 SAEU run |
+| 需要多个角色并行 | 为同一或不同 profile 创建多个 SAEU run |
+| SAEU runtime 内部使用 SubAgent | 平台不感知，只收 canonical events / artifacts |
+| 需要 Kanban 中单独可见、可取消、可恢复 | 必须是 SAEU run |
+| 需要跨机器、跨执行器、跨租户调度 | 必须是 SAEU run |
+| 需要独立计费、审计、权限审批 | 必须是 SAEU run |
 
-也就是说，OpenClaw 这类“主 Agent + sub-agent workspaces”可以作为 Project/Supervisor Agent 的一种实现。我们多出来的部分是平台层：Profile Registry、Run Manager、Event Store、Permission Service、Artifact Store、Queue 和对外 API。
+也就是说，OpenClaw 这类“主 Agent + sub-agent workspaces”可以作为某个 SAEU runtime 的内部实现。我们多出来的部分是平台层：Profile Registry、Run Manager、Event Store、Permission Service、Artifact Store、Queue 和对外 API。
+
+后续如果确实要做成本优化，可以新增 `inline-capable` profile 标记，允许 Supervisor SAEU 内部用 SubAgent 完成某些 task。但这是 P4 之后的优化项，不是 MVP 默认行为；即使开启，也必须产出 task event、artifact 和 audit summary。
 
 ## Workspace 策略
 
@@ -321,7 +324,7 @@ Airflow DAG
 
 Run Manager / Supervisor
   -> task DAG
-  -> SubAgent or SAEU run
+  -> SAEU run
   -> Event Store / Artifact Store / Permission Service
 ```
 
@@ -516,9 +519,9 @@ Airflow 可作为外层 batch/workflow scheduler 引入，但不建议作为 Age
 
 1. 一个常驻 Project/Supervisor Agent 产出任务计划。
 2. 人类确认计划。
-3. 轻量探索、阅读和 review 可先用 SubAgent。
-4. 一个 coder SAEU 执行实现。
-5. 一个 tester SAEU 运行测试。
+3. planner/coder/tester/reviewer/doc-writer 都通过 profile 创建 SAEU run。
+4. 一个 profile 可以创建多个 SAEU instance。
+5. 每个 SAEU 内部可以自行使用 SubAgent，但平台不直接调度。
 6. Supervisor 汇总 final report。
 
 这已经具备多 Agent 的核心闭环，同时风险可控。
@@ -527,8 +530,9 @@ Airflow 可作为外层 batch/workflow scheduler 引入，但不建议作为 Age
 
 多 Agent 编排的稳定性来自三个约束：
 
-- SubAgent 只承担主 Agent 内部的轻量协作。
+- 平台级 task 统一映射为 SAEU run，避免“轻重判断”带来的不确定性。
+- SubAgent 只作为 SAEU 内部优化，不作为平台调度原语。
 - SAEU 承担平台级治理边界，有独立状态、事件、权限、artifact、workspace。
 - Agent 之间只通过 Supervisor 和 artifact 协作，不直接共享不受控状态。
 
-这条路线比“多个 Agent 在一个大对话里互相聊天”更慢一点，但可审计、可恢复、可逐步上线。
+这条路线比“多个 Agent 在一个大对话里互相聊天”更慢一点，也可能比纯 SubAgent 更重一点，但架构确定、可审计、可恢复、可逐步上线。

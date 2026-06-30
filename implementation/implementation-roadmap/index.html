@@ -843,9 +843,9 @@
 </tr>
 <tr>
 <td>P4</td>
-<td>Supervisor + Profile + SubAgent + SAEU 编排</td>
+<td>Supervisor + Profile + SAEU 编排</td>
 <td><code>not_started</code></td>
-<td>常驻 supervisor 可基于 profile 选择 SubAgent 或 SAEU 执行任务</td>
+<td>常驻 supervisor 可基于 profile 创建一个或多个 SAEU run；SubAgent 仅作为 SAEU 内部优化</td>
 </tr>
 <tr>
 <td>P5</td>
@@ -1066,13 +1066,13 @@
 </tr>
 </tbody>
 </table></div>
-<h2 id="p4supervisor-profile-subagent-saeu">P4：Supervisor + Profile + SubAgent + SAEU 编排<a class="headerlink" href="#p4supervisor-profile-subagent-saeu" title="Permanent link">&para;</a></h2>
+<h2 id="p4supervisor-profile-saeu">P4：Supervisor + Profile + SAEU 编排<a class="headerlink" href="#p4supervisor-profile-saeu" title="Permanent link">&para;</a></h2>
 <p>状态：<code>not_started</code></p>
 <p>目标：</p>
 <ul>
-<li>多 Agent 编排不直接编排 CLI，也不把所有 SubAgent 都升级为独立 daemon。</li>
+<li>多 Agent 编排不直接编排 CLI，也不直接编排 runtime 内部 SubAgent。</li>
 <li>实现 Profile Registry，内置 planner/coder/reviewer/tester/doc-writer，并允许用户复制、编辑、新增 profile。</li>
-<li>实现常驻 Project/Supervisor Agent，根据 profile、任务风险和资源策略选择 SubAgent 或 SAEU。</li>
+<li>实现常驻 Project/Supervisor SAEU，根据 profile、任务依赖和资源策略创建 SAEU run。</li>
 <li>实现 planner -&gt; coder -&gt; tester -&gt; reviewer -&gt; final report。</li>
 </ul>
 <p>任务：</p>
@@ -1103,12 +1103,17 @@
 <tr>
 <td>profile -&gt; agent instance 映射</td>
 <td><code>not_started</code></td>
-<td>一个 profile 可启动多个 SubAgent 或 SAEU instance</td>
+<td>一个 profile 可启动多个 SAEU instance</td>
 </tr>
 <tr>
-<td>SubAgent/SAEU 调度策略</td>
+<td>task -&gt; SAEU 调度策略</td>
 <td><code>not_started</code></td>
-<td>轻量任务走 SubAgent，高风险长任务走 SAEU；支持 OpenClaw 类 runtime 内部 sub-agent</td>
+<td>mission/task DAG 中的 task 默认创建 SAEU run</td>
+</tr>
+<tr>
+<td>runtime SubAgent 内部优化策略</td>
+<td><code>deferred</code></td>
+<td>仅作为 SAEU 内部能力；不进入 MVP 平台调度</td>
 </tr>
 <tr>
 <td>task dependency</td>
@@ -1571,10 +1576,10 @@
         
 
         
-        <a href="#p4supervisor-profile-subagent-saeu"
+        <a href="#p4supervisor-profile-saeu"
             class="text-muted-foreground hover:text-foreground data-[active=true]:text-foreground text-[0.8rem] no-underline transition-colors data-[depth=3]:pl-4 data-[depth=4]:pl-6"
-            data-active="false" data-depth="2" onClick="deferSetActiveTocLink('#p4supervisor-profile-subagent-saeu');">
-            P4：Supervisor + Profile + SubAgent + SAEU 编排
+            data-active="false" data-depth="2" onClick="deferSetActiveTocLink('#p4supervisor-profile-saeu');">
+            P4：Supervisor + Profile + SAEU 编排
         </a>
         
 
