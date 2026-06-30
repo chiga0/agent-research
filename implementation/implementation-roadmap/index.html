@@ -826,7 +826,7 @@
 <tr>
 <td>P1</td>
 <td>单 SAEU 最小闭环</td>
-<td><code>not_started</code></td>
+<td><code>in_progress</code></td>
 <td>一个 qwen serve run 可创建、输入、订阅、取消、产出 artifact，adapter 不泄漏 qwen 私有 API</td>
 </tr>
 <tr>
@@ -884,7 +884,7 @@
 <li><a href="../review-and-audit-record/">方案审计与 Review 记录</a></li>
 </ul>
 <h2 id="p1-saeu">P1：单 SAEU 最小闭环<a class="headerlink" href="#p1-saeu" title="Permanent link">&para;</a></h2>
-<p>状态：<code>not_started</code></p>
+<p>状态：<code>in_progress</code></p>
 <p>目标：</p>
 <ul>
 <li>用 <code>qwen serve</code> 启动一个单 Agent 执行单元。</li>
@@ -904,46 +904,52 @@
 <tbody>
 <tr>
 <td>定义 <code>run_spec</code> JSON schema</td>
-<td><code>not_started</code></td>
-<td>包含 repo、workspace、prompt、model、tool、sandbox、timeout</td>
+<td><code>done</code></td>
+<td>POC 已包含 repo、workspace、prompt、model、sandbox、timeout、metadata</td>
 </tr>
 <tr>
 <td>实现 Worker Supervisor 启动 qwen serve</td>
-<td><code>not_started</code></td>
-<td><code>/health</code>、<code>/capabilities</code> 通过</td>
+<td><code>in_progress</code></td>
+<td>已有 qwen REST/SSE adapter；进程 supervisor 与真实 daemon 启动待补</td>
 </tr>
 <tr>
 <td>定义 runtime adapter capability schema</td>
-<td><code>not_started</code></td>
-<td>能表达 qwen、claude、codex、opencode 的差异</td>
+<td><code>done</code></td>
+<td><code>/capabilities</code> 可表达 fake/qwen adapter 能力</td>
 </tr>
 <tr>
 <td>实现 <code>POST /runs</code></td>
-<td><code>not_started</code></td>
+<td><code>done</code></td>
 <td>创建 run 并返回 run_id</td>
 </tr>
 <tr>
 <td>实现 <code>POST /runs/:id/input</code></td>
-<td><code>not_started</code></td>
-<td>qwen prompt 返回 202，记录 prompt_id</td>
+<td><code>done</code></td>
+<td>fake 可异步接受；qwen adapter 可映射到 <code>/session/:id/prompt</code></td>
 </tr>
 <tr>
 <td>实现 <code>GET /runs/:id/events</code></td>
-<td><code>not_started</code></td>
-<td>能从 Run Manager SSE 收到 canonical events</td>
+<td><code>done</code></td>
+<td>Run Manager SSE 可返回 canonical events，支持 <code>Last-Event-ID</code></td>
 </tr>
 <tr>
 <td>实现 <code>POST /runs/:id/cancel</code></td>
-<td><code>not_started</code></td>
-<td>qwen session 或容器被取消</td>
+<td><code>done</code></td>
+<td>fake 可取消；qwen adapter 可映射到 <code>/session/:id/cancel</code></td>
 </tr>
 <tr>
 <td>实现基础 artifact 收集</td>
-<td><code>not_started</code></td>
-<td>stdout/stderr、raw SSE、final report 落盘</td>
+<td><code>in_progress</code></td>
+<td>已保存 run_spec、input、canonical events、raw events、final report；stdout/stderr 待真实 worker 接入</td>
 </tr>
 </tbody>
 </table></div>
+<p>当前实现：</p>
+<ul>
+<li><code>runtime/</code>：stdlib Run Manager POC。</li>
+<li>默认 <code>fake</code> adapter 可完整跑通创建、输入、SSE、取消和 artifact。</li>
+<li><code>qwen</code> adapter 已支持通过 <code>QWEN_SERVE_URL</code> / <code>QWEN_SERVE_TOKEN</code> 连接 <code>qwen serve</code> REST/SSE；下一步需要在真实 daemon 上做联调并补 worker supervisor 启动策略。</li>
+</ul>
 <h2 id="p2">P2：审计、权限、恢复硬化<a class="headerlink" href="#p2" title="Permanent link">&para;</a></h2>
 <p>状态：<code>not_started</code></p>
 <p>目标：</p>
