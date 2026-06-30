@@ -950,6 +950,51 @@
 <li>默认 <code>fake</code> adapter 可完整跑通创建、输入、SSE、取消和 artifact。</li>
 <li><code>qwen</code> adapter 已支持通过 <code>QWEN_SERVE_URL</code> / <code>QWEN_SERVE_TOKEN</code> 连接 <code>qwen serve</code> REST/SSE；下一步需要在真实 daemon 上做联调并补 worker supervisor 启动策略。</li>
 </ul>
+<p>P1 当前判断：</p>
+<ul>
+<li>已完成：Run Manager API、fake adapter 端到端、artifact 文件、adapter contract。</li>
+<li>未完成：真实 <code>qwen serve</code> 联调、Worker Supervisor 启动/重启 qwen daemon、Run Manager auth、云端部署脚本。</li>
+<li>因此当前是 P1 prototype，不是 P1 cloud-ready。</li>
+</ul>
+<p>P1 cloud-ready 最小验收：</p>
+<div class="table-wrapper"><table>
+<thead>
+<tr>
+<th>验收项</th>
+<th>标准</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>真实 qwen run</td>
+<td><code>adapter=qwen</code> 能创建 session、发送 prompt、流式接收事件、完成 run</td>
+</tr>
+<tr>
+<td>进程管理</td>
+<td>Run Manager 可启动/发现/重启一个 <code>qwen serve</code> daemon</td>
+</tr>
+<tr>
+<td>API 安全</td>
+<td>Run Manager 至少有 bearer token，不允许裸公网访问</td>
+</tr>
+<tr>
+<td>Artifact</td>
+<td>每个 run 保存 run_spec、input、canonical events、raw qwen events、final report</td>
+</tr>
+<tr>
+<td>Cancel</td>
+<td><code>POST /runs/:id/cancel</code> 能取消 qwen session，并产生 terminal event</td>
+</tr>
+<tr>
+<td>部署</td>
+<td>提供 systemd 或 Docker Compose，在一台 VPS 上重启后可恢复服务</td>
+</tr>
+<tr>
+<td>验证脚本</td>
+<td>一条脚本能跑通 health -&gt; capabilities -&gt; create qwen run -&gt; SSE -&gt; artifact check</td>
+</tr>
+</tbody>
+</table></div>
 <h2 id="p2">P2：审计、权限、恢复硬化<a class="headerlink" href="#p2" title="Permanent link">&para;</a></h2>
 <p>状态：<code>not_started</code></p>
 <p>目标：</p>
