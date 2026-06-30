@@ -246,3 +246,25 @@ The helper script can do that automatically:
 QWEN_SETTINGS_FILE=/path/to/settings.json \
   bash scripts/deploy_runtime_vps.sh root@<host> /path/to/key.pem
 ```
+
+### Browser access through Nginx
+
+The runtime should remain bound to `127.0.0.1`. For browser access, put Nginx in
+front of it, require Basic Auth at the edge, and let Nginx inject the internal
+Run Manager bearer token.
+
+Use `deploy/nginx/cloud-agents-runtime.conf.example` as the starting point and
+write the backend auth header into:
+
+```text
+/etc/nginx/snippets/cloud-agents-runtime-auth.conf
+```
+
+with content:
+
+```nginx
+proxy_set_header Authorization "Bearer <RUN_MANAGER_TOKEN>";
+```
+
+The public route is `/cloud-agents/`; API paths are forwarded without that
+prefix, for example `/cloud-agents/health` -> `http://127.0.0.1:8765/health`.
