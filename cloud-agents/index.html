@@ -1962,33 +1962,32 @@
 </table>
 <h2 id="_2">参考架构<a class="headerlink" href="#_2" title="Permanent link">&para;</a></h2>
 <p>企业 Cloud Agents 更像一个云原生平台，而不是一个 Python 包。推荐的参考架构如下：</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>flowchart TB
-<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>    Clients[&quot;多客户端入口&lt;br/&gt;Web / Mobile / Slack / Teams / API / Workflow&quot;]
-<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>    Gateway[&quot;Agent API Gateway&lt;br/&gt;Auth / Rate Limit / SSE / WebSocket / Webhook&quot;]
-<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>    Session[&quot;Session &amp; Run Manager&lt;br/&gt;Thread / Run / Task / Artifact / Memory&quot;]
-<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>    Orchestrator[&quot;Agent Orchestrator&lt;br/&gt;Graph / Actor / Planner / Workflow&quot;]
-<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>    Runtime[&quot;Execution Runtime&lt;br/&gt;Queue / Worker / Sandbox / Model Router&quot;]
-<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>    Tools[&quot;Tool &amp; Data Gateway&lt;br/&gt;MCP / Connectors / DB / SaaS / Internal API&quot;]
-<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>    Observability[&quot;Observability Plane&lt;br/&gt;Trace / Logs / Metrics / Cost / Eval&quot;]
-<a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>    Governance[&quot;Governance Plane&lt;br/&gt;IAM / RBAC / Audit / Policy / Secrets&quot;]
-<a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a>    Storage[&quot;State Stores&lt;br/&gt;PostgreSQL / Redis / Object Storage / Vector DB&quot;]
-<a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a>    EventBus[&quot;Event Bus&lt;br/&gt;Kafka / PubSub / SQS / NATS / CloudEvents&quot;]
-<a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a>
-<a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a>    Clients --&gt; Gateway
-<a id="__codelineno-0-14" name="__codelineno-0-14" href="#__codelineno-0-14"></a>    Gateway --&gt; Session
-<a id="__codelineno-0-15" name="__codelineno-0-15" href="#__codelineno-0-15"></a>    Session --&gt; Orchestrator
-<a id="__codelineno-0-16" name="__codelineno-0-16" href="#__codelineno-0-16"></a>    Orchestrator --&gt; Runtime
-<a id="__codelineno-0-17" name="__codelineno-0-17" href="#__codelineno-0-17"></a>    Runtime --&gt; Tools
-<a id="__codelineno-0-18" name="__codelineno-0-18" href="#__codelineno-0-18"></a>    Runtime --&gt; Storage
-<a id="__codelineno-0-19" name="__codelineno-0-19" href="#__codelineno-0-19"></a>    Runtime --&gt; EventBus
-<a id="__codelineno-0-20" name="__codelineno-0-20" href="#__codelineno-0-20"></a>    Session --&gt; Storage
-<a id="__codelineno-0-21" name="__codelineno-0-21" href="#__codelineno-0-21"></a>    Orchestrator --&gt; Observability
-<a id="__codelineno-0-22" name="__codelineno-0-22" href="#__codelineno-0-22"></a>    Runtime --&gt; Observability
-<a id="__codelineno-0-23" name="__codelineno-0-23" href="#__codelineno-0-23"></a>    Tools --&gt; Observability
-<a id="__codelineno-0-24" name="__codelineno-0-24" href="#__codelineno-0-24"></a>    Gateway --&gt; Governance
-<a id="__codelineno-0-25" name="__codelineno-0-25" href="#__codelineno-0-25"></a>    Session --&gt; Governance
-<a id="__codelineno-0-26" name="__codelineno-0-26" href="#__codelineno-0-26"></a>    Tools --&gt; Governance
-</code></pre></div>
+<div class="mermaid">flowchart TB
+    Clients["多客户端入口&lt;br/&gt;Web / Mobile / Slack / Teams / API / Workflow"]
+    Gateway["Agent API Gateway&lt;br/&gt;Auth / Rate Limit / SSE / WebSocket / Webhook"]
+    Session["Session &amp; Run Manager&lt;br/&gt;Thread / Run / Task / Artifact / Memory"]
+    Orchestrator["Agent Orchestrator&lt;br/&gt;Graph / Actor / Planner / Workflow"]
+    Runtime["Execution Runtime&lt;br/&gt;Queue / Worker / Sandbox / Model Router"]
+    Tools["Tool &amp; Data Gateway&lt;br/&gt;MCP / Connectors / DB / SaaS / Internal API"]
+    Observability["Observability Plane&lt;br/&gt;Trace / Logs / Metrics / Cost / Eval"]
+    Governance["Governance Plane&lt;br/&gt;IAM / RBAC / Audit / Policy / Secrets"]
+    Storage["State Stores&lt;br/&gt;PostgreSQL / Redis / Object Storage / Vector DB"]
+    EventBus["Event Bus&lt;br/&gt;Kafka / PubSub / SQS / NATS / CloudEvents"]
+
+    Clients --&gt; Gateway
+    Gateway --&gt; Session
+    Session --&gt; Orchestrator
+    Orchestrator --&gt; Runtime
+    Runtime --&gt; Tools
+    Runtime --&gt; Storage
+    Runtime --&gt; EventBus
+    Session --&gt; Storage
+    Orchestrator --&gt; Observability
+    Runtime --&gt; Observability
+    Tools --&gt; Observability
+    Gateway --&gt; Governance
+    Session --&gt; Governance
+    Tools --&gt; Governance</div>
 <p>这个架构的关键点是：</p>
 <ul>
 <li><strong>Gateway 不只是反向代理</strong>：它负责身份、租户、限流、连接保持、流式响应、Webhook 回调、客户端断线重连。</li>
@@ -2838,18 +2837,18 @@
 </ul>
 <h3 id="4-trace">4. Trace 与可观测性<a class="headerlink" href="#4-trace" title="Permanent link">&para;</a></h3>
 <p>Agent trace 的粒度建议至少覆盖：</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>request
-<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>  -&gt; auth_context
-<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>  -&gt; conversation/thread
-<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a>  -&gt; run
-<a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a>  -&gt; planner_step
-<a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a>  -&gt; model_call
-<a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a>  -&gt; tool_call
-<a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a>  -&gt; external_api/db
-<a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a>  -&gt; artifact_write
-<a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a>  -&gt; policy_check
-<a id="__codelineno-1-11" name="__codelineno-1-11" href="#__codelineno-1-11"></a>  -&gt; human_approval
-<a id="__codelineno-1-12" name="__codelineno-1-12" href="#__codelineno-1-12"></a>  -&gt; final_response
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>request
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>  -&gt; auth_context
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>  -&gt; conversation/thread
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>  -&gt; run
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>  -&gt; planner_step
+<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>  -&gt; model_call
+<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>  -&gt; tool_call
+<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>  -&gt; external_api/db
+<a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>  -&gt; artifact_write
+<a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a>  -&gt; policy_check
+<a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a>  -&gt; human_approval
+<a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a>  -&gt; final_response
 </code></pre></div>
 <p>关键指标：</p>
 <ul>
@@ -2990,13 +2989,13 @@
 <li>工程团队有能力运营 Agent 平台。</li>
 </ul>
 <p>推荐组合：</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>LangGraph / LangSmith Deployment
-<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>+ PostgreSQL / Redis / Object Storage
-<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>+ MCP Gateway
-<a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a>+ OpenTelemetry
-<a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a>+ LangSmith or Langfuse/Phoenix
-<a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a>+ Kubernetes
-<a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a>+ 企业 IAM / Secrets / Audit
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>LangGraph / LangSmith Deployment
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>+ PostgreSQL / Redis / Object Storage
+<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>+ MCP Gateway
+<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a>+ OpenTelemetry
+<a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a>+ LangSmith or Langfuse/Phoenix
+<a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a>+ Kubernetes
+<a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a>+ 企业 IAM / Secrets / Audit
 </code></pre></div>
 <p>风险：</p>
 <ul>
@@ -3012,12 +3011,12 @@
 <li>企业已有成熟微服务和平台工程能力。</li>
 </ul>
 <p>推荐组合：</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>Temporal
-<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>+ OpenAI Agents SDK / Google ADK / Microsoft Agent Framework / LangGraph
-<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>+ 自研 Session &amp; Run Manager
-<a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a>+ 自研 Tool Gateway / MCP Gateway
-<a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a>+ OpenTelemetry + Langfuse/Phoenix
-<a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a>+ Kubernetes + Queue + Object Storage
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>Temporal
+<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>+ OpenAI Agents SDK / Google ADK / Microsoft Agent Framework / LangGraph
+<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>+ 自研 Session &amp; Run Manager
+<a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a>+ 自研 Tool Gateway / MCP Gateway
+<a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a>+ OpenTelemetry + Langfuse/Phoenix
+<a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a>+ Kubernetes + Queue + Object Storage
 </code></pre></div>
 <p>风险：</p>
 <ul>
@@ -3033,10 +3032,10 @@
 <li>团队希望低代码或角色式开发。</li>
 </ul>
 <p>推荐组合：</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>Dify or CrewAI Enterprise
-<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>+ 企业 SSO / Gateway
-<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a>+ 外部 Trace / Audit
-<a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a>+ 私有化部署或企业云版本
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>Dify or CrewAI Enterprise
+<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>+ 企业 SSO / Gateway
+<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>+ 外部 Trace / Audit
+<a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a>+ 私有化部署或企业云版本
 </code></pre></div>
 <p>风险：</p>
 <ul>
@@ -3227,6 +3226,10 @@
     
     
       <script src="../assets/javascripts/bundle.56ea9cef.min.js"></script>
+      
+        <script src="../javascripts/vendor/mermaid.min.js"></script>
+      
+        <script src="../javascripts/mermaid-init.js"></script>
       
         <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
       

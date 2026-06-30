@@ -1107,11 +1107,10 @@
 </tbody>
 </table>
 <p>可以把它们理解为三条不同边：</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>flowchart LR
-<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>    Client[&quot;Client / IDE / Control Plane&quot;] -- ACP --&gt; Agent[&quot;Coding Agent&quot;]
-<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>    Agent -- MCP --&gt; Tool[&quot;Tool / Data / SaaS&quot;]
-<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>    Agent -- A2A --&gt; Other[&quot;Other Agent Service&quot;]
-</code></pre></div>
+<div class="mermaid">flowchart LR
+    Client["Client / IDE / Control Plane"] -- ACP --&gt; Agent["Coding Agent"]
+    Agent -- MCP --&gt; Tool["Tool / Data / SaaS"]
+    Agent -- A2A --&gt; Other["Other Agent Service"]</div>
 <h2 id="acp">ACP 适合什么<a class="headerlink" href="#acp" title="Permanent link">&para;</a></h2>
 <p>Agent Client Protocol 的官方定位是让用户主要在编辑器中，通过本地 stdio 或远程 HTTP/WebSocket 与 Agent 通信。它的协议模型基于 JSON-RPC request/response 和 notification。</p>
 <p>对本项目而言，ACP 很适合作为内部 coding worker 控制协议：</p>
@@ -1240,12 +1239,12 @@
 <p>所以，ACP 可以替代一部分“内部执行器控制”的需求，但不能替代开放式 Agent-to-Agent 协议。反过来，A2A 也不应该直接替代内部 SAEU contract，因为 A2A 不关心具体 worker 的 workspace、daemon、event ring、resume 和 tool stdout 细节。</p>
 <h2 id="_2">推荐协议架构<a class="headerlink" href="#_2" title="Permanent link">&para;</a></h2>
 <p>MVP 阶段：</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>Client -&gt; REST/SSE -&gt; Run Manager -&gt; ACP-like -&gt; Qwen Code Worker
-<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>Qwen Code Worker -&gt; MCP -&gt; Tools
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>Client -&gt; REST/SSE -&gt; Run Manager -&gt; ACP-like -&gt; Qwen Code Worker
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>Qwen Code Worker -&gt; MCP -&gt; Tools
 </code></pre></div>
 <p>演进阶段：</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>External Agent -&gt; A2A Gateway -&gt; Run Manager -&gt; SAEU -&gt; qwen serve / ACP bridge
-<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>SAEU -&gt; MCP Gateway -&gt; Tools
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>External Agent -&gt; A2A Gateway -&gt; Run Manager -&gt; SAEU -&gt; qwen serve / ACP bridge
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>SAEU -&gt; MCP Gateway -&gt; Tools
 </code></pre></div>
 <p>桥接关系：</p>
 <table>
@@ -1394,6 +1393,10 @@
     
     
       <script src="../../assets/javascripts/bundle.56ea9cef.min.js"></script>
+      
+        <script src="../../javascripts/vendor/mermaid.min.js"></script>
+      
+        <script src="../../javascripts/mermaid-init.js"></script>
       
         <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
       

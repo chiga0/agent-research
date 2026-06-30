@@ -1329,36 +1329,35 @@
 <li>在资源有限的 VPS 上优先稳态运行，而不是追求复杂平台化。</li>
 </ul>
 <h2 id="_4">总体架构<a class="headerlink" href="#_4" title="Permanent link">&para;</a></h2>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>flowchart TB
-<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>    Client[&quot;Client&lt;br/&gt;Web / API / IM / CLI&quot;]
-<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>    Gateway[&quot;API Gateway&lt;br/&gt;Auth / Rate Limit / SSE&quot;]
-<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>    Control[&quot;Run Manager&lt;br/&gt;Thread / Run / Step / Permission&quot;]
-<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>    Queue[&quot;Job Queue&lt;br/&gt;Lease / Heartbeat / Retry&quot;]
-<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>    Worker[&quot;Agent Worker Supervisor&quot;]
-<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>    Sandbox[&quot;Per-run Sandbox&lt;br/&gt;Docker / Worktree / cgroups&quot;]
-<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>    Agent[&quot;SAEU Adapter&lt;br/&gt;qwen serve / ACP bridge&quot;]
-<a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>    ModelProxy[&quot;Model Proxy&lt;br/&gt;Budget / Key isolation / Audit&quot;]
-<a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a>    Tools[&quot;Tool Gateway&lt;br/&gt;MCP / Git / Shell / Browser&quot;]
-<a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a>    EventStore[&quot;Event Store&lt;br/&gt;PostgreSQL + JSONL export&quot;]
-<a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a>    Artifacts[&quot;Artifact Store&lt;br/&gt;Diff / Logs / Reports&quot;]
-<a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a>    Observe[&quot;Observability&lt;br/&gt;OTel / Logs / Cost / Eval&quot;]
-<a id="__codelineno-0-14" name="__codelineno-0-14" href="#__codelineno-0-14"></a>
-<a id="__codelineno-0-15" name="__codelineno-0-15" href="#__codelineno-0-15"></a>    Client --&gt; Gateway
-<a id="__codelineno-0-16" name="__codelineno-0-16" href="#__codelineno-0-16"></a>    Gateway --&gt; Control
-<a id="__codelineno-0-17" name="__codelineno-0-17" href="#__codelineno-0-17"></a>    Control --&gt; Queue
-<a id="__codelineno-0-18" name="__codelineno-0-18" href="#__codelineno-0-18"></a>    Queue --&gt; Worker
-<a id="__codelineno-0-19" name="__codelineno-0-19" href="#__codelineno-0-19"></a>    Worker --&gt; Sandbox
-<a id="__codelineno-0-20" name="__codelineno-0-20" href="#__codelineno-0-20"></a>    Sandbox --&gt; Agent
-<a id="__codelineno-0-21" name="__codelineno-0-21" href="#__codelineno-0-21"></a>    Agent --&gt; ModelProxy
-<a id="__codelineno-0-22" name="__codelineno-0-22" href="#__codelineno-0-22"></a>    Agent --&gt; Tools
-<a id="__codelineno-0-23" name="__codelineno-0-23" href="#__codelineno-0-23"></a>    Control --&gt; EventStore
-<a id="__codelineno-0-24" name="__codelineno-0-24" href="#__codelineno-0-24"></a>    Worker --&gt; EventStore
-<a id="__codelineno-0-25" name="__codelineno-0-25" href="#__codelineno-0-25"></a>    Agent --&gt; EventStore
-<a id="__codelineno-0-26" name="__codelineno-0-26" href="#__codelineno-0-26"></a>    Agent --&gt; Artifacts
-<a id="__codelineno-0-27" name="__codelineno-0-27" href="#__codelineno-0-27"></a>    Worker --&gt; Observe
-<a id="__codelineno-0-28" name="__codelineno-0-28" href="#__codelineno-0-28"></a>    ModelProxy --&gt; Observe
-<a id="__codelineno-0-29" name="__codelineno-0-29" href="#__codelineno-0-29"></a>    Tools --&gt; Observe
-</code></pre></div>
+<div class="mermaid">flowchart TB
+    Client["Client&lt;br/&gt;Web / API / IM / CLI"]
+    Gateway["API Gateway&lt;br/&gt;Auth / Rate Limit / SSE"]
+    Control["Run Manager&lt;br/&gt;Thread / Run / Step / Permission"]
+    Queue["Job Queue&lt;br/&gt;Lease / Heartbeat / Retry"]
+    Worker["Agent Worker Supervisor"]
+    Sandbox["Per-run Sandbox&lt;br/&gt;Docker / Worktree / cgroups"]
+    Agent["SAEU Adapter&lt;br/&gt;qwen serve / ACP bridge"]
+    ModelProxy["Model Proxy&lt;br/&gt;Budget / Key isolation / Audit"]
+    Tools["Tool Gateway&lt;br/&gt;MCP / Git / Shell / Browser"]
+    EventStore["Event Store&lt;br/&gt;PostgreSQL + JSONL export"]
+    Artifacts["Artifact Store&lt;br/&gt;Diff / Logs / Reports"]
+    Observe["Observability&lt;br/&gt;OTel / Logs / Cost / Eval"]
+
+    Client --&gt; Gateway
+    Gateway --&gt; Control
+    Control --&gt; Queue
+    Queue --&gt; Worker
+    Worker --&gt; Sandbox
+    Sandbox --&gt; Agent
+    Agent --&gt; ModelProxy
+    Agent --&gt; Tools
+    Control --&gt; EventStore
+    Worker --&gt; EventStore
+    Agent --&gt; EventStore
+    Agent --&gt; Artifacts
+    Worker --&gt; Observe
+    ModelProxy --&gt; Observe
+    Tools --&gt; Observe</div>
 <h3 id="_5">核心分层<a class="headerlink" href="#_5" title="Permanent link">&para;</a></h3>
 <table>
 <thead>
@@ -1497,25 +1496,25 @@
 </tbody>
 </table>
 <p>状态机应当简单但强约束：</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>queued -&gt; starting -&gt; running -&gt; waiting_approval -&gt; running
-<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>running -&gt; cancelling -&gt; cancelled
-<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>running -&gt; succeeded
-<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a>running -&gt; failed
-<a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a>running -&gt; timed_out
-<a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a>failed  -&gt; retrying -&gt; running
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>queued -&gt; starting -&gt; running -&gt; waiting_approval -&gt; running
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>running -&gt; cancelling -&gt; cancelled
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>running -&gt; succeeded
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>running -&gt; failed
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>running -&gt; timed_out
+<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>failed  -&gt; retrying -&gt; running
 </code></pre></div>
 <h2 id="_7">低资源部署拓扑<a class="headerlink" href="#_7" title="Permanent link">&para;</a></h2>
 <h3 id="vps">单 VPS 起步<a class="headerlink" href="#vps" title="Permanent link">&para;</a></h3>
 <p>适合 POC 和早期 MVP：</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>VPS-1
-<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>  nginx/caddy
-<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>  app-api
-<a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a>  postgres
-<a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a>  worker-supervisor
-<a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a>  model-proxy
-<a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a>  docker/rootless-docker
-<a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a>  /srv/agent/workspaces
-<a id="__codelineno-2-9" name="__codelineno-2-9" href="#__codelineno-2-9"></a>  /srv/agent/artifacts
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>VPS-1
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>  nginx/caddy
+<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>  app-api
+<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a>  postgres
+<a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a>  worker-supervisor
+<a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a>  model-proxy
+<a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a>  docker/rootless-docker
+<a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a>  /srv/agent/workspaces
+<a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a>  /srv/agent/artifacts
 </code></pre></div>
 <p>建议约束：</p>
 <ul>
@@ -1527,12 +1526,12 @@
 </ul>
 <h3 id="vps_1">双 VPS 演进<a class="headerlink" href="#vps_1" title="Permanent link">&para;</a></h3>
 <p>当开始运行不可信代码、公开仓库测试或更高风险工具时，把 sandbox worker 拆到第二台机器：</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>VPS-1: control plane
-<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>  api / postgres / event store / model proxy
-<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>
-<a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a>VPS-2: sandbox worker
-<a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a>  worker-supervisor / docker / workspaces
-<a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a>  仅通过 WireGuard 或 Tailscale 访问 VPS-1
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>VPS-1: control plane
+<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>  api / postgres / event store / model proxy
+<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>
+<a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a>VPS-2: sandbox worker
+<a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a>  worker-supervisor / docker / workspaces
+<a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a>  仅通过 WireGuard 或 Tailscale 访问 VPS-1
 </code></pre></div>
 <p>这样即使容器逃逸，爆炸半径也主要限制在 worker 节点。对于 1-2 台小 VPS，这是比 Kubernetes 更现实的安全收益。</p>
 <h2 id="mvp">MVP 实施路线<a class="headerlink" href="#mvp" title="Permanent link">&para;</a></h2>
@@ -1717,6 +1716,10 @@
     
     
       <script src="../assets/javascripts/bundle.56ea9cef.min.js"></script>
+      
+        <script src="../javascripts/vendor/mermaid.min.js"></script>
+      
+        <script src="../javascripts/mermaid-init.js"></script>
       
         <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
       

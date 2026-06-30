@@ -1279,28 +1279,27 @@
 </ul>
 <p>这些内容应当放到 Event Store、artifact 文件或对象存储中，Temporal 只保存引用和关键状态。</p>
 <h2 id="agent-workflow">Agent Workflow 草案<a class="headerlink" href="#agent-workflow" title="Permanent link">&para;</a></h2>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>sequenceDiagram
-<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>    participant API as API
-<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>    participant WF as Temporal Workflow
-<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>    participant Act as Activities
-<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>    participant W as Worker Supervisor
-<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>    participant A as Agent Container
-<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>    participant ES as Event Store
-<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>
-<a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>    API-&gt;&gt;WF: start AgentRunWorkflow(run_id)
-<a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a>    WF-&gt;&gt;Act: prepare_workspace(run_id)
-<a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a>    WF-&gt;&gt;Act: start_container(run_id)
-<a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a>    Act-&gt;&gt;W: launch sandbox
-<a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a>    W-&gt;&gt;A: start qwen-code
-<a id="__codelineno-0-14" name="__codelineno-0-14" href="#__codelineno-0-14"></a>    A-&gt;&gt;ES: append events/jsonl
-<a id="__codelineno-0-15" name="__codelineno-0-15" href="#__codelineno-0-15"></a>    W-&gt;&gt;WF: heartbeat status
-<a id="__codelineno-0-16" name="__codelineno-0-16" href="#__codelineno-0-16"></a>    WF--&gt;&gt;API: Query status
-<a id="__codelineno-0-17" name="__codelineno-0-17" href="#__codelineno-0-17"></a>    API-&gt;&gt;WF: Signal approve/deny/cancel
-<a id="__codelineno-0-18" name="__codelineno-0-18" href="#__codelineno-0-18"></a>    WF-&gt;&gt;Act: deliver_permission_decision
-<a id="__codelineno-0-19" name="__codelineno-0-19" href="#__codelineno-0-19"></a>    W-&gt;&gt;WF: completion/failure
-<a id="__codelineno-0-20" name="__codelineno-0-20" href="#__codelineno-0-20"></a>    WF-&gt;&gt;Act: collect_artifacts
-<a id="__codelineno-0-21" name="__codelineno-0-21" href="#__codelineno-0-21"></a>    WF-&gt;&gt;Act: cleanup_container
-</code></pre></div>
+<div class="mermaid">sequenceDiagram
+    participant API as API
+    participant WF as Temporal Workflow
+    participant Act as Activities
+    participant W as Worker Supervisor
+    participant A as Agent Container
+    participant ES as Event Store
+
+    API-&gt;&gt;WF: start AgentRunWorkflow(run_id)
+    WF-&gt;&gt;Act: prepare_workspace(run_id)
+    WF-&gt;&gt;Act: start_container(run_id)
+    Act-&gt;&gt;W: launch sandbox
+    W-&gt;&gt;A: start qwen-code
+    A-&gt;&gt;ES: append events/jsonl
+    W-&gt;&gt;WF: heartbeat status
+    WF--&gt;&gt;API: Query status
+    API-&gt;&gt;WF: Signal approve/deny/cancel
+    WF-&gt;&gt;Act: deliver_permission_decision
+    W-&gt;&gt;WF: completion/failure
+    WF-&gt;&gt;Act: collect_artifacts
+    WF-&gt;&gt;Act: cleanup_container</div>
 <p>Workflow 只做编排，不承载大流量事件。Agent 事件流直接写 Event Store，Workflow 通过 heartbeat、signal 或 lightweight activity result 了解关键状态。</p>
 <h2 id="qwen-code-loop-workflow">为什么不要把 qwen-code loop 放进 Workflow<a class="headerlink" href="#qwen-code-loop-workflow" title="Permanent link">&para;</a></h2>
 <p>Temporal Workflow 代码需要确定性。LLM 调用、shell 命令、文件系统状态、网络请求、随机数、时间和 token streaming 都是非确定性的。</p>
@@ -1371,12 +1370,12 @@
 <li>手写 DB 状态机开始变复杂。</li>
 </ul>
 <p>部署：</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>VPS-1
-<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>  Temporal Service
-<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>  Postgres
-<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a>  API
-<a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a>  worker
-<a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a>  optional Temporal UI
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>VPS-1
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>  Temporal Service
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>  Postgres
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>  API
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>  worker
+<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>  optional Temporal UI
 </code></pre></div>
 <p>注意：</p>
 <ul>
@@ -1386,8 +1385,8 @@
 <li>做数据库备份。</li>
 </ul>
 <h3 id="c-worker">阶段 C：控制面和 worker 分离<a class="headerlink" href="#c-worker" title="Permanent link">&para;</a></h3>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>VPS-1: Temporal + API + Postgres
-<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>VPS-2: Agent worker + Docker sandbox
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>VPS-1: Temporal + API + Postgres
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>VPS-2: Agent worker + Docker sandbox
 </code></pre></div>
 <p>这时 Temporal 的 Task Queue 可以把任务分发给 worker 节点。</p>
 <h2 id="temporal_2">Temporal 与事件溯源的关系<a class="headerlink" href="#temporal_2" title="Permanent link">&para;</a></h2>
@@ -1525,6 +1524,10 @@
     
     
       <script src="../../assets/javascripts/bundle.56ea9cef.min.js"></script>
+      
+        <script src="../../javascripts/vendor/mermaid.min.js"></script>
+      
+        <script src="../../javascripts/mermaid-init.js"></script>
       
         <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
       

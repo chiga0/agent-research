@@ -2038,26 +2038,25 @@
 <li>SDK：主要通过 CLI 子进程的 JSONL 协议接入 core runtime；TypeScript SDK 最完整，Python SDK 是较轻的进程封装。</li>
 </ul>
 <p>核心数据流可以概括为：</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>flowchart TD
-<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>  SDK[&quot;SDK / CLI / daemon&quot;] --&gt; ConfigInit[&quot;Config.initialize()&quot;]
-<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>  ConfigInit --&gt; Ext[&quot;ExtensionManager&quot;]
-<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>  ConfigInit --&gt; Perm[&quot;PermissionManager&quot;]
-<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>  ConfigInit --&gt; Mem[&quot;MemoryManager + Memory Discovery&quot;]
-<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>  ConfigInit --&gt; Registry[&quot;ToolRegistry&quot;]
-<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>  ConfigInit --&gt; Client[&quot;GeminiClient&quot;]
-<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>
-<a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>  Client --&gt; Chat[&quot;GeminiChat&quot;]
-<a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a>  Chat --&gt; Gen[&quot;ContentGenerator provider adapter&quot;]
-<a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a>  Gen --&gt; Model[&quot;LLM Provider&quot;]
-<a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a>  Model --&gt; Gen
-<a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a>  Gen --&gt; Turn[&quot;Turn.run()&quot;]
-<a id="__codelineno-0-14" name="__codelineno-0-14" href="#__codelineno-0-14"></a>  Turn --&gt; Events[&quot;GeminiEvent stream&quot;]
-<a id="__codelineno-0-15" name="__codelineno-0-15" href="#__codelineno-0-15"></a>  Turn --&gt; Scheduler[&quot;CoreToolScheduler&quot;]
-<a id="__codelineno-0-16" name="__codelineno-0-16" href="#__codelineno-0-16"></a>  Scheduler --&gt; PermFlow[&quot;Permission Flow + Hooks&quot;]
-<a id="__codelineno-0-17" name="__codelineno-0-17" href="#__codelineno-0-17"></a>  PermFlow --&gt; ToolExec[&quot;Tool.execute()&quot;]
-<a id="__codelineno-0-18" name="__codelineno-0-18" href="#__codelineno-0-18"></a>  ToolExec --&gt; ToolResult[&quot;ToolResult&quot;]
-<a id="__codelineno-0-19" name="__codelineno-0-19" href="#__codelineno-0-19"></a>  ToolResult --&gt; Client
-</code></pre></div>
+<div class="mermaid">flowchart TD
+  SDK["SDK / CLI / daemon"] --&gt; ConfigInit["Config.initialize()"]
+  ConfigInit --&gt; Ext["ExtensionManager"]
+  ConfigInit --&gt; Perm["PermissionManager"]
+  ConfigInit --&gt; Mem["MemoryManager + Memory Discovery"]
+  ConfigInit --&gt; Registry["ToolRegistry"]
+  ConfigInit --&gt; Client["GeminiClient"]
+
+  Client --&gt; Chat["GeminiChat"]
+  Chat --&gt; Gen["ContentGenerator provider adapter"]
+  Gen --&gt; Model["LLM Provider"]
+  Model --&gt; Gen
+  Gen --&gt; Turn["Turn.run()"]
+  Turn --&gt; Events["GeminiEvent stream"]
+  Turn --&gt; Scheduler["CoreToolScheduler"]
+  Scheduler --&gt; PermFlow["Permission Flow + Hooks"]
+  PermFlow --&gt; ToolExec["Tool.execute()"]
+  ToolExec --&gt; ToolResult["ToolResult"]
+  ToolResult --&gt; Client</div>
 <h2 id="2">2. 关键源码入口<a class="headerlink" href="#2" title="Permanent link">&para;</a></h2>
 <h3 id="21-core">2.1 Core 主链路<a class="headerlink" href="#21-core" title="Permanent link">&para;</a></h3>
 <table>
@@ -2306,12 +2305,11 @@
 <p>这些信息后续会被 <code>CoreToolScheduler</code> 使用，尤其是权限、截断保护、工具结果对应关系。</p>
 <h2 id="5">5. 系统提示词体系<a class="headerlink" href="#5" title="Permanent link">&para;</a></h2>
 <p>Qwen Code 的提示词不是单层文本，而是两层组合：</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>flowchart TD
-<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>  SystemInstruction[&quot;systemInstruction, system role&quot;] --&gt; ModelReq[&quot;LLM request&quot;]
-<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>  StartupReminder[&quot;startup &lt;system-reminder&gt;, user role&quot;] --&gt; InitialHistory[&quot;initial chat history&quot;]
-<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a>  UserMemory[&quot;hierarchical memory / user memory&quot;] --&gt; SystemInstruction
-<a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a>  Env[&quot;OS/date/cwd/tree/MCP/skills/deferred tools&quot;] --&gt; StartupReminder
-</code></pre></div>
+<div class="mermaid">flowchart TD
+  SystemInstruction["systemInstruction, system role"] --&gt; ModelReq["LLM request"]
+  StartupReminder["startup &lt;system-reminder&gt;, user role"] --&gt; InitialHistory["initial chat history"]
+  UserMemory["hierarchical memory / user memory"] --&gt; SystemInstruction
+  Env["OS/date/cwd/tree/MCP/skills/deferred tools"] --&gt; StartupReminder</div>
 <h3 id="51-corepromptsts">5.1 <code>core/prompts.ts</code><a class="headerlink" href="#51-corepromptsts" title="Permanent link">&para;</a></h3>
 <p><code>packages/core/src/core/prompts.ts</code> 生成真正的 system role instruction。</p>
 <p>主要内容：</p>
@@ -2406,14 +2404,13 @@
 <p>工具调度是 Agent 行为安全性的第二道门。第一道门是注册期是否暴露工具，第三道门是工具执行时的 hook 和实际 tool 内部保护。</p>
 <h2 id="7">7. 权限体系<a class="headerlink" href="#7" title="Permanent link">&para;</a></h2>
 <p>权限体系大致分三段：</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>flowchart TD
-<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>  Register[&quot;注册期: isToolEnabled()&quot;] --&gt; Visible[&quot;工具是否对模型可见&quot;]
-<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>  Schedule[&quot;调度期: CoreToolScheduler&quot;] --&gt; L3[&quot;L3 tool default&quot;]
-<a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a>  L3 --&gt; L4[&quot;L4 PermissionManager rules&quot;]
-<a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a>  L4 --&gt; L5[&quot;L5 approval mode&quot;]
-<a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a>  L5 --&gt; Execute[&quot;执行工具&quot;]
-<a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a>  Execute --&gt; Hooks[&quot;Pre/Post hooks 可拦截或修改&quot;]
-</code></pre></div>
+<div class="mermaid">flowchart TD
+  Register["注册期: isToolEnabled()"] --&gt; Visible["工具是否对模型可见"]
+  Schedule["调度期: CoreToolScheduler"] --&gt; L3["L3 tool default"]
+  L3 --&gt; L4["L4 PermissionManager rules"]
+  L4 --&gt; L5["L5 approval mode"]
+  L5 --&gt; Execute["执行工具"]
+  Execute --&gt; Hooks["Pre/Post hooks 可拦截或修改"]</div>
 <h3 id="71">7.1 权限模式<a class="headerlink" href="#71" title="Permanent link">&para;</a></h3>
 <p>常见 approval / permission mode：</p>
 <ul>
@@ -2622,8 +2619,8 @@
 <p>因此 extension 是能力注入层，MCP、skill、hooks、commands 都可以由 extension 带进 core。</p>
 <h3 id="102-skillmanager">10.2 SkillManager<a class="headerlink" href="#102-skillmanager" title="Permanent link">&para;</a></h3>
 <p>Skill 目录形态通常是：</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>&lt;skill-name&gt;/
-<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>  SKILL.md
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>&lt;skill-name&gt;/
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>  SKILL.md
 </code></pre></div>
 <p>Skill 来源优先级：</p>
 <ol>
@@ -2775,7 +2772,7 @@
 <li><code>packages/sdk-typescript/src/transport/ProcessTransport.ts</code>。</li>
 </ul>
 <p>SDK 会启动 CLI 子进程，大致命令形态：</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>qwen --input-format stream-json --output-format stream-json --channel=SDK ...
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>qwen --input-format stream-json --output-format stream-json --channel=SDK ...
 </code></pre></div>
 <p>通信方式是 JSONL 双向流：</p>
 <ul>
@@ -2841,33 +2838,32 @@
 <p>当前仓库结构中没有 <code>packages/sdk-java/src</code>。如果有 Java SDK，可能不在这个源码路径下，或者被移动到了其他 package。基于当前本地仓库，core + TS/Python SDK 是可直接分析对象。</p>
 <h2 id="18">18. 一次完整请求的细节链路<a class="headerlink" href="#18" title="Permanent link">&para;</a></h2>
 <p>以用户输入“修改某个文件”为例：</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>sequenceDiagram
-<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>  participant User
-<a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a>  participant SDK as SDK/CLI
-<a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a>  participant Client as GeminiClient
-<a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a>  participant Chat as GeminiChat
-<a id="__codelineno-5-6" name="__codelineno-5-6" href="#__codelineno-5-6"></a>  participant Model as LLM Provider
-<a id="__codelineno-5-7" name="__codelineno-5-7" href="#__codelineno-5-7"></a>  participant Turn
-<a id="__codelineno-5-8" name="__codelineno-5-8" href="#__codelineno-5-8"></a>  participant Scheduler as CoreToolScheduler
-<a id="__codelineno-5-9" name="__codelineno-5-9" href="#__codelineno-5-9"></a>  participant Perm as PermissionManager
-<a id="__codelineno-5-10" name="__codelineno-5-10" href="#__codelineno-5-10"></a>  participant Tool as Tool
-<a id="__codelineno-5-11" name="__codelineno-5-11" href="#__codelineno-5-11"></a>
-<a id="__codelineno-5-12" name="__codelineno-5-12" href="#__codelineno-5-12"></a>  User-&gt;&gt;SDK: 输入请求
-<a id="__codelineno-5-13" name="__codelineno-5-13" href="#__codelineno-5-13"></a>  SDK-&gt;&gt;Client: SendMessageType.UserQuery
-<a id="__codelineno-5-14" name="__codelineno-5-14" href="#__codelineno-5-14"></a>  Client-&gt;&gt;Client: recall memory / hooks / prepare context
-<a id="__codelineno-5-15" name="__codelineno-5-15" href="#__codelineno-5-15"></a>  Client-&gt;&gt;Chat: sendMessageStream()
-<a id="__codelineno-5-16" name="__codelineno-5-16" href="#__codelineno-5-16"></a>  Chat-&gt;&gt;Model: generateContentStream(system + history + tools)
-<a id="__codelineno-5-17" name="__codelineno-5-17" href="#__codelineno-5-17"></a>  Model--&gt;&gt;Chat: stream chunks
-<a id="__codelineno-5-18" name="__codelineno-5-18" href="#__codelineno-5-18"></a>  Chat--&gt;&gt;Turn: raw stream
-<a id="__codelineno-5-19" name="__codelineno-5-19" href="#__codelineno-5-19"></a>  Turn--&gt;&gt;Client: Content / Thought events
-<a id="__codelineno-5-20" name="__codelineno-5-20" href="#__codelineno-5-20"></a>  Turn--&gt;&gt;Scheduler: ToolCallRequest
-<a id="__codelineno-5-21" name="__codelineno-5-21" href="#__codelineno-5-21"></a>  Scheduler-&gt;&gt;Perm: evaluate tool permission
-<a id="__codelineno-5-22" name="__codelineno-5-22" href="#__codelineno-5-22"></a>  Perm--&gt;&gt;Scheduler: allow / ask / deny
-<a id="__codelineno-5-23" name="__codelineno-5-23" href="#__codelineno-5-23"></a>  Scheduler-&gt;&gt;Tool: execute if allowed
-<a id="__codelineno-5-24" name="__codelineno-5-24" href="#__codelineno-5-24"></a>  Tool--&gt;&gt;Scheduler: ToolResult
-<a id="__codelineno-5-25" name="__codelineno-5-25" href="#__codelineno-5-25"></a>  Scheduler--&gt;&gt;Client: ToolResult
-<a id="__codelineno-5-26" name="__codelineno-5-26" href="#__codelineno-5-26"></a>  Client-&gt;&gt;Chat: feed tool result back
-</code></pre></div>
+<div class="mermaid">sequenceDiagram
+  participant User
+  participant SDK as SDK/CLI
+  participant Client as GeminiClient
+  participant Chat as GeminiChat
+  participant Model as LLM Provider
+  participant Turn
+  participant Scheduler as CoreToolScheduler
+  participant Perm as PermissionManager
+  participant Tool as Tool
+
+  User-&gt;&gt;SDK: 输入请求
+  SDK-&gt;&gt;Client: SendMessageType.UserQuery
+  Client-&gt;&gt;Client: recall memory / hooks / prepare context
+  Client-&gt;&gt;Chat: sendMessageStream()
+  Chat-&gt;&gt;Model: generateContentStream(system + history + tools)
+  Model--&gt;&gt;Chat: stream chunks
+  Chat--&gt;&gt;Turn: raw stream
+  Turn--&gt;&gt;Client: Content / Thought events
+  Turn--&gt;&gt;Scheduler: ToolCallRequest
+  Scheduler-&gt;&gt;Perm: evaluate tool permission
+  Perm--&gt;&gt;Scheduler: allow / ask / deny
+  Scheduler-&gt;&gt;Tool: execute if allowed
+  Tool--&gt;&gt;Scheduler: ToolResult
+  Scheduler--&gt;&gt;Client: ToolResult
+  Client-&gt;&gt;Chat: feed tool result back</div>
 <p>其中任何一步都可能插入：</p>
 <ul>
 <li>memory recall 结果。</li>
@@ -2979,6 +2975,10 @@
     
     
       <script src="../../assets/javascripts/bundle.56ea9cef.min.js"></script>
+      
+        <script src="../../javascripts/vendor/mermaid.min.js"></script>
+      
+        <script src="../../javascripts/mermaid-init.js"></script>
       
         <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
       
