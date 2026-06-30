@@ -2,18 +2,42 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
     <url>
          <loc>https://chiga0.github.io/agent-research/</loc>
-         <lastmod>2026-06-29</lastmod>
+         <lastmod>2026-06-30</lastmod>
     </url>
     <url>
          <loc>https://chiga0.github.io/agent-research/cloud-agents/</loc>
-         <lastmod>2026-06-29</lastmod>
+         <lastmod>2026-06-30</lastmod>
+    </url>
+    <url>
+         <loc>https://chiga0.github.io/agent-research/implementation/</loc>
+         <lastmod>2026-06-30</lastmod>
+    </url>
+    <url>
+         <loc>https://chiga0.github.io/agent-research/implementation/event-sourcing-and-replay/</loc>
+         <lastmod>2026-06-30</lastmod>
+    </url>
+    <url>
+         <loc>https://chiga0.github.io/agent-research/implementation/protocol-acp-a2a/</loc>
+         <lastmod>2026-06-30</lastmod>
+    </url>
+    <url>
+         <loc>https://chiga0.github.io/agent-research/implementation/sandbox-isolation/</loc>
+         <lastmod>2026-06-30</lastmod>
+    </url>
+    <url>
+         <loc>https://chiga0.github.io/agent-research/implementation/single-agent-strategy/</loc>
+         <lastmod>2026-06-30</lastmod>
+    </url>
+    <url>
+         <loc>https://chiga0.github.io/agent-research/implementation/temporal-evaluation/</loc>
+         <lastmod>2026-06-30</lastmod>
     </url>
     <url>
          <loc>https://chiga0.github.io/agent-research/multi-agent/research-on-multi-agent-orchestration-frameworks/</loc>
-         <lastmod>2026-06-29</lastmod>
+         <lastmod>2026-06-30</lastmod>
     </url>
     <url>
          <loc>https://chiga0.github.io/agent-research/other-agents/qwen-code-core-sdk-agent-architecture/</loc>
-         <lastmod>2026-06-29</lastmod>
+         <lastmod>2026-06-30</lastmod>
     </url>
 </urlset>

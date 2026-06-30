@@ -1,0 +1,1344 @@
+
+<!doctype html>
+<html lang="zh" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Agent framework, multi-agent orchestration, and runtime harness research notes.">
+      
+      
+      
+        <link rel="canonical" href="https://chiga0.github.io/agent-research/implementation/event-sourcing-and-replay/">
+      
+      
+        <link rel="prev" href="../temporal-evaluation/">
+      
+      
+        <link rel="next" href="../single-agent-strategy/">
+      
+      
+      <link rel="icon" href="../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.6.15">
+    
+    
+      
+        <title>事件溯源、JSONL 与回放 - Agent Research</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.342714a4.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.06af60db.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="blue">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#jsonl" class="md-skip">
+          跳转至
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="页眉">
+    <a href="../.." title="Agent Research" class="md-header__button md-logo" aria-label="Agent Research" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Agent Research
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              事件溯源、JSONL 与回放
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="blue"  aria-label="切换到深色模式"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="切换到深色模式" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m17.75 4.09-2.53 1.94.91 3.06-2.63-1.81-2.63 1.81.91-3.06-2.53-1.94L12.44 4l1.06-3 1.06 3zm3.5 6.91-1.64 1.25.59 1.98-1.7-1.17-1.7 1.17.59-1.98L15.75 11l2.06-.05L18.5 9l.69 1.95zm-2.28 4.95c.83-.08 1.72 1.1 1.19 1.85-.32.45-.66.87-1.08 1.27C15.17 23 8.84 23 4.94 19.07c-3.91-3.9-3.91-10.24 0-14.14.4-.4.82-.76 1.27-1.08.75-.53 1.93.36 1.85 1.19-.27 2.86.69 5.83 2.89 8.02a9.96 9.96 0 0 0 8.02 2.89m-1.64 2.02a12.08 12.08 0 0 1-7.8-3.47c-2.17-2.19-3.33-5-3.49-7.82-2.81 3.14-2.7 7.96.31 10.98 3.02 3.01 7.84 3.12 10.98.31"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="blue"  aria-label="切换到浅色模式"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="切换到浅色模式" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 7a5 5 0 0 1 5 5 5 5 0 0 1-5 5 5 5 0 0 1-5-5 5 5 0 0 1 5-5m0 2a3 3 0 0 0-3 3 3 3 0 0 0 3 3 3 3 0 0 0 3-3 3 3 0 0 0-3-3m0-7 2.39 3.42C13.65 5.15 12.84 5 12 5s-1.65.15-2.39.42zM3.34 7l4.16-.35A7.2 7.2 0 0 0 5.94 8.5c-.44.74-.69 1.5-.83 2.29zm.02 10 1.76-3.77a7.131 7.131 0 0 0 2.38 4.14zM20.65 7l-1.77 3.79a7.02 7.02 0 0 0-2.38-4.15zm-.01 10-4.14.36c.59-.51 1.12-1.14 1.54-1.86.42-.73.69-1.5.83-2.29zM12 22l-2.41-3.44c.74.27 1.55.44 2.41.44.82 0 1.63-.17 2.37-.44z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="搜索" placeholder="搜索" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="查找">
+        
+        <button type="reset" class="md-search__icon md-icon" title="清空当前内容" aria-label="清空当前内容" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            正在初始化搜索引擎
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/chiga0/agent-research" title="前往仓库" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 6.7.2 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2024 Fonticons, Inc.--><path d="M439.55 236.05 244 40.45a28.87 28.87 0 0 0-40.81 0l-40.66 40.63 51.52 51.52c27.06-9.14 52.68 16.77 43.39 43.68l49.66 49.66c34.23-11.8 61.18 31 35.47 56.69-26.49 26.49-70.21-2.87-56-37.34L240.22 199v121.85c25.3 12.54 22.26 41.85 9.08 55a34.34 34.34 0 0 1-48.55 0c-17.57-17.6-11.07-46.91 11.25-56v-123c-20.8-8.51-24.6-30.74-18.64-45L142.57 101 8.45 235.14a28.86 28.86 0 0 0 0 40.81l195.61 195.6a28.86 28.86 0 0 0 40.8 0l194.69-194.69a28.86 28.86 0 0 0 0-40.81"/></svg>
+  </div>
+  <div class="md-source__repository">
+    chiga0/agent-research
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="导航栏" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="Agent Research" class="md-nav__button md-logo" aria-label="Agent Research" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    Agent Research
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/chiga0/agent-research" title="前往仓库" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 6.7.2 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2024 Fonticons, Inc.--><path d="M439.55 236.05 244 40.45a28.87 28.87 0 0 0-40.81 0l-40.66 40.63 51.52 51.52c27.06-9.14 52.68 16.77 43.39 43.68l49.66 49.66c34.23-11.8 61.18 31 35.47 56.69-26.49 26.49-70.21-2.87-56-37.34L240.22 199v121.85c25.3 12.54 22.26 41.85 9.08 55a34.34 34.34 0 0 1-48.55 0c-17.57-17.6-11.07-46.91 11.25-56v-123c-20.8-8.51-24.6-30.74-18.64-45L142.57 101 8.45 235.14a28.86 28.86 0 0 0 0 40.81l195.61 195.6a28.86 28.86 0 0 0 40.8 0l194.69-194.69a28.86 28.86 0 0 0 0-40.81"/></svg>
+  </div>
+  <div class="md-source__repository">
+    chiga0/agent-research
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    首页
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    落地方案
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            落地方案
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    可云端长期运行的多 Agent 系统落地方案
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../sandbox-isolation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    沙箱与隔离方案
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../protocol-acp-a2a/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    ACP、A2A 与 MCP 协议选型
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../temporal-evaluation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Temporal 调研与适配方案
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    事件溯源、JSONL 与回放
+    
+  </span>
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    事件溯源、JSONL 与回放
+    
+  </span>
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="目录">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      目录
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      事件溯源是什么
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#jsonl_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      JSONL 可以做什么
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#qwen-code-jsonl" class="md-nav__link">
+    <span class="md-ellipsis">
+      qwen-code JSONL 能否复现和回放
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      完整回放还需要什么
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_3" class="md-nav__link">
+    <span class="md-ellipsis">
+      推荐事件模型
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#opencode" class="md-nav__link">
+    <span class="md-ellipsis">
+      与 OpenCode 的启发
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#jsonl_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      在线事件与离线 JSONL 的关系
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_4" class="md-nav__link">
+    <span class="md-ellipsis">
+      回放模式
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#mvp" class="md-nav__link">
+    <span class="md-ellipsis">
+      MVP 建议
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#metajson" class="md-nav__link">
+    <span class="md-ellipsis">
+      最小 meta.json
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_5" class="md-nav__link">
+    <span class="md-ellipsis">
+      结论
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../single-agent-strategy/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    单 Agent 基座选型
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    Cloud Agents
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            Cloud Agents
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../cloud-agents/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    企业级 Cloud Agents 框架与运行时技术调研报告
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    多 Agent
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            多 Agent
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../multi-agent/research-on-multi-agent-orchestration-frameworks/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    生产级多 Agent 系统编排与运行屏障工程
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    其他 Agent
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            其他 Agent
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../other-agents/qwen-code-core-sdk-agent-architecture/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Qwen Code Core 与 SDK Agent 架构分析
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="目录">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      目录
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      事件溯源是什么
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#jsonl_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      JSONL 可以做什么
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#qwen-code-jsonl" class="md-nav__link">
+    <span class="md-ellipsis">
+      qwen-code JSONL 能否复现和回放
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      完整回放还需要什么
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_3" class="md-nav__link">
+    <span class="md-ellipsis">
+      推荐事件模型
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#opencode" class="md-nav__link">
+    <span class="md-ellipsis">
+      与 OpenCode 的启发
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#jsonl_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      在线事件与离线 JSONL 的关系
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_4" class="md-nav__link">
+    <span class="md-ellipsis">
+      回放模式
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#mvp" class="md-nav__link">
+    <span class="md-ellipsis">
+      MVP 建议
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#metajson" class="md-nav__link">
+    <span class="md-ellipsis">
+      最小 meta.json
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_5" class="md-nav__link">
+    <span class="md-ellipsis">
+      结论
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="jsonl">事件溯源、JSONL 与回放<a class="headerlink" href="#jsonl" title="Permanent link">&para;</a></h1>
+<blockquote>
+<p>结论：JSONL 是一种事件或 transcript 的存储格式；事件溯源是一种系统建模方法。Qwen Code 的 JSONL 可以支持恢复和部分复现，但如果想完整复现用户场景，还必须记录 workspace、配置、工具输出、权限决策、模型输出和运行环境。</p>
+</blockquote>
+<h2 id="_1">事件溯源是什么<a class="headerlink" href="#_1" title="Permanent link">&para;</a></h2>
+<p>事件溯源的核心不是“把日志写成 JSONL”，而是：</p>
+<ol>
+<li>系统状态由 append-only 事件推导出来。</li>
+<li>每个事件代表已经发生的事实。</li>
+<li>当前状态可以通过重放事件重建。</li>
+<li>审计、调试、恢复、回放都基于同一条事实链。</li>
+</ol>
+<p>示例事件：</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="p">{</span><span class="nt">&quot;type&quot;</span><span class="p">:</span><span class="s2">&quot;run.created&quot;</span><span class="p">,</span><span class="nt">&quot;run_id&quot;</span><span class="p">:</span><span class="s2">&quot;run_1&quot;</span><span class="p">,</span><span class="nt">&quot;agent&quot;</span><span class="p">:</span><span class="s2">&quot;qwen-code&quot;</span><span class="p">,</span><span class="nt">&quot;created_at&quot;</span><span class="p">:</span><span class="s2">&quot;2026-06-30T10:00:00Z&quot;</span><span class="p">}</span>
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="p">{</span><span class="nt">&quot;type&quot;</span><span class="p">:</span><span class="s2">&quot;step.started&quot;</span><span class="p">,</span><span class="nt">&quot;run_id&quot;</span><span class="p">:</span><span class="s2">&quot;run_1&quot;</span><span class="p">,</span><span class="nt">&quot;step_id&quot;</span><span class="p">:</span><span class="s2">&quot;step_1&quot;</span><span class="p">,</span><span class="nt">&quot;kind&quot;</span><span class="p">:</span><span class="s2">&quot;model_turn&quot;</span><span class="p">}</span>
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="p">{</span><span class="nt">&quot;type&quot;</span><span class="p">:</span><span class="s2">&quot;tool.called&quot;</span><span class="p">,</span><span class="nt">&quot;run_id&quot;</span><span class="p">:</span><span class="s2">&quot;run_1&quot;</span><span class="p">,</span><span class="nt">&quot;tool_call_id&quot;</span><span class="p">:</span><span class="s2">&quot;tool_1&quot;</span><span class="p">,</span><span class="nt">&quot;tool&quot;</span><span class="p">:</span><span class="s2">&quot;shell&quot;</span><span class="p">,</span><span class="nt">&quot;input_ref&quot;</span><span class="p">:</span><span class="s2">&quot;artifact://input/tool_1.json&quot;</span><span class="p">}</span>
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="p">{</span><span class="nt">&quot;type&quot;</span><span class="p">:</span><span class="s2">&quot;permission.requested&quot;</span><span class="p">,</span><span class="nt">&quot;run_id&quot;</span><span class="p">:</span><span class="s2">&quot;run_1&quot;</span><span class="p">,</span><span class="nt">&quot;permission_id&quot;</span><span class="p">:</span><span class="s2">&quot;perm_1&quot;</span><span class="p">,</span><span class="nt">&quot;tool_call_id&quot;</span><span class="p">:</span><span class="s2">&quot;tool_1&quot;</span><span class="p">}</span>
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a><span class="p">{</span><span class="nt">&quot;type&quot;</span><span class="p">:</span><span class="s2">&quot;permission.approved&quot;</span><span class="p">,</span><span class="nt">&quot;run_id&quot;</span><span class="p">:</span><span class="s2">&quot;run_1&quot;</span><span class="p">,</span><span class="nt">&quot;permission_id&quot;</span><span class="p">:</span><span class="s2">&quot;perm_1&quot;</span><span class="p">,</span><span class="nt">&quot;decider&quot;</span><span class="p">:</span><span class="s2">&quot;user_1&quot;</span><span class="p">}</span>
+<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a><span class="p">{</span><span class="nt">&quot;type&quot;</span><span class="p">:</span><span class="s2">&quot;tool.succeeded&quot;</span><span class="p">,</span><span class="nt">&quot;run_id&quot;</span><span class="p">:</span><span class="s2">&quot;run_1&quot;</span><span class="p">,</span><span class="nt">&quot;tool_call_id&quot;</span><span class="p">:</span><span class="s2">&quot;tool_1&quot;</span><span class="p">,</span><span class="nt">&quot;output_ref&quot;</span><span class="p">:</span><span class="s2">&quot;artifact://output/tool_1.json&quot;</span><span class="p">}</span>
+<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a><span class="p">{</span><span class="nt">&quot;type&quot;</span><span class="p">:</span><span class="s2">&quot;run.completed&quot;</span><span class="p">,</span><span class="nt">&quot;run_id&quot;</span><span class="p">:</span><span class="s2">&quot;run_1&quot;</span><span class="p">,</span><span class="nt">&quot;status&quot;</span><span class="p">:</span><span class="s2">&quot;succeeded&quot;</span><span class="p">}</span>
+</code></pre></div>
+<h2 id="jsonl_1">JSONL 可以做什么<a class="headerlink" href="#jsonl_1" title="Permanent link">&para;</a></h2>
+<p>JSONL 适合保存 Agent transcript，因为：</p>
+<ul>
+<li>append 简单。</li>
+<li>人和脚本都容易读取。</li>
+<li>每行一个事件或消息，适合流式写入。</li>
+<li>方便脱敏、切片和导入评测集。</li>
+</ul>
+<p>Qwen Code 的 background subagent transcript 就采用 JSONL，并配套 meta sidecar。它记录 ChatRecord 形态的 assistant、tool_result、external_message、system bootstrap 等内容，并通过 <code>uuid</code> 和 <code>parentUuid</code> 维护链路。</p>
+<p>相关本地源码：</p>
+<ul>
+<li><code>/Users/gawain/Documents/codebase/opensource/qwen-code/packages/core/src/agents/agent-transcript.ts</code></li>
+<li><code>/Users/gawain/Documents/codebase/opensource/qwen-code/packages/core/src/agents/background-agent-resume.ts</code></li>
+<li><code>/Users/gawain/Documents/codebase/opensource/qwen-code/packages/core/src/tools/agent/agent.ts</code></li>
+</ul>
+<h2 id="qwen-code-jsonl">qwen-code JSONL 能否复现和回放<a class="headerlink" href="#qwen-code-jsonl" title="Permanent link">&para;</a></h2>
+<p>答案分三层：</p>
+<table>
+<thead>
+<tr>
+<th>能力</th>
+<th>是否可以</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>恢复对话上下文</td>
+<td>可以</td>
+<td>qwen-code 已能从 JSONL 恢复稳定消息链，过滤不稳定尾部</td>
+</tr>
+<tr>
+<td>复现用户场景</td>
+<td>部分可以</td>
+<td>可以看到 prompt、工具调用、tool result、assistant 输出</td>
+</tr>
+<tr>
+<td>确定性回放</td>
+<td>不完整</td>
+<td>还缺 workspace 快照、模型响应固定、工具 I/O、环境和权限决策</td>
+</tr>
+</tbody>
+</table>
+<p>因此，Qwen Code JSONL 是很好的恢复基础，但不能单独承担完整事件溯源。</p>
+<h2 id="_2">完整回放还需要什么<a class="headerlink" href="#_2" title="Permanent link">&para;</a></h2>
+<p>要把某个 case 复现到足够接近原现场，至少记录：</p>
+<table>
+<thead>
+<tr>
+<th>类别</th>
+<th>必须记录</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>代码现场</td>
+<td>repo URL、commit SHA、branch、diff、worktree snapshot</td>
+</tr>
+<tr>
+<td>Agent 配置</td>
+<td>agent type、system prompt、tool allowlist/denylist、max turns、approval mode</td>
+</tr>
+<tr>
+<td>模型配置</td>
+<td>provider、model、temperature、tool schema、system prompt hash</td>
+</tr>
+<tr>
+<td>模型输出</td>
+<td>原始 streaming delta 或最终 message/tool call</td>
+</tr>
+<tr>
+<td>工具输入输出</td>
+<td>shell command、exit code、stdout/stderr 引用、文件读写摘要</td>
+</tr>
+<tr>
+<td>权限决策</td>
+<td>request、policy、approval/deny、审批人、时间</td>
+</tr>
+<tr>
+<td>沙箱环境</td>
+<td>image digest、env 白名单、资源限制、网络策略</td>
+</tr>
+<tr>
+<td>外部依赖</td>
+<td>npm/pip registry、API 返回、MCP server 版本</td>
+</tr>
+<tr>
+<td>artifact</td>
+<td>diff、测试报告、最终摘要、日志</td>
+</tr>
+</tbody>
+</table>
+<p>如果缺少模型输出，只能“重新跑一次”，结果可能不同。如果缺少 workspace 快照，工具调用即使一样也可能得到不同结果。</p>
+<h2 id="_3">推荐事件模型<a class="headerlink" href="#_3" title="Permanent link">&para;</a></h2>
+<p>内部 canonical event 不应直接等同于某个 Agent 的 JSONL。建议用统一事件表：</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="k">create</span><span class="w"> </span><span class="k">table</span><span class="w"> </span><span class="n">run_events</span><span class="w"> </span><span class="p">(</span>
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="w">  </span><span class="n">id</span><span class="w"> </span><span class="n">bigserial</span><span class="w"> </span><span class="k">primary</span><span class="w"> </span><span class="k">key</span><span class="p">,</span>
+<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="w">  </span><span class="n">run_id</span><span class="w"> </span><span class="nb">text</span><span class="w"> </span><span class="k">not</span><span class="w"> </span><span class="k">null</span><span class="p">,</span>
+<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="w">  </span><span class="n">seq</span><span class="w"> </span><span class="nb">bigint</span><span class="w"> </span><span class="k">not</span><span class="w"> </span><span class="k">null</span><span class="p">,</span>
+<a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a><span class="w">  </span><span class="k">type</span><span class="w"> </span><span class="nb">text</span><span class="w"> </span><span class="k">not</span><span class="w"> </span><span class="k">null</span><span class="p">,</span>
+<a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a><span class="w">  </span><span class="n">payload</span><span class="w"> </span><span class="n">jsonb</span><span class="w"> </span><span class="k">not</span><span class="w"> </span><span class="k">null</span><span class="p">,</span>
+<a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a><span class="w">  </span><span class="n">created_at</span><span class="w"> </span><span class="n">timestamptz</span><span class="w"> </span><span class="k">not</span><span class="w"> </span><span class="k">null</span><span class="w"> </span><span class="k">default</span><span class="w"> </span><span class="n">now</span><span class="p">(),</span>
+<a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a><span class="w">  </span><span class="k">unique</span><span class="w"> </span><span class="p">(</span><span class="n">run_id</span><span class="p">,</span><span class="w"> </span><span class="n">seq</span><span class="p">)</span>
+<a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a><span class="p">);</span>
+</code></pre></div>
+<p>事件类型起步：</p>
+<table>
+<thead>
+<tr>
+<th>类型</th>
+<th>用途</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>run.created</code></td>
+<td>run 创建</td>
+</tr>
+<tr>
+<td><code>run.started</code></td>
+<td>worker 接管</td>
+</tr>
+<tr>
+<td><code>agent.message.delta</code></td>
+<td>模型流式文本</td>
+</tr>
+<tr>
+<td><code>agent.message.completed</code></td>
+<td>完整 assistant 消息</td>
+</tr>
+<tr>
+<td><code>tool.call.requested</code></td>
+<td>工具调用开始</td>
+</tr>
+<tr>
+<td><code>tool.call.output</code></td>
+<td>工具增量输出</td>
+</tr>
+<tr>
+<td><code>tool.call.completed</code></td>
+<td>工具调用完成</td>
+</tr>
+<tr>
+<td><code>permission.requested</code></td>
+<td>权限请求</td>
+</tr>
+<tr>
+<td><code>permission.resolved</code></td>
+<td>权限决策</td>
+</tr>
+<tr>
+<td><code>artifact.created</code></td>
+<td>产物创建</td>
+</tr>
+<tr>
+<td><code>checkpoint.created</code></td>
+<td>检查点</td>
+</tr>
+<tr>
+<td><code>run.heartbeat</code></td>
+<td>worker 心跳</td>
+</tr>
+<tr>
+<td><code>run.completed</code></td>
+<td>成功</td>
+</tr>
+<tr>
+<td><code>run.failed</code></td>
+<td>失败</td>
+</tr>
+<tr>
+<td><code>run.cancelled</code></td>
+<td>取消</td>
+</tr>
+</tbody>
+</table>
+<h2 id="opencode">与 OpenCode 的启发<a class="headerlink" href="#opencode" title="Permanent link">&para;</a></h2>
+<p>OpenCode 的 <code>session-event.ts</code> 很适合作为事件类型设计参考。它把 session 中的 AgentSwitched、ModelSwitched、Prompted、Shell.Started/Ended、Step.Started/Ended/Failed、Tool.Called/Progress/Success/Failed、Compaction 等都建成强类型事件。</p>
+<p>相关本地源码：</p>
+<ul>
+<li><code>/Users/gawain/Documents/codebase/github/opencode/packages/opencode/src/v2/session-event.ts</code></li>
+<li><code>/Users/gawain/Documents/codebase/github/opencode/packages/opencode/src/v2/session.ts</code></li>
+</ul>
+<p>这说明生产系统需要的不是“日志字符串”，而是可消费、可索引、可转换的事件 schema。</p>
+<h2 id="jsonl_2">在线事件与离线 JSONL 的关系<a class="headerlink" href="#jsonl_2" title="Permanent link">&para;</a></h2>
+<p>建议采用双层：</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>Postgres run_events = canonical event store
+<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>JSONL export = agent transcript / debug artifact / eval fixture
+</code></pre></div>
+<p>在线服务读 Postgres：</p>
+<ul>
+<li>UI 展示。</li>
+<li>状态查询。</li>
+<li>审计。</li>
+<li>权限流。</li>
+<li>重试和恢复。</li>
+</ul>
+<p>离线任务读 JSONL：</p>
+<ul>
+<li>case 复盘。</li>
+<li>prompt 调优。</li>
+<li>regression eval。</li>
+<li>bug report。</li>
+<li>模型回放 fixture。</li>
+</ul>
+<h2 id="_4">回放模式<a class="headerlink" href="#_4" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>模式</th>
+<th>目标</th>
+<th>要求</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Transcript replay</td>
+<td>重建对话和工具历史</td>
+<td>JSONL 足够起步</td>
+</tr>
+<tr>
+<td>State replay</td>
+<td>重建 run 状态</td>
+<td>canonical events</td>
+</tr>
+<tr>
+<td>UI replay</td>
+<td>重放用户看到的流式过程</td>
+<td>delta events + timestamps</td>
+</tr>
+<tr>
+<td>Tool replay</td>
+<td>不重新执行工具，使用录制结果</td>
+<td>tool input/output fixtures</td>
+</tr>
+<tr>
+<td>Deterministic replay</td>
+<td>尽量复现原执行</td>
+<td>workspace snapshot + model/tool fixtures</td>
+</tr>
+<tr>
+<td>Resume</td>
+<td>从中断点继续执行</td>
+<td>stable message chain + workspace + config</td>
+</tr>
+</tbody>
+</table>
+<h2 id="mvp">MVP 建议<a class="headerlink" href="#mvp" title="Permanent link">&para;</a></h2>
+<ol>
+<li>保留 Qwen Code 原生 JSONL。</li>
+<li>由 adapter 把 JSONL 和 runtime signal 转成内部 run_events。</li>
+<li>大字段保存到 artifact，事件里只放引用。</li>
+<li>每个 run 结束时导出：</li>
+<li><code>transcript.jsonl</code></li>
+<li><code>events.jsonl</code></li>
+<li><code>meta.json</code></li>
+<li><code>diff.patch</code></li>
+<li><code>final.md</code></li>
+<li>回放工具先支持 transcript replay 和 state replay，再做 tool/model mock replay。</li>
+</ol>
+<h2 id="metajson">最小 <code>meta.json</code><a class="headerlink" href="#metajson" title="Permanent link">&para;</a></h2>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="p">{</span>
+<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="w">  </span><span class="nt">&quot;run_id&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;run_1&quot;</span><span class="p">,</span>
+<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="w">  </span><span class="nt">&quot;agent&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;qwen-code&quot;</span><span class="p">,</span>
+<a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="w">  </span><span class="nt">&quot;repo&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a><span class="w">    </span><span class="nt">&quot;url&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;git@example.com:org/repo.git&quot;</span><span class="p">,</span>
+<a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a><span class="w">    </span><span class="nt">&quot;commit&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;abc123&quot;</span>
+<a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a><span class="w">  </span><span class="p">},</span>
+<a id="__codelineno-3-8" name="__codelineno-3-8" href="#__codelineno-3-8"></a><span class="w">  </span><span class="nt">&quot;sandbox&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-3-9" name="__codelineno-3-9" href="#__codelineno-3-9"></a><span class="w">    </span><span class="nt">&quot;image&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;qwen-code-runner@sha256:...&quot;</span><span class="p">,</span>
+<a id="__codelineno-3-10" name="__codelineno-3-10" href="#__codelineno-3-10"></a><span class="w">    </span><span class="nt">&quot;memory&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;768m&quot;</span><span class="p">,</span>
+<a id="__codelineno-3-11" name="__codelineno-3-11" href="#__codelineno-3-11"></a><span class="w">    </span><span class="nt">&quot;cpus&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;0.75&quot;</span><span class="p">,</span>
+<a id="__codelineno-3-12" name="__codelineno-3-12" href="#__codelineno-3-12"></a><span class="w">    </span><span class="nt">&quot;network&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;egress-proxy&quot;</span>
+<a id="__codelineno-3-13" name="__codelineno-3-13" href="#__codelineno-3-13"></a><span class="w">  </span><span class="p">},</span>
+<a id="__codelineno-3-14" name="__codelineno-3-14" href="#__codelineno-3-14"></a><span class="w">  </span><span class="nt">&quot;model&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-3-15" name="__codelineno-3-15" href="#__codelineno-3-15"></a><span class="w">    </span><span class="nt">&quot;provider&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;qwen&quot;</span><span class="p">,</span>
+<a id="__codelineno-3-16" name="__codelineno-3-16" href="#__codelineno-3-16"></a><span class="w">    </span><span class="nt">&quot;model&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;qwen3-coder&quot;</span><span class="p">,</span>
+<a id="__codelineno-3-17" name="__codelineno-3-17" href="#__codelineno-3-17"></a><span class="w">    </span><span class="nt">&quot;temperature&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">0</span>
+<a id="__codelineno-3-18" name="__codelineno-3-18" href="#__codelineno-3-18"></a><span class="w">  </span><span class="p">},</span>
+<a id="__codelineno-3-19" name="__codelineno-3-19" href="#__codelineno-3-19"></a><span class="w">  </span><span class="nt">&quot;artifacts&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-3-20" name="__codelineno-3-20" href="#__codelineno-3-20"></a><span class="w">    </span><span class="nt">&quot;transcript&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;transcript.jsonl&quot;</span><span class="p">,</span>
+<a id="__codelineno-3-21" name="__codelineno-3-21" href="#__codelineno-3-21"></a><span class="w">    </span><span class="nt">&quot;events&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;events.jsonl&quot;</span><span class="p">,</span>
+<a id="__codelineno-3-22" name="__codelineno-3-22" href="#__codelineno-3-22"></a><span class="w">    </span><span class="nt">&quot;diff&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;diff.patch&quot;</span>
+<a id="__codelineno-3-23" name="__codelineno-3-23" href="#__codelineno-3-23"></a><span class="w">  </span><span class="p">}</span>
+<a id="__codelineno-3-24" name="__codelineno-3-24" href="#__codelineno-3-24"></a><span class="p">}</span>
+</code></pre></div>
+<h2 id="_5">结论<a class="headerlink" href="#_5" title="Permanent link">&para;</a></h2>
+<p>事件溯源是云端 Agent 的基础设施能力。JSONL 是非常实用的承载格式，但真正可靠的长期运行系统，还需要把 run、tool、permission、artifact、checkpoint 和 sandbox 都纳入统一事件模型。</p>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  回到页面顶部
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      <script id="__config" type="application/json">{"base": "../..", "features": ["navigation.instant", "navigation.sections", "navigation.top", "search.highlight", "search.suggest", "toc.follow"], "search": "../../assets/javascripts/workers/search.d50fe291.min.js", "tags": null, "translations": {"clipboard.copied": "\u5df2\u590d\u5236", "clipboard.copy": "\u590d\u5236", "search.result.more.one": "\u5728\u8be5\u9875\u4e0a\u8fd8\u6709 1 \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.more.other": "\u5728\u8be5\u9875\u4e0a\u8fd8\u6709 # \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.none": "\u6ca1\u6709\u627e\u5230\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.one": "\u627e\u5230 1 \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.other": "# \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.placeholder": "\u952e\u5165\u4ee5\u5f00\u59cb\u641c\u7d22", "search.result.term.missing": "\u7f3a\u5c11", "select.version": "\u9009\u62e9\u5f53\u524d\u7248\u672c"}, "version": null}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.56ea9cef.min.js"></script>
+      
+        <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+      
+    
+  </body>
+</html>

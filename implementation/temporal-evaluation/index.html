@@ -1,0 +1,1395 @@
+
+<!doctype html>
+<html lang="zh" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Agent framework, multi-agent orchestration, and runtime harness research notes.">
+      
+      
+      
+        <link rel="canonical" href="https://chiga0.github.io/agent-research/implementation/temporal-evaluation/">
+      
+      
+        <link rel="prev" href="../protocol-acp-a2a/">
+      
+      
+        <link rel="next" href="../event-sourcing-and-replay/">
+      
+      
+      <link rel="icon" href="../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.6.15">
+    
+    
+      
+        <title>Temporal 调研与适配方案 - Agent Research</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.342714a4.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.06af60db.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="blue">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#temporal" class="md-skip">
+          跳转至
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="页眉">
+    <a href="../.." title="Agent Research" class="md-header__button md-logo" aria-label="Agent Research" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Agent Research
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Temporal 调研与适配方案
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="blue"  aria-label="切换到深色模式"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="切换到深色模式" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m17.75 4.09-2.53 1.94.91 3.06-2.63-1.81-2.63 1.81.91-3.06-2.53-1.94L12.44 4l1.06-3 1.06 3zm3.5 6.91-1.64 1.25.59 1.98-1.7-1.17-1.7 1.17.59-1.98L15.75 11l2.06-.05L18.5 9l.69 1.95zm-2.28 4.95c.83-.08 1.72 1.1 1.19 1.85-.32.45-.66.87-1.08 1.27C15.17 23 8.84 23 4.94 19.07c-3.91-3.9-3.91-10.24 0-14.14.4-.4.82-.76 1.27-1.08.75-.53 1.93.36 1.85 1.19-.27 2.86.69 5.83 2.89 8.02a9.96 9.96 0 0 0 8.02 2.89m-1.64 2.02a12.08 12.08 0 0 1-7.8-3.47c-2.17-2.19-3.33-5-3.49-7.82-2.81 3.14-2.7 7.96.31 10.98 3.02 3.01 7.84 3.12 10.98.31"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="blue"  aria-label="切换到浅色模式"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="切换到浅色模式" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 7a5 5 0 0 1 5 5 5 5 0 0 1-5 5 5 5 0 0 1-5-5 5 5 0 0 1 5-5m0 2a3 3 0 0 0-3 3 3 3 0 0 0 3 3 3 3 0 0 0 3-3 3 3 0 0 0-3-3m0-7 2.39 3.42C13.65 5.15 12.84 5 12 5s-1.65.15-2.39.42zM3.34 7l4.16-.35A7.2 7.2 0 0 0 5.94 8.5c-.44.74-.69 1.5-.83 2.29zm.02 10 1.76-3.77a7.131 7.131 0 0 0 2.38 4.14zM20.65 7l-1.77 3.79a7.02 7.02 0 0 0-2.38-4.15zm-.01 10-4.14.36c.59-.51 1.12-1.14 1.54-1.86.42-.73.69-1.5.83-2.29zM12 22l-2.41-3.44c.74.27 1.55.44 2.41.44.82 0 1.63-.17 2.37-.44z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="搜索" placeholder="搜索" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="查找">
+        
+        <button type="reset" class="md-search__icon md-icon" title="清空当前内容" aria-label="清空当前内容" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            正在初始化搜索引擎
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/chiga0/agent-research" title="前往仓库" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 6.7.2 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2024 Fonticons, Inc.--><path d="M439.55 236.05 244 40.45a28.87 28.87 0 0 0-40.81 0l-40.66 40.63 51.52 51.52c27.06-9.14 52.68 16.77 43.39 43.68l49.66 49.66c34.23-11.8 61.18 31 35.47 56.69-26.49 26.49-70.21-2.87-56-37.34L240.22 199v121.85c25.3 12.54 22.26 41.85 9.08 55a34.34 34.34 0 0 1-48.55 0c-17.57-17.6-11.07-46.91 11.25-56v-123c-20.8-8.51-24.6-30.74-18.64-45L142.57 101 8.45 235.14a28.86 28.86 0 0 0 0 40.81l195.61 195.6a28.86 28.86 0 0 0 40.8 0l194.69-194.69a28.86 28.86 0 0 0 0-40.81"/></svg>
+  </div>
+  <div class="md-source__repository">
+    chiga0/agent-research
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="导航栏" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="Agent Research" class="md-nav__button md-logo" aria-label="Agent Research" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    Agent Research
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/chiga0/agent-research" title="前往仓库" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 6.7.2 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2024 Fonticons, Inc.--><path d="M439.55 236.05 244 40.45a28.87 28.87 0 0 0-40.81 0l-40.66 40.63 51.52 51.52c27.06-9.14 52.68 16.77 43.39 43.68l49.66 49.66c34.23-11.8 61.18 31 35.47 56.69-26.49 26.49-70.21-2.87-56-37.34L240.22 199v121.85c25.3 12.54 22.26 41.85 9.08 55a34.34 34.34 0 0 1-48.55 0c-17.57-17.6-11.07-46.91 11.25-56v-123c-20.8-8.51-24.6-30.74-18.64-45L142.57 101 8.45 235.14a28.86 28.86 0 0 0 0 40.81l195.61 195.6a28.86 28.86 0 0 0 40.8 0l194.69-194.69a28.86 28.86 0 0 0 0-40.81"/></svg>
+  </div>
+  <div class="md-source__repository">
+    chiga0/agent-research
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    首页
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    落地方案
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            落地方案
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    可云端长期运行的多 Agent 系统落地方案
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../sandbox-isolation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    沙箱与隔离方案
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../protocol-acp-a2a/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    ACP、A2A 与 MCP 协议选型
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    Temporal 调研与适配方案
+    
+  </span>
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    Temporal 调研与适配方案
+    
+  </span>
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="目录">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      目录
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#temporal_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      Temporal 是什么
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      与普通队列的差异
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#agent" class="md-nav__link">
+    <span class="md-ellipsis">
+      适合 Agent 系统的部分
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#agent-workflow" class="md-nav__link">
+    <span class="md-ellipsis">
+      Agent Workflow 草案
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#qwen-code-loop-workflow" class="md-nav__link">
+    <span class="md-ellipsis">
+      为什么不要把 qwen-code loop 放进 Workflow
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      低资源部署判断
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="低资源部署判断">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#a-temporal" class="md-nav__link">
+    <span class="md-ellipsis">
+      阶段 A：不上 Temporal
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#b-temporal" class="md-nav__link">
+    <span class="md-ellipsis">
+      阶段 B：单机 Temporal
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#c-worker" class="md-nav__link">
+    <span class="md-ellipsis">
+      阶段 C：控制面和 worker 分离
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#temporal_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      Temporal 与事件溯源的关系
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#workflow" class="md-nav__link">
+    <span class="md-ellipsis">
+      最小 Workflow 设计
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_3" class="md-nav__link">
+    <span class="md-ellipsis">
+      选型建议
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_4" class="md-nav__link">
+    <span class="md-ellipsis">
+      参考资料
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../event-sourcing-and-replay/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    事件溯源、JSONL 与回放
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../single-agent-strategy/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    单 Agent 基座选型
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    Cloud Agents
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            Cloud Agents
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../cloud-agents/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    企业级 Cloud Agents 框架与运行时技术调研报告
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    多 Agent
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            多 Agent
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../multi-agent/research-on-multi-agent-orchestration-frameworks/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    生产级多 Agent 系统编排与运行屏障工程
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    其他 Agent
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            其他 Agent
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../other-agents/qwen-code-core-sdk-agent-architecture/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Qwen Code Core 与 SDK Agent 架构分析
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="目录">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      目录
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#temporal_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      Temporal 是什么
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      与普通队列的差异
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#agent" class="md-nav__link">
+    <span class="md-ellipsis">
+      适合 Agent 系统的部分
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#agent-workflow" class="md-nav__link">
+    <span class="md-ellipsis">
+      Agent Workflow 草案
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#qwen-code-loop-workflow" class="md-nav__link">
+    <span class="md-ellipsis">
+      为什么不要把 qwen-code loop 放进 Workflow
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      低资源部署判断
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="低资源部署判断">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#a-temporal" class="md-nav__link">
+    <span class="md-ellipsis">
+      阶段 A：不上 Temporal
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#b-temporal" class="md-nav__link">
+    <span class="md-ellipsis">
+      阶段 B：单机 Temporal
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#c-worker" class="md-nav__link">
+    <span class="md-ellipsis">
+      阶段 C：控制面和 worker 分离
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#temporal_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      Temporal 与事件溯源的关系
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#workflow" class="md-nav__link">
+    <span class="md-ellipsis">
+      最小 Workflow 设计
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_3" class="md-nav__link">
+    <span class="md-ellipsis">
+      选型建议
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_4" class="md-nav__link">
+    <span class="md-ellipsis">
+      参考资料
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="temporal">Temporal 调研与适配方案<a class="headerlink" href="#temporal" title="Permanent link">&para;</a></h1>
+<blockquote>
+<p>结论：Temporal 是 durable execution 平台，不是简单消息队列，也不是 Agent 框架。它适合管理长周期、可恢复、需要重试和人工介入的编排流程；不适合把整个 LLM token streaming 或 qwen-code 内部 loop 直接塞进 Workflow。</p>
+</blockquote>
+<h2 id="temporal_1">Temporal 是什么<a class="headerlink" href="#temporal_1" title="Permanent link">&para;</a></h2>
+<p>Temporal 把长期运行的业务流程写成普通代码，并由 Temporal Service 持久化执行历史。Worker 可以宕机、重启、迁移，Workflow 仍能从历史事件中恢复执行。</p>
+<p>核心概念：</p>
+<table>
+<thead>
+<tr>
+<th>概念</th>
+<th>含义</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Temporal Service</td>
+<td>持久化 workflow history、调度 task、管理状态的服务端</td>
+</tr>
+<tr>
+<td>Workflow</td>
+<td>长期运行、可恢复的确定性编排代码</td>
+</tr>
+<tr>
+<td>Activity</td>
+<td>与外部世界交互的非确定性动作，如启动容器、调用 API、写文件</td>
+</tr>
+<tr>
+<td>Worker</td>
+<td>运行 Workflow 和 Activity 代码的进程</td>
+</tr>
+<tr>
+<td>Task Queue</td>
+<td>Workflow/Activity task 的分发队列</td>
+</tr>
+<tr>
+<td>Signal</td>
+<td>异步通知 Workflow，例如用户点击取消</td>
+</tr>
+<tr>
+<td>Query</td>
+<td>读取 Workflow 当前状态，不修改状态</td>
+</tr>
+<tr>
+<td>Update</td>
+<td>向 Workflow 发起会改变状态且可等待结果的请求</td>
+</tr>
+<tr>
+<td>Timer</td>
+<td>持久化定时器，用于 sleep、deadline、重试等待</td>
+</tr>
+<tr>
+<td>Event History</td>
+<td>Temporal 用于 replay 和恢复的事件历史</td>
+</tr>
+</tbody>
+</table>
+<p>Temporal 的关键能力是：<strong>把“进程活着”变成“历史可恢复”</strong>。</p>
+<h2 id="_1">与普通队列的差异<a class="headerlink" href="#_1" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>问题</th>
+<th>普通队列</th>
+<th>Temporal</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>任务执行到一半 worker 宕机</td>
+<td>需要自己记录进度</td>
+<td>Workflow history 可恢复</td>
+</tr>
+<tr>
+<td>等待人工审批数小时</td>
+<td>需要 DB 状态机 + 定时器</td>
+<td>Workflow 可等待 Signal/Update</td>
+</tr>
+<tr>
+<td>重试和补偿</td>
+<td>手写逻辑</td>
+<td>SDK 原生支持 retry、timeout、timer</td>
+</tr>
+<tr>
+<td>查询长任务状态</td>
+<td>读业务 DB</td>
+<td>Query/业务 DB 都可</td>
+</tr>
+<tr>
+<td>多步骤幂等</td>
+<td>需要自己维护</td>
+<td>Activity 仍需幂等，但编排历史可靠</td>
+</tr>
+<tr>
+<td>代码升级</td>
+<td>自己处理兼容</td>
+<td>需要 Temporal versioning 纪律</td>
+</tr>
+</tbody>
+</table>
+<p>Temporal 不能消除所有复杂度。Activity 调外部系统仍然要设计幂等键、重试策略和补偿逻辑。</p>
+<h2 id="agent">适合 Agent 系统的部分<a class="headerlink" href="#agent" title="Permanent link">&para;</a></h2>
+<p>Temporal 适合管这些：</p>
+<ul>
+<li>创建 run。</li>
+<li>分配 worker。</li>
+<li>启动 sandbox 容器。</li>
+<li>等待 Agent 事件或完成信号。</li>
+<li>等待人工审批。</li>
+<li>处理超时、取消、重试。</li>
+<li>在失败后执行清理和补偿。</li>
+<li>多 Agent 子任务 fan-out/fan-in。</li>
+<li>定期唤醒长周期任务。</li>
+</ul>
+<p>Temporal 不适合管这些：</p>
+<ul>
+<li>每个 token delta。</li>
+<li>高频工具 stdout streaming。</li>
+<li>大型 JSONL 或日志全文。</li>
+<li>直接保存完整 workspace。</li>
+<li>直接执行 qwen-code model loop。</li>
+</ul>
+<p>这些内容应当放到 Event Store、artifact 文件或对象存储中，Temporal 只保存引用和关键状态。</p>
+<h2 id="agent-workflow">Agent Workflow 草案<a class="headerlink" href="#agent-workflow" title="Permanent link">&para;</a></h2>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>sequenceDiagram
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>    participant API as API
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>    participant WF as Temporal Workflow
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>    participant Act as Activities
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>    participant W as Worker Supervisor
+<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>    participant A as Agent Container
+<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>    participant ES as Event Store
+<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>
+<a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>    API-&gt;&gt;WF: start AgentRunWorkflow(run_id)
+<a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a>    WF-&gt;&gt;Act: prepare_workspace(run_id)
+<a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a>    WF-&gt;&gt;Act: start_container(run_id)
+<a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a>    Act-&gt;&gt;W: launch sandbox
+<a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a>    W-&gt;&gt;A: start qwen-code
+<a id="__codelineno-0-14" name="__codelineno-0-14" href="#__codelineno-0-14"></a>    A-&gt;&gt;ES: append events/jsonl
+<a id="__codelineno-0-15" name="__codelineno-0-15" href="#__codelineno-0-15"></a>    W-&gt;&gt;WF: heartbeat status
+<a id="__codelineno-0-16" name="__codelineno-0-16" href="#__codelineno-0-16"></a>    WF--&gt;&gt;API: Query status
+<a id="__codelineno-0-17" name="__codelineno-0-17" href="#__codelineno-0-17"></a>    API-&gt;&gt;WF: Signal approve/deny/cancel
+<a id="__codelineno-0-18" name="__codelineno-0-18" href="#__codelineno-0-18"></a>    WF-&gt;&gt;Act: deliver_permission_decision
+<a id="__codelineno-0-19" name="__codelineno-0-19" href="#__codelineno-0-19"></a>    W-&gt;&gt;WF: completion/failure
+<a id="__codelineno-0-20" name="__codelineno-0-20" href="#__codelineno-0-20"></a>    WF-&gt;&gt;Act: collect_artifacts
+<a id="__codelineno-0-21" name="__codelineno-0-21" href="#__codelineno-0-21"></a>    WF-&gt;&gt;Act: cleanup_container
+</code></pre></div>
+<p>Workflow 只做编排，不承载大流量事件。Agent 事件流直接写 Event Store，Workflow 通过 heartbeat、signal 或 lightweight activity result 了解关键状态。</p>
+<h2 id="qwen-code-loop-workflow">为什么不要把 qwen-code loop 放进 Workflow<a class="headerlink" href="#qwen-code-loop-workflow" title="Permanent link">&para;</a></h2>
+<p>Temporal Workflow 代码需要确定性。LLM 调用、shell 命令、文件系统状态、网络请求、随机数、时间和 token streaming 都是非确定性的。</p>
+<p>正确拆法：</p>
+<table>
+<thead>
+<tr>
+<th>动作</th>
+<th>放哪里</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>决定 run 进入哪个状态</td>
+<td>Workflow</td>
+</tr>
+<tr>
+<td>调用模型</td>
+<td>Activity 或 Agent worker</td>
+</tr>
+<tr>
+<td>执行 shell</td>
+<td>Agent worker/sandbox</td>
+</tr>
+<tr>
+<td>保存 JSONL</td>
+<td>Event Store/artifact</td>
+</tr>
+<tr>
+<td>等待审批</td>
+<td>Workflow Signal/Update + DB permission</td>
+</tr>
+<tr>
+<td>重试启动容器</td>
+<td>Workflow + Activity retry</td>
+</tr>
+<tr>
+<td>清理 workspace</td>
+<td>Activity</td>
+</tr>
+</tbody>
+</table>
+<h2 id="_2">低资源部署判断<a class="headerlink" href="#_2" title="Permanent link">&para;</a></h2>
+<p>Temporal 自托管需要 Temporal Service、数据库、worker，通常还会加 UI 和 observability。对 1-2 台小 VPS，建议分阶段：</p>
+<h3 id="a-temporal">阶段 A：不上 Temporal<a class="headerlink" href="#a-temporal" title="Permanent link">&para;</a></h3>
+<p>使用：</p>
+<ul>
+<li>Postgres <code>runs</code> 表。</li>
+<li>Postgres <code>jobs</code> 表。</li>
+<li><code>events</code> append-only 表。</li>
+<li>worker lease/heartbeat。</li>
+<li>cron 或轻量调度器扫描超时任务。</li>
+</ul>
+<p>适合：</p>
+<ul>
+<li>并发 1-2 个 Agent。</li>
+<li>任务时长几十分钟。</li>
+<li>人工审批不复杂。</li>
+<li>主要目标是验证 Agent worker、沙箱和事件模型。</li>
+</ul>
+<h3 id="b-temporal">阶段 B：单机 Temporal<a class="headerlink" href="#b-temporal" title="Permanent link">&para;</a></h3>
+<p>当出现这些需求再引入：</p>
+<ul>
+<li>任务经常跨小时或跨天。</li>
+<li>等待人工审批是常态。</li>
+<li>多 Agent fan-out/fan-in 增多。</li>
+<li>worker 宕机恢复变成主要痛点。</li>
+<li>手写 DB 状态机开始变复杂。</li>
+</ul>
+<p>部署：</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>VPS-1
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>  Temporal Service
+<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>  Postgres
+<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a>  API
+<a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a>  worker
+<a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a>  optional Temporal UI
+</code></pre></div>
+<p>注意：</p>
+<ul>
+<li>不把 Temporal Web/UI 暴露公网。</li>
+<li>使用 Postgres 持久化。</li>
+<li>给 Temporal 和 Agent worker 分内存上限。</li>
+<li>做数据库备份。</li>
+</ul>
+<h3 id="c-worker">阶段 C：控制面和 worker 分离<a class="headerlink" href="#c-worker" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>VPS-1: Temporal + API + Postgres
+<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>VPS-2: Agent worker + Docker sandbox
+</code></pre></div>
+<p>这时 Temporal 的 Task Queue 可以把任务分发给 worker 节点。</p>
+<h2 id="temporal_2">Temporal 与事件溯源的关系<a class="headerlink" href="#temporal_2" title="Permanent link">&para;</a></h2>
+<p>Temporal 自己有 workflow event history，但它不是业务审计日志的完整替代。</p>
+<p>建议：</p>
+<ul>
+<li>Temporal history 负责恢复编排代码。</li>
+<li>业务 Event Store 负责 run、tool、permission、artifact 的审计和回放。</li>
+<li>JSONL 负责与 Agent transcript 兼容和离线调试。</li>
+</ul>
+<p>不要把所有 token delta、stdout、tool output 塞进 Temporal history，否则 history 会变大，replay 成本高，也不便于长期归档。</p>
+<h2 id="workflow">最小 Workflow 设计<a class="headerlink" href="#workflow" title="Permanent link">&para;</a></h2>
+<p>一个 <code>AgentRunWorkflow</code> 足够起步：</p>
+<p>输入：</p>
+<ul>
+<li>run_id</li>
+<li>tenant_id</li>
+<li>repo_ref</li>
+<li>prompt_ref</li>
+<li>agent_type</li>
+<li>sandbox_policy</li>
+<li>timeout</li>
+</ul>
+<p>主要步骤：</p>
+<ol>
+<li><code>prepare_workspace</code></li>
+<li><code>reserve_worker</code></li>
+<li><code>start_agent_container</code></li>
+<li><code>wait_for_completion_or_signal</code></li>
+<li><code>handle_permission_signal</code></li>
+<li><code>collect_artifacts</code></li>
+<li><code>cleanup</code></li>
+<li><code>mark_terminal_state</code></li>
+</ol>
+<p>关键规则：</p>
+<ul>
+<li>所有 Activity 使用 <code>run_id</code> 作为幂等键。</li>
+<li>容器启动、停止、artifact 收集都要能重复调用。</li>
+<li>Workflow 中只保存小对象和引用。</li>
+<li>大对象写 artifact store。</li>
+<li>run 状态仍写业务 DB，方便 API 和 UI 直接查询。</li>
+</ul>
+<h2 id="_3">选型建议<a class="headerlink" href="#_3" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>阶段</th>
+<th>建议</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>POC</td>
+<td>不上 Temporal，先做 Postgres queue 和 event store</td>
+</tr>
+<tr>
+<td>MVP</td>
+<td>仍可不上 Temporal，除非人工审批和长任务已经明显复杂</td>
+</tr>
+<tr>
+<td>Beta</td>
+<td>引入 Temporal 管 run lifecycle 和 multi-agent fan-out/fan-in</td>
+</tr>
+<tr>
+<td>Production</td>
+<td>Temporal + 独立 worker pool + OTel + DB backup + versioning discipline</td>
+</tr>
+</tbody>
+</table>
+<p>Temporal 是好东西，但它应该在系统已经知道自己要“耐久地编排什么”之后再上。否则会在还没稳定 Agent worker 前，先被 workflow infra 的复杂度拖住。</p>
+<h2 id="_4">参考资料<a class="headerlink" href="#_4" title="Permanent link">&para;</a></h2>
+<ul>
+<li><a href="https://docs.temporal.io/workflows">Temporal Workflows</a></li>
+<li><a href="https://docs.temporal.io/task-queue">Temporal Task Queues</a></li>
+<li><a href="https://docs.temporal.io/workers">Temporal Workers</a></li>
+<li><a href="https://docs.temporal.io/handling-messages">Temporal Signals, Queries, Updates</a></li>
+<li><a href="https://docs.temporal.io/encyclopedia/workflow-message-passing">Temporal Workflow message passing</a></li>
+<li><a href="https://docs.temporal.io/self-hosted-guide/deployment">Temporal self-hosted deployment</a></li>
+</ul>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  回到页面顶部
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      <script id="__config" type="application/json">{"base": "../..", "features": ["navigation.instant", "navigation.sections", "navigation.top", "search.highlight", "search.suggest", "toc.follow"], "search": "../../assets/javascripts/workers/search.d50fe291.min.js", "tags": null, "translations": {"clipboard.copied": "\u5df2\u590d\u5236", "clipboard.copy": "\u590d\u5236", "search.result.more.one": "\u5728\u8be5\u9875\u4e0a\u8fd8\u6709 1 \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.more.other": "\u5728\u8be5\u9875\u4e0a\u8fd8\u6709 # \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.none": "\u6ca1\u6709\u627e\u5230\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.one": "\u627e\u5230 1 \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.other": "# \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.placeholder": "\u952e\u5165\u4ee5\u5f00\u59cb\u641c\u7d22", "search.result.term.missing": "\u7f3a\u5c11", "select.version": "\u9009\u62e9\u5f53\u524d\u7248\u672c"}, "version": null}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.56ea9cef.min.js"></script>
+      
+        <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+      
+    
+  </body>
+</html>

@@ -10,26 +10,28 @@
       
       
       
-        <link rel="canonical" href="https://chiga0.github.io/agent-research/">
+        <link rel="canonical" href="https://chiga0.github.io/agent-research/implementation/protocol-acp-a2a/">
       
       
+        <link rel="prev" href="../sandbox-isolation/">
       
-        <link rel="next" href="implementation/">
+      
+        <link rel="next" href="../temporal-evaluation/">
       
       
-      <link rel="icon" href="assets/images/favicon.png">
+      <link rel="icon" href="../../assets/images/favicon.png">
       <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.6.15">
     
     
       
-        <title>Agent Research</title>
+        <title>ACP、A2A 与 MCP 协议选型 - Agent Research</title>
       
     
     
-      <link rel="stylesheet" href="assets/stylesheets/main.342714a4.min.css">
+      <link rel="stylesheet" href="../../assets/stylesheets/main.342714a4.min.css">
       
         
-        <link rel="stylesheet" href="assets/stylesheets/palette.06af60db.min.css">
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.06af60db.min.css">
       
       
 
@@ -48,7 +50,7 @@
       
     
     
-    <script>__md_scope=new URL(".",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
     
       
 
@@ -74,7 +76,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#agent-research" class="md-skip">
+        <a href="#acpa2a-mcp" class="md-skip">
           跳转至
         </a>
       
@@ -90,7 +92,7 @@
 
 <header class="md-header md-header--shadow" data-md-component="header">
   <nav class="md-header__inner md-grid" aria-label="页眉">
-    <a href="." title="Agent Research" class="md-header__button md-logo" aria-label="Agent Research" data-md-component="logo">
+    <a href="../.." title="Agent Research" class="md-header__button md-logo" aria-label="Agent Research" data-md-component="logo">
       
   
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
@@ -110,7 +112,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              首页
+              ACP、A2A 与 MCP 协议选型
             
           </span>
         </div>
@@ -228,7 +230,7 @@
 
 <nav class="md-nav md-nav--primary" aria-label="导航栏" data-md-level="0">
   <label class="md-nav__title" for="__drawer">
-    <a href="." title="Agent Research" class="md-nav__button md-logo" aria-label="Agent Research" data-md-component="logo">
+    <a href="../.." title="Agent Research" class="md-nav__button md-logo" aria-label="Agent Research" data-md-component="logo">
       
   
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
@@ -255,6 +257,119 @@
       
   
   
+  
+  
+    <li class="md-nav__item">
+      <a href="../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    首页
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    落地方案
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            落地方案
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    可云端长期运行的多 Agent 系统落地方案
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../sandbox-isolation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    沙箱与隔离方案
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
     
   
   
@@ -272,7 +387,7 @@
   
   
   <span class="md-ellipsis">
-    首页
+    ACP、A2A 与 MCP 协议选型
     
   </span>
   
@@ -280,12 +395,12 @@
           <span class="md-nav__icon md-icon"></span>
         </label>
       
-      <a href="." class="md-nav__link md-nav__link--active">
+      <a href="./" class="md-nav__link md-nav__link--active">
         
   
   
   <span class="md-ellipsis">
-    首页
+    ACP、A2A 与 MCP 协议选型
     
   </span>
   
@@ -310,7 +425,34 @@
         <li class="md-nav__item">
   <a href="#_1" class="md-nav__link">
     <span class="md-ellipsis">
-      文档入口
+      三类协议的边界
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#acp" class="md-nav__link">
+    <span class="md-ellipsis">
+      ACP 适合什么
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#a2a" class="md-nav__link">
+    <span class="md-ellipsis">
+      A2A 适合什么
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#acp-a2a" class="md-nav__link">
+    <span class="md-ellipsis">
+      ACP 能否替代 A2A
     </span>
   </a>
   
@@ -319,7 +461,16 @@
         <li class="md-nav__item">
   <a href="#_2" class="md-nav__link">
     <span class="md-ellipsis">
-      本地预览
+      推荐协议架构
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#a2a_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      为什么不一开始只做 A2A
     </span>
   </a>
   
@@ -328,7 +479,16 @@
         <li class="md-nav__item">
   <a href="#_3" class="md-nav__link">
     <span class="md-ellipsis">
-      部署
+      协议落地建议
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_4" class="md-nav__link">
+    <span class="md-ellipsis">
+      参考资料
     </span>
   </a>
   
@@ -341,71 +501,6 @@
     </li>
   
 
-    
-      
-      
-  
-  
-  
-  
-    
-    
-    
-    
-      
-        
-        
-      
-    
-    
-    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
-      
-        
-        
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" >
-        
-          
-          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="">
-            
-  
-  
-  <span class="md-ellipsis">
-    落地方案
-    
-  </span>
-  
-
-            <span class="md-nav__icon md-icon"></span>
-          </label>
-        
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_2">
-            <span class="md-nav__icon md-icon"></span>
-            落地方案
-          </label>
-          <ul class="md-nav__list" data-md-scrollfix>
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="implementation/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    可云端长期运行的多 Agent 系统落地方案
-    
-  </span>
-  
-
-      </a>
-    </li>
-  
-
               
             
               
@@ -415,53 +510,7 @@
   
   
     <li class="md-nav__item">
-      <a href="implementation/sandbox-isolation/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    沙箱与隔离方案
-    
-  </span>
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="implementation/protocol-acp-a2a/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    ACP、A2A 与 MCP 协议选型
-    
-  </span>
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="implementation/temporal-evaluation/" class="md-nav__link">
+      <a href="../temporal-evaluation/" class="md-nav__link">
         
   
   
@@ -484,7 +533,7 @@
   
   
     <li class="md-nav__item">
-      <a href="implementation/event-sourcing-and-replay/" class="md-nav__link">
+      <a href="../event-sourcing-and-replay/" class="md-nav__link">
         
   
   
@@ -507,7 +556,7 @@
   
   
     <li class="md-nav__item">
-      <a href="implementation/single-agent-strategy/" class="md-nav__link">
+      <a href="../single-agent-strategy/" class="md-nav__link">
         
   
   
@@ -580,7 +629,7 @@
   
   
     <li class="md-nav__item">
-      <a href="cloud-agents/" class="md-nav__link">
+      <a href="../../cloud-agents/" class="md-nav__link">
         
   
   
@@ -653,7 +702,7 @@
   
   
     <li class="md-nav__item">
-      <a href="multi-agent/research-on-multi-agent-orchestration-frameworks/" class="md-nav__link">
+      <a href="../../multi-agent/research-on-multi-agent-orchestration-frameworks/" class="md-nav__link">
         
   
   
@@ -726,7 +775,7 @@
   
   
     <li class="md-nav__item">
-      <a href="other-agents/qwen-code-core-sdk-agent-architecture/" class="md-nav__link">
+      <a href="../../other-agents/qwen-code-core-sdk-agent-architecture/" class="md-nav__link">
         
   
   
@@ -778,7 +827,34 @@
         <li class="md-nav__item">
   <a href="#_1" class="md-nav__link">
     <span class="md-ellipsis">
-      文档入口
+      三类协议的边界
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#acp" class="md-nav__link">
+    <span class="md-ellipsis">
+      ACP 适合什么
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#a2a" class="md-nav__link">
+    <span class="md-ellipsis">
+      A2A 适合什么
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#acp-a2a" class="md-nav__link">
+    <span class="md-ellipsis">
+      ACP 能否替代 A2A
     </span>
   </a>
   
@@ -787,7 +863,16 @@
         <li class="md-nav__item">
   <a href="#_2" class="md-nav__link">
     <span class="md-ellipsis">
-      本地预览
+      推荐协议架构
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#a2a_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      为什么不一开始只做 A2A
     </span>
   </a>
   
@@ -796,7 +881,16 @@
         <li class="md-nav__item">
   <a href="#_3" class="md-nav__link">
     <span class="md-ellipsis">
-      部署
+      协议落地建议
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_4" class="md-nav__link">
+    <span class="md-ellipsis">
+      参考资料
     </span>
   </a>
   
@@ -821,26 +915,190 @@
   
 
 
-<h1 id="agent-research">Agent Research<a class="headerlink" href="#agent-research" title="Permanent link">&para;</a></h1>
-<p>这是一个关于 Agent 框架、多 Agent 编排、运行屏障工程与自主循环系统的研究笔记库。</p>
-<h2 id="_1">文档入口<a class="headerlink" href="#_1" title="Permanent link">&para;</a></h2>
-<ul>
-<li><a href="implementation/">可云端长期运行的多 Agent 系统落地方案</a></li>
-<li><a href="implementation/sandbox-isolation/">沙箱与隔离方案</a></li>
-<li><a href="implementation/protocol-acp-a2a/">ACP、A2A 与 MCP 协议选型</a></li>
-<li><a href="implementation/temporal-evaluation/">Temporal 调研与适配方案</a></li>
-<li><a href="implementation/event-sourcing-and-replay/">事件溯源、JSONL 与回放</a></li>
-<li><a href="implementation/single-agent-strategy/">单 Agent 基座选型</a></li>
-<li><a href="cloud-agents/">企业级 Cloud Agents 框架与运行时技术调研报告</a></li>
-<li><a href="multi-agent/research-on-multi-agent-orchestration-frameworks/">生产级多 Agent 系统编排与运行屏障工程</a></li>
-<li><a href="other-agents/qwen-code-core-sdk-agent-architecture/">Qwen Code Core 与 SDK Agent 架构分析</a></li>
-</ul>
-<h2 id="_2">本地预览<a class="headerlink" href="#_2" title="Permanent link">&para;</a></h2>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>python<span class="w"> </span>-m<span class="w"> </span>pip<span class="w"> </span>install<span class="w"> </span>-r<span class="w"> </span>requirements.txt
-<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>mkdocs<span class="w"> </span>serve
+<h1 id="acpa2a-mcp">ACP、A2A 与 MCP 协议选型<a class="headerlink" href="#acpa2a-mcp" title="Permanent link">&para;</a></h1>
+<blockquote>
+<p>结论：ACP 不能完整替代 A2A。ACP 更适合 Client-to-Agent，尤其是 IDE、CLI、云端控制面对 coding agent 的会话控制；A2A 更适合 Agent-to-Agent 的跨系统互操作；MCP 是 Agent-to-Tool 的工具接入协议。</p>
+</blockquote>
+<h2 id="_1">三类协议的边界<a class="headerlink" href="#_1" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>协议</th>
+<th>核心关系</th>
+<th>主要对象</th>
+<th>典型用途</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>ACP</td>
+<td>Client-to-Agent</td>
+<td>编辑器、CLI、云端控制面、coding agent</td>
+<td>创建会话、发送 prompt、流式事件、权限请求、文件上下文</td>
+</tr>
+<tr>
+<td>A2A</td>
+<td>Agent-to-Agent</td>
+<td>独立 Agent 服务、外部 Agent、跨团队系统</td>
+<td>Agent 能力发现、任务委派、artifact/status 交换</td>
+</tr>
+<tr>
+<td>MCP</td>
+<td>Agent-to-Tool</td>
+<td>Agent、工具服务器、数据连接器</td>
+<td>暴露工具、资源、prompt、数据库、SaaS API</td>
+</tr>
+</tbody>
+</table>
+<p>可以把它们理解为三条不同边：</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>flowchart LR
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>    Client[&quot;Client / IDE / Control Plane&quot;] -- ACP --&gt; Agent[&quot;Coding Agent&quot;]
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>    Agent -- MCP --&gt; Tool[&quot;Tool / Data / SaaS&quot;]
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>    Agent -- A2A --&gt; Other[&quot;Other Agent Service&quot;]
 </code></pre></div>
-<h2 id="_3">部署<a class="headerlink" href="#_3" title="Permanent link">&para;</a></h2>
-<p>本站使用 MkDocs + Material 构建，并通过 GitHub Pages 发布。</p>
+<h2 id="acp">ACP 适合什么<a class="headerlink" href="#acp" title="Permanent link">&para;</a></h2>
+<p>Agent Client Protocol 的官方定位是让用户主要在编辑器中，通过本地 stdio 或远程 HTTP/WebSocket 与 Agent 通信。它的协议模型基于 JSON-RPC request/response 和 notification。</p>
+<p>对本项目而言，ACP 很适合作为内部 coding worker 控制协议：</p>
+<ul>
+<li>创建或恢复 Agent session。</li>
+<li>向某个 workspace 发送 prompt。</li>
+<li>接收 token、工具调用、权限请求、状态变更等事件。</li>
+<li>做客户端断线重连。</li>
+<li>让云端 Run Manager 像 IDE 一样控制 Qwen Code、Gemini CLI 或其他 coding agent。</li>
+</ul>
+<p>Qwen Code 的 <code>qwen serve</code> 已经走了类似路线：一个 daemon 绑定一个 workspace，通过 HTTP + SSE 暴露 session、prompt、events 和 permission mediation，并在内部桥接 ACP child process。</p>
+<h2 id="a2a">A2A 适合什么<a class="headerlink" href="#a2a" title="Permanent link">&para;</a></h2>
+<p>A2A 的核心是让独立、可能黑盒、可能由不同团队或供应商实现的 Agent 应用互操作。它更关注：</p>
+<ul>
+<li>Agent Card 或能力发现。</li>
+<li>任务创建和状态管理。</li>
+<li>streaming、push notification、artifact 交换。</li>
+<li>跨框架、跨语言、跨供应商协同。</li>
+</ul>
+<p>因此，当系统未来需要对外接入其他 Agent 平台，或者把自己的 Agent 暴露给外部调用时，A2A 比 ACP 更合适。</p>
+<h2 id="acp-a2a">ACP 能否替代 A2A<a class="headerlink" href="#acp-a2a" title="Permanent link">&para;</a></h2>
+<p>分场景回答：</p>
+<table>
+<thead>
+<tr>
+<th>场景</th>
+<th>ACP 是否足够</th>
+<th>建议</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Web 控制台调用内部 Qwen Code worker</td>
+<td>足够</td>
+<td>用 ACP/ACP-like session protocol</td>
+</tr>
+<tr>
+<td>Run Manager 控制多个 coding worker</td>
+<td>基本足够</td>
+<td>ACP + 内部事件模型</td>
+</tr>
+<tr>
+<td>Supervisor 把任务派给自己的 subagent</td>
+<td>足够起步</td>
+<td>任务语义由内部 run/step 建模</td>
+</tr>
+<tr>
+<td>对接外部团队的独立 Agent</td>
+<td>不足</td>
+<td>使用 A2A</td>
+</tr>
+<tr>
+<td>做 Agent marketplace 或 federated agents</td>
+<td>不足</td>
+<td>A2A Gateway</td>
+</tr>
+<tr>
+<td>工具和数据源接入</td>
+<td>不适合</td>
+<td>使用 MCP</td>
+</tr>
+</tbody>
+</table>
+<p>所以，ACP 可以替代一部分“内部 A2A”的需求，但不能替代开放式 Agent-to-Agent 协议。</p>
+<h2 id="_2">推荐协议架构<a class="headerlink" href="#_2" title="Permanent link">&para;</a></h2>
+<p>MVP 阶段：</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>Client -&gt; REST/SSE -&gt; Run Manager -&gt; ACP-like -&gt; Qwen Code Worker
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>Qwen Code Worker -&gt; MCP -&gt; Tools
+</code></pre></div>
+<p>演进阶段：</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>External Agent -&gt; A2A Gateway -&gt; Run Manager -&gt; ACP -&gt; Coding Worker
+<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>Coding Worker -&gt; MCP Gateway -&gt; Tools
+</code></pre></div>
+<p>桥接关系：</p>
+<table>
+<thead>
+<tr>
+<th>A2A 概念</th>
+<th>内部概念</th>
+<th>ACP/Qwen 侧</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Agent Card</td>
+<td>agent type/capability</td>
+<td>worker metadata</td>
+</tr>
+<tr>
+<td>Task</td>
+<td>run</td>
+<td>session + prompt</td>
+</tr>
+<tr>
+<td>Task status</td>
+<td>run status</td>
+<td>event stream</td>
+</tr>
+<tr>
+<td>Artifact</td>
+<td>artifact</td>
+<td>file/diff/report</td>
+</tr>
+<tr>
+<td>Push notification</td>
+<td>webhook/SSE</td>
+<td>session events</td>
+</tr>
+<tr>
+<td>Input parts</td>
+<td>prompt/context</td>
+<td>ACP request</td>
+</tr>
+</tbody>
+</table>
+<h2 id="a2a_1">为什么不一开始只做 A2A<a class="headerlink" href="#a2a_1" title="Permanent link">&para;</a></h2>
+<p>A2A 解决互操作，但不自动解决：</p>
+<ul>
+<li>sandbox 隔离。</li>
+<li>工具权限。</li>
+<li>workspace 管理。</li>
+<li>run 恢复。</li>
+<li>token 成本。</li>
+<li>qwen-code/claude-code/opencode 的具体事件适配。</li>
+</ul>
+<p>本项目当前真正缺的是 Cloud Agent Runtime。协议应该服务于运行时，而不是反过来让协议决定系统内部结构。</p>
+<h2 id="_3">协议落地建议<a class="headerlink" href="#_3" title="Permanent link">&para;</a></h2>
+<ol>
+<li>内部先定义稳定的 run event schema。</li>
+<li>对 Qwen Code、OpenCode、Gemini CLI 事件做 adapter。</li>
+<li>控制 worker 时优先使用 ACP 或 ACP-like session API。</li>
+<li>工具统一通过 MCP Gateway 暴露。</li>
+<li>需要外部 Agent 互操作时，再做 A2A Gateway。</li>
+<li>不要让所有内部状态直接等同于 ACP 或 A2A payload，内部事件模型应当保持自主。</li>
+</ol>
+<h2 id="_4">参考资料<a class="headerlink" href="#_4" title="Permanent link">&para;</a></h2>
+<ul>
+<li><a href="https://agentclientprotocol.com/get-started/introduction">Agent Client Protocol Introduction</a></li>
+<li><a href="https://agentclientprotocol.com/protocol/v1/overview">Agent Client Protocol Overview</a></li>
+<li><a href="https://github.com/a2aproject/A2A/blob/main/docs/specification.md">A2A Protocol specification</a></li>
+<li><a href="https://github.com/a2aproject/A2A">A2A Project</a></li>
+<li><a href="https://modelcontextprotocol.io/">Model Context Protocol</a></li>
+</ul>
 
 
 
@@ -895,10 +1153,10 @@
     
     
       
-      <script id="__config" type="application/json">{"base": ".", "features": ["navigation.instant", "navigation.sections", "navigation.top", "search.highlight", "search.suggest", "toc.follow"], "search": "assets/javascripts/workers/search.d50fe291.min.js", "tags": null, "translations": {"clipboard.copied": "\u5df2\u590d\u5236", "clipboard.copy": "\u590d\u5236", "search.result.more.one": "\u5728\u8be5\u9875\u4e0a\u8fd8\u6709 1 \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.more.other": "\u5728\u8be5\u9875\u4e0a\u8fd8\u6709 # \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.none": "\u6ca1\u6709\u627e\u5230\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.one": "\u627e\u5230 1 \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.other": "# \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.placeholder": "\u952e\u5165\u4ee5\u5f00\u59cb\u641c\u7d22", "search.result.term.missing": "\u7f3a\u5c11", "select.version": "\u9009\u62e9\u5f53\u524d\u7248\u672c"}, "version": null}</script>
+      <script id="__config" type="application/json">{"base": "../..", "features": ["navigation.instant", "navigation.sections", "navigation.top", "search.highlight", "search.suggest", "toc.follow"], "search": "../../assets/javascripts/workers/search.d50fe291.min.js", "tags": null, "translations": {"clipboard.copied": "\u5df2\u590d\u5236", "clipboard.copy": "\u590d\u5236", "search.result.more.one": "\u5728\u8be5\u9875\u4e0a\u8fd8\u6709 1 \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.more.other": "\u5728\u8be5\u9875\u4e0a\u8fd8\u6709 # \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.none": "\u6ca1\u6709\u627e\u5230\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.one": "\u627e\u5230 1 \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.other": "# \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.placeholder": "\u952e\u5165\u4ee5\u5f00\u59cb\u641c\u7d22", "search.result.term.missing": "\u7f3a\u5c11", "select.version": "\u9009\u62e9\u5f53\u524d\u7248\u672c"}, "version": null}</script>
     
     
-      <script src="assets/javascripts/bundle.56ea9cef.min.js"></script>
+      <script src="../../assets/javascripts/bundle.56ea9cef.min.js"></script>
       
         <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
       
