@@ -373,6 +373,29 @@
   
   
     <li class="md-nav__item">
+      <a href="../subagent-vs-execution-unit/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    SubAgent 与独立执行单元边界
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../qwen-serve-single-agent-cloud-unit/" class="md-nav__link">
         
   
@@ -617,9 +640,9 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#2-adapter" class="md-nav__link">
+  <a href="#2acp-compatible-adapter" class="md-nav__link">
     <span class="md-ellipsis">
-      阶段 2：协议 adapter
+      阶段 2：ACP-compatible adapter
     </span>
   </a>
   
@@ -1108,9 +1131,9 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#2-adapter" class="md-nav__link">
+  <a href="#2acp-compatible-adapter" class="md-nav__link">
     <span class="md-ellipsis">
-      阶段 2：协议 adapter
+      阶段 2：ACP-compatible adapter
     </span>
   </a>
   
@@ -1187,7 +1210,7 @@
 
 <h1 id="agent">单 Agent 基座选型<a class="headerlink" href="#agent" title="Permanent link">&para;</a></h1>
 <blockquote>
-<p>结论：先直接部署 Qwen Code 实例作为 worker，并在外层构建云端 runtime；不要一开始深 fork，也不要从头实现完整 coding agent。等任务、权限、事件、沙箱和恢复需求稳定后，再小范围 fork 或抽取核心模块。</p>
+<p>结论：短期先直接部署 Qwen Code <code>qwen serve</code> 作为第一版 worker，并在外层构建云端 runtime；但开源项目的执行器接口必须面向任意 ACP-compatible Agent，而不是绑定 Qwen Code。不要一开始深 fork，也不要从头实现完整 coding agent。</p>
 </blockquote>
 <h2 id="_1">三种路线对比<a class="headerlink" href="#_1" title="Permanent link">&para;</a></h2>
 <table>
@@ -1205,6 +1228,12 @@
 <td>最快验证能力；已有 subagent、daemon、JSONL、sandbox、权限、MCP 等能力</td>
 <td>受限于原项目接口和实验性特性</td>
 <td>POC 和 MVP 首选</td>
+</tr>
+<tr>
+<td>ACP-compatible adapter</td>
+<td>可接入 Claude Code、Codex、OpenCode、自研 worker</td>
+<td>需要定义 canonical events 和能力协商</td>
+<td>开源兼容主线</td>
 </tr>
 <tr>
 <td>Fork Qwen Code</td>
@@ -1233,38 +1262,34 @@
 </ul>
 <p>关键本地文件：</p>
 <ul>
-<li><code>/Users/gawain/Documents/codebase/opensource/qwen-code/docs/users/qwen-serve.md</code></li>
-<li><code>/Users/gawain/Documents/codebase/opensource/qwen-code/docs/developers/qwen-serve-protocol.md</code></li>
-<li><code>/Users/gawain/Documents/codebase/opensource/qwen-code/packages/core/src/agents/runtime/agent-core.ts</code></li>
-<li><code>/Users/gawain/Documents/codebase/opensource/qwen-code/packages/core/src/agents/runtime/agent-events.ts</code></li>
-<li><code>/Users/gawain/Documents/codebase/opensource/qwen-code/packages/core/src/agents/agent-transcript.ts</code></li>
-<li><code>/Users/gawain/Documents/codebase/opensource/qwen-code/packages/core/src/agents/background-agent-resume.ts</code></li>
-<li><code>/Users/gawain/Documents/codebase/opensource/qwen-code/packages/core/src/core/coreToolScheduler.ts</code></li>
-<li><code>/Users/gawain/Documents/codebase/opensource/qwen-code/packages/core/src/permissions/permission-manager.ts</code></li>
+<li><code>/Users/chigao/Documents/codebase/github/qwen-code/docs/users/qwen-serve.md</code></li>
+<li><code>/Users/chigao/Documents/codebase/github/qwen-code/docs/developers/daemon/01-architecture.md</code></li>
+<li><code>/Users/chigao/Documents/codebase/github/qwen-code/docs/developers/daemon/19-observability.md</code></li>
+<li><code>/Users/chigao/Documents/codebase/github/qwen-code/docs/design/daemon-acp-http/README.md</code></li>
+<li><code>/Users/chigao/Documents/codebase/github/qwen-code/packages/acp-bridge/src/bridge.ts</code></li>
 </ul>
 <h2 id="_2">其他项目的启发<a class="headerlink" href="#_2" title="Permanent link">&para;</a></h2>
 <h3 id="claude-code">Claude Code<a class="headerlink" href="#claude-code" title="Permanent link">&para;</a></h3>
 <p>Claude Code 的架构重点是工具优先、AsyncGenerator query loop、权限检查、并行/串行工具调度、自动压缩、hooks 和 subagent/worktree/remote runner。这说明 coding agent 的稳定性来自完整 harness，而不是模型调用包装。</p>
 <p>参考：</p>
 <ul>
-<li><code>/Users/gawain/Documents/codebase/opensource/claude-code/docs/architecture.md</code></li>
-<li><code>/Users/gawain/Documents/codebase/opensource/claude-code/docs/agent-orchestration-analysis.md</code></li>
+<li>Claude Code 官方文档、headless/SDK 能力和公开架构资料。</li>
 </ul>
 <h3 id="gemini-cli">Gemini CLI<a class="headerlink" href="#gemini-cli" title="Permanent link">&para;</a></h3>
 <p>Gemini CLI 的 subagents 体现了 specialist + independent context window 的模式；remote agents 支持 A2A；checkpointing 用 shadow git repo 保存文件和对话状态。这对本项目的多 Agent 和恢复设计很有参考价值。</p>
 <p>参考：</p>
 <ul>
-<li><code>/Users/gawain/Documents/codebase/opensource/gemini-cli/docs/core/subagents.md</code></li>
-<li><code>/Users/gawain/Documents/codebase/opensource/gemini-cli/docs/core/remote-agents.md</code></li>
-<li><code>/Users/gawain/Documents/codebase/opensource/gemini-cli/docs/cli/checkpointing.md</code></li>
+<li><code>/Users/chigao/Documents/codebase/github/gemini-cli/docs/core/subagents.md</code></li>
+<li><code>/Users/chigao/Documents/codebase/github/gemini-cli/docs/core/remote-agents.md</code></li>
+<li><code>/Users/chigao/Documents/codebase/github/gemini-cli/docs/cli/checkpointing.md</code></li>
 </ul>
 <h3 id="opencode">OpenCode<a class="headerlink" href="#opencode" title="Permanent link">&para;</a></h3>
 <p>OpenCode 对 Agent permission、session、subagent child session 和强类型 session events 的设计，非常适合作为本项目事件模型和任务状态模型参考。</p>
 <p>参考：</p>
 <ul>
-<li><code>/Users/gawain/Documents/codebase/github/opencode/packages/opencode/src/agent/agent.ts</code></li>
-<li><code>/Users/gawain/Documents/codebase/github/opencode/packages/opencode/src/v2/session.ts</code></li>
-<li><code>/Users/gawain/Documents/codebase/github/opencode/packages/opencode/src/v2/session-event.ts</code></li>
+<li><code>/Users/chigao/Documents/codebase/github/opencode/packages/opencode/src/agent/agent.ts</code></li>
+<li><code>/Users/chigao/Documents/codebase/github/opencode/packages/opencode/src/v2/session.ts</code></li>
+<li><code>/Users/chigao/Documents/codebase/github/opencode/packages/opencode/src/v2/session-event.ts</code></li>
 </ul>
 <h2 id="_3">推荐演进路径<a class="headerlink" href="#_3" title="Permanent link">&para;</a></h2>
 <h3 id="1-worker">阶段 1：黑盒 worker<a class="headerlink" href="#1-worker" title="Permanent link">&para;</a></h3>
@@ -1279,14 +1304,15 @@
 <li>生成 JSONL、diff、final report。</li>
 <li>能被取消。</li>
 </ul>
-<p>本阶段尽量不改 Qwen Code 源码。</p>
-<h3 id="2-adapter">阶段 2：协议 adapter<a class="headerlink" href="#2-adapter" title="Permanent link">&para;</a></h3>
-<p>写一层 adapter，把 qwen-code 的事件转成内部 canonical events：</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>qwen event/jsonl -&gt; adapter -&gt; run_events
+<p>本阶段尽量不改 Qwen Code 源码，但 adapter 接口不要暴露 qwen 私有概念。</p>
+<h3 id="2acp-compatible-adapter">阶段 2：ACP-compatible adapter<a class="headerlink" href="#2acp-compatible-adapter" title="Permanent link">&para;</a></h3>
+<p>写一层 adapter，把 qwen-code 的事件转成内部 canonical events，同时把控制面抽象成 ACP-compatible 操作：</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>native agent protocol -&gt; adapter -&gt; canonical events
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>ACP stdio / ACP Streamable HTTP -&gt; adapter -&gt; Run Manager
 </code></pre></div>
 <p>好处：</p>
 <ul>
-<li>将来可以替换为 Claude Code、OpenCode、Gemini CLI 或自研 worker。</li>
+<li>将来可以替换为 Claude Code、Codex、OpenCode、Gemini CLI 或自研 worker。</li>
 <li>内部 UI 和 orchestration 不被单一项目格式锁死。</li>
 <li>可以逐步补全缺失事件。</li>
 </ul>
@@ -1334,7 +1360,7 @@
 </ul>
 <p>这些都是现成项目已经大量处理过的问题。从头写会很干净，但很慢，而且早期很难稳定。</p>
 <h2 id="mvp">MVP 接口契约<a class="headerlink" href="#mvp" title="Permanent link">&para;</a></h2>
-<p>外层 Run Manager 不应依赖 Qwen Code 内部类型，只依赖 worker 契约：</p>
+<p>外层 Run Manager 不应依赖 Qwen Code 内部类型，只依赖 worker 契约。远期这套契约应尽量贴近 ACP：</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>start(run_spec) -&gt; run_handle
 <a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>send_input(run_id, message)
 <a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>resolve_permission(run_id, permission_id, decision)
@@ -1382,7 +1408,7 @@
 <p>长期：</p>
 <ul>
 <li>形成自己的 Cloud Agent Runtime。</li>
-<li>worker 可以是 Qwen Code，也可以是其他 agent。</li>
+<li>worker 可以是 Qwen Code，也可以是 Claude Code、Codex、OpenCode 或其他 ACP-compatible agent。</li>
 <li>多 Agent 编排基于内部 run/event/artifact 模型，而不是绑定某个 CLI。</li>
 </ul>
 

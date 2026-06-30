@@ -373,6 +373,29 @@
   
   
     <li class="md-nav__item">
+      <a href="../subagent-vs-execution-unit/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    SubAgent 与独立执行单元边界
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../qwen-serve-single-agent-cloud-unit/" class="md-nav__link">
         
   
@@ -1235,7 +1258,7 @@
 
 <h1 id="agent-agent">从单 Agent 执行单元到多 Agent 编排<a class="headerlink" href="#agent-agent" title="Permanent link">&para;</a></h1>
 <blockquote>
-<p>结论：多 Agent 系统不应该直接编排“模型角色”，而应该编排稳定单 Agent 执行单元。每个子 Agent 都是一个可审计、可恢复、可取消、可隔离的 SAEU run；Supervisor 只通过事件、artifact、状态和权限接口协调它们。</p>
+<p>结论：多 Agent 系统不应该直接编排“模型角色”，也不应该把所有内部 SubAgent 都强行升级成独立进程。更准确的分层是：常驻 Project/Supervisor Agent 负责长期目标和上下文，Agent runtime 内部可以使用 SubAgent 做轻量并行；只有需要平台治理、隔离、审计、恢复和跨客户端托管的子任务，才升级为 SAEU run。</p>
 </blockquote>
 <h2 id="_1">总体路线<a class="headerlink" href="#_1" title="Permanent link">&para;</a></h2>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>Phase 1: 单 SAEU 稳定
@@ -1248,10 +1271,11 @@
 <p>关键原则：</p>
 <ul>
 <li>先让一个执行单元可靠，再让多个执行单元并发。</li>
-<li>子 Agent 之间不共享可写 workspace。</li>
-<li>Agent 间通信优先通过 artifact 和事件，不直接互相读写内存。</li>
+<li>SubAgent 用于主 Agent 内部探索、评审、总结；SAEU 用于平台级执行边界。</li>
+<li>独立 SAEU 之间不共享可写 workspace。</li>
+<li>Agent 间通信优先通过 artifact 和事件，不直接互相读写不受控内存。</li>
 <li>Supervisor 负责规划、派发、合并、失败处理和人机协同。</li>
-<li>外部协议可以是 A2A，内部调度原子仍是 SAEU。</li>
+<li>外部协议可以是 A2A，内部执行器控制优先 ACP-compatible SAEU。</li>
 </ul>
 <h2 id="agent">多 Agent 目标架构<a class="headerlink" href="#agent" title="Permanent link">&para;</a></h2>
 <div class="mermaid">flowchart TB
@@ -1259,7 +1283,9 @@
     RM["Run Manager"]
     SUP["Supervisor Agent / Orchestrator"]
     Queue["SAEU Queue"]
-    U1["SAEU: planner"]
+    Project["Project Agent&lt;br/&gt;resident memory"]
+    Sub["Runtime SubAgents&lt;br/&gt;explore/review/summarize"]
+    U1["SAEU: planner/coder"]
     U2["SAEU: coder"]
     U3["SAEU: reviewer"]
     U4["SAEU: tester"]
@@ -1271,7 +1297,9 @@
 
     Client --&gt; RM
     A2A --&gt; RM
-    RM --&gt; SUP
+    RM --&gt; Project
+    Project --&gt; SUP
+    Project --&gt; Sub
     SUP --&gt; Queue
     Queue --&gt; U1
     Queue --&gt; U2
@@ -1309,7 +1337,7 @@
 </tr>
 <tr>
 <td><code>task</code></td>
-<td>可交给一个 SAEU 的子任务</td>
+<td>可交给 SubAgent 或 SAEU 的子任务</td>
 </tr>
 <tr>
 <td><code>run</code></td>
@@ -1343,8 +1371,9 @@
 <ul>
 <li>将 mission 拆成 tasks。</li>
 <li>给每个 task 选择 agent profile。</li>
+<li>判断任务留在 runtime SubAgent 内部执行，还是升级为 SAEU run。</li>
 <li>决定串行、并行或 fan-out/fan-in。</li>
-<li>为每个 task 创建 SAEU run。</li>
+<li>为需要平台治理的 task 创建 SAEU run。</li>
 <li>监听子 run 事件。</li>
 <li>处理失败、超时、取消和权限升级。</li>
 <li>收集 artifact。</li>
@@ -1357,6 +1386,7 @@
 <li>直接修改所有子 workspace。</li>
 <li>绕过 permission service。</li>
 <li>直接读取 qwen serve 私有 session 状态。</li>
+<li>把所有轻量子任务都强制拆成独立 daemon。</li>
 </ul>
 <h2 id="agent-profile">Agent profile<a class="headerlink" href="#agent-profile" title="Permanent link">&para;</a></h2>
 <p>第一版建议定义这些 profile：</p>
@@ -1657,18 +1687,19 @@
 <h2 id="_6">最小可实施版本<a class="headerlink" href="#_6" title="Permanent link">&para;</a></h2>
 <p>第一版不要追求全自动多 Agent。建议最小范围：</p>
 <ol>
-<li>一个 planner SAEU 产出任务计划。</li>
+<li>一个常驻 Project/Supervisor Agent 产出任务计划。</li>
 <li>人类确认计划。</li>
+<li>轻量探索、阅读和 review 可先用 SubAgent。</li>
 <li>一个 coder SAEU 执行实现。</li>
-<li>一个 reviewer SAEU 做只读 review。</li>
 <li>一个 tester SAEU 运行测试。</li>
 <li>Supervisor 汇总 final report。</li>
 </ol>
 <p>这已经具备多 Agent 的核心闭环，同时风险可控。</p>
 <h2 id="_7">决策<a class="headerlink" href="#_7" title="Permanent link">&para;</a></h2>
-<p>多 Agent 编排的稳定性来自两个约束：</p>
+<p>多 Agent 编排的稳定性来自三个约束：</p>
 <ul>
-<li>每个 Agent 都是 SAEU，有独立状态、事件、权限、artifact、workspace。</li>
+<li>SubAgent 只承担主 Agent 内部的轻量协作。</li>
+<li>SAEU 承担平台级治理边界，有独立状态、事件、权限、artifact、workspace。</li>
 <li>Agent 之间只通过 Supervisor 和 artifact 协作，不直接共享不受控状态。</li>
 </ul>
 <p>这条路线比“多个 Agent 在一个大对话里互相聊天”更慢一点，但可审计、可恢复、可逐步上线。</p>

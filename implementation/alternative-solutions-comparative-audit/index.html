@@ -373,6 +373,29 @@
   
   
     <li class="md-nav__item">
+      <a href="../subagent-vs-execution-unit/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    SubAgent 与独立执行单元边界
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../qwen-serve-single-agent-cloud-unit/" class="md-nav__link">
         
   
@@ -1140,18 +1163,18 @@
 <h1 id="_1">外部方案对比与多方向审计<a class="headerlink" href="#_1" title="Permanent link">&para;</a></h1>
 <blockquote>
 <p>调研日期：2026-06-30<br />
-目标：在已经确定 <code>qwen serve</code> SAEU 路线后，再对比当前更成熟或相近的方案，并用对比审计、正向审计、无方向审计、反向审计验证当前方案是否需要调整。</p>
+目标：在已经确定 <code>qwen serve</code> 作为第一版 SAEU 实现后，再对比当前更成熟或相近的方案，并用对比审计、正向审计、无方向审计、反向审计验证当前方案是否需要调整。</p>
 </blockquote>
 <h2 id="_2">总结结论<a class="headerlink" href="#_2" title="Permanent link">&para;</a></h2>
 <p>当前方案不需要推翻。更稳妥的调整是：</p>
 <ul>
-<li>保留 <code>qwen serve</code> SAEU 作为第一版单 Agent 执行单元。</li>
-<li>把 SAEU contract 做成不可变的内部边界，避免绑定 qwen 私有 API。</li>
+<li>保留 <code>qwen serve</code> 作为第一版 SAEU 实现。</li>
+<li>把 SAEU contract 做成稳定内部边界，并向 ACP-compatible runtime adapter 收敛，避免绑定 qwen 私有 API。</li>
 <li>允许未来替换三类组件：</li>
-<li>执行器：Qwen Code、Claude Code、OpenCode、OpenHands、自研 worker。</li>
+<li>执行器：Qwen Code、Claude Code、Codex、OpenCode、OpenHands、自研 worker。</li>
 <li>沙箱：Docker/rootless Docker、E2B、Daytona、OpenHands Runtime、microVM。</li>
 <li>编排器：Postgres queue、Temporal、LangGraph/LangSmith。</li>
-<li>A2A 放在系统边界，不取代内部 SAEU contract。</li>
+<li>A2A 放在系统边界，不取代内部 ACP/SAEU contract。</li>
 <li>Roadmap 中加入“替代方案评估里程碑”，避免后续架构锁死。</li>
 </ul>
 <p>一句话：<strong>当前路线是低资源 VPS 条件下可实施性最高的路线；外部成熟方案更适合成为后续替换模块，而不是第一天整体替换。</strong></p>
@@ -1258,7 +1281,7 @@
 </tr>
 <tr>
 <td>协议互操作</td>
-<td>是否适合 A2A/MCP/自定义协议</td>
+<td>是否适合 ACP/A2A/MCP</td>
 </tr>
 <tr>
 <td>迁移成本</td>
@@ -1290,7 +1313,7 @@
 <td>中，需外部补齐</td>
 <td>高</td>
 <td>中</td>
-<td>高</td>
+<td>中高，需 <code>/acp</code> 收敛</td>
 <td>MVP 主线</td>
 </tr>
 <tr>
@@ -1401,7 +1424,7 @@
 <li>能直接复用 Qwen Code 的 coding harness。</li>
 <li>可快速实现单 Agent 云端执行单元。</li>
 <li>不绑定 AWS/Azure/GCP。</li>
-<li>后续可逐步接入 A2A、MCP、Temporal、外部沙箱。</li>
+<li>后续可逐步接入 ACP Streamable HTTP、A2A、MCP、Temporal、外部沙箱。</li>
 </ul>
 <p>当前方案的短板：</p>
 <ul>
@@ -1415,7 +1438,7 @@
 <li>如果沙箱成为瓶颈，优先评估 E2B/Daytona，而不是自研 microVM。</li>
 <li>如果 mission/run workflow 变复杂，引入 Temporal 或 LangGraph，而不是把状态机继续堆进 Supervisor。</li>
 <li>如果进入企业云场景，可评估 AgentCore/Foundry/Google Agent Runtime。</li>
-<li>如果需要另一个 coding agent runtime，可把 OpenHands 作为 SAEU adapter 试点。</li>
+<li>如果需要另一个 coding agent runtime，可把 Codex、Claude Code、OpenCode 或 OpenHands 作为 SAEU adapter 试点。</li>
 </ul>
 <h2 id="_8">正向审计<a class="headerlink" href="#_8" title="Permanent link">&para;</a></h2>
 <p>正向审计从目标出发，检查当前方案是否满足目标。</p>
@@ -1435,7 +1458,7 @@
 </tr>
 <tr>
 <td>可外部通信</td>
-<td>SAEU contract + REST/SSE + A2A Gateway</td>
+<td>SAEU contract + ACP/REST/SSE + A2A Gateway</td>
 <td>可行</td>
 </tr>
 <tr>
@@ -1465,7 +1488,7 @@
 </tr>
 <tr>
 <td>多 Agent 编排</td>
-<td>mission/task/run + SAEU queue + artifact 协作</td>
+<td>Project/Supervisor + SubAgent + SAEU queue + artifact 协作</td>
 <td>可行</td>
 </tr>
 <tr>
@@ -1475,7 +1498,7 @@
 </tr>
 <tr>
 <td>未来替换方案</td>
-<td>SAEU adapter 边界</td>
+<td>ACP-compatible SAEU adapter 边界</td>
 <td>可行</td>
 </tr>
 </tbody>
@@ -1496,6 +1519,11 @@
 <td>qwen serve</td>
 <td>daemon experimental，API 可能变动</td>
 <td>adapter 封装；版本 pin；capabilities preflight</td>
+</tr>
+<tr>
+<td>ACP adapter</td>
+<td>标准仍在演进，Streamable HTTP 未必所有 Agent 支持</td>
+<td>先兼容 qwen REST/SSE，新增 <code>/acp</code> POC，adapter 分层</td>
 </tr>
 <tr>
 <td>Event Store</td>
@@ -1672,6 +1700,8 @@
 <li>Roadmap P5 增加 E2B/Daytona sandbox adapter 评估。</li>
 <li>Roadmap P5 增加 Temporal/LangGraph orchestrator adapter 评估。</li>
 <li>Roadmap P5 增加 A2A Gateway 评估。</li>
+<li>Roadmap P5 增加 ACP Streamable HTTP adapter 评估。</li>
+<li>文档中明确 SubAgent 与 SAEU 的边界。</li>
 </ul>
 <p>不需要修订：</p>
 <ul>
@@ -1679,6 +1709,7 @@
 <li>不需要第一天上 AgentCore/Foundry/Google Agent Runtime。</li>
 <li>不需要第一天上 Temporal。</li>
 <li>不需要从头实现 coding agent。</li>
+<li>不需要把每个 SubAgent 都拆成独立 SAEU。</li>
 </ul>
 <h2 id="_13">参考资料<a class="headerlink" href="#_13" title="Permanent link">&para;</a></h2>
 <ul>
@@ -1695,6 +1726,8 @@
 <li><a href="https://e2b.dev/docs/use-cases/coding-agents">E2B Coding Agents</a></li>
 <li><a href="https://www.daytona.io/">Daytona</a></li>
 <li><a href="https://docs.openhands.dev/enterprise">OpenHands Enterprise</a></li>
+<li><a href="https://agentclientprotocol.com/get-started/introduction">Agent Client Protocol</a></li>
+<li><a href="https://agentclientprotocol.com/rfds/streamable-http-websocket-transport">ACP Streamable HTTP &amp; WebSocket Transport RFD</a></li>
 </ul>
 
 

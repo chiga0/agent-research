@@ -13,7 +13,7 @@
         <link rel="canonical" href="https://chiga0.github.io/agent-research/implementation/qwen-serve-single-agent-cloud-unit/">
       
       
-        <link rel="prev" href="../stable-agent-execution-unit/">
+        <link rel="prev" href="../subagent-vs-execution-unit/">
       
       
         <link rel="next" href="../sandbox-isolation/">
@@ -370,6 +370,29 @@
                 
   
   
+  
+  
+    <li class="md-nav__item">
+      <a href="../subagent-vs-execution-unit/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    SubAgent 与独立执行单元边界
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
     
   
   
@@ -426,6 +449,15 @@
   <a href="#_1" class="md-nav__link">
     <span class="md-ellipsis">
       设计目标
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#saeu" class="md-nav__link">
+    <span class="md-ellipsis">
+      SAEU 对齐判断
     </span>
   </a>
   
@@ -1101,6 +1133,15 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#saeu" class="md-nav__link">
+    <span class="md-ellipsis">
+      SAEU 对齐判断
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#qwen-serve" class="md-nav__link">
     <span class="md-ellipsis">
       qwen serve 能力基线
@@ -1311,13 +1352,13 @@
   
 
 
-<h1 id="qwen-code-serve-agent">基于 qwen-code serve 的云端单 Agent 单元方案<a class="headerlink" href="#qwen-code-serve-agent" title="Permanent link">&para;</a></h1>
+<h1 id="qwen-code-serve-agent">基于 qwen-code serve 的云端 Agent 执行单元方案<a class="headerlink" href="#qwen-code-serve-agent" title="Permanent link">&para;</a></h1>
 <blockquote>
-<p>结论：<code>qwen serve</code> 可以作为稳定单 Agent 执行单元的第一版 runtime，但必须在外层加 Supervisor、Event Store、Artifact Store、Model Proxy、Sandbox Policy 和恢复控制。不要把 alpha 阶段的 qwen serve 直接暴露公网或直接当作生产控制面。</p>
+<p>结论：<code>qwen serve</code> 不是 SAEU 之外还要再包装的“普通 CLI 进程”，而是 SAEU 的 Qwen Code 首选实现。它已经提供 daemon、workspace、session、HTTP/SSE、permission mediation、status、resume 等核心 worker 能力。平台外层要补的是多 daemon 编排、持久审计、artifact、model proxy、sandbox policy、租户身份和恢复控制。不要把 alpha 阶段的 qwen serve 直接暴露公网或直接当作完整生产控制面。</p>
 </blockquote>
 <h2 id="_1">设计目标<a class="headerlink" href="#_1" title="Permanent link">&para;</a></h2>
-<p>本方案把一个 qwen serve daemon 包装成一个云端可托管单 Agent 单元：</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>Stable Agent Execution Unit
+<p>本方案把一个受控的 qwen serve daemon 作为云端可托管 Agent 执行单元：</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>Qwen SAEU implementation
 <a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>  = Worker Supervisor
 <a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>  + qwen serve daemon
 <a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>  + workspace sandbox
@@ -1325,7 +1366,74 @@
 <a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>  + artifact collector
 <a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>  + health/recovery controller
 </code></pre></div>
-<p>它对外暴露统一 SAEU contract，对内使用 qwen serve 的 HTTP + SSE + ACP bridge。</p>
+<p>它对外暴露统一 SAEU contract，对内使用 qwen serve 的 HTTP + SSE + ACP bridge。后续当 qwen serve 支持官方 ACP Streamable HTTP <code>/acp</code> endpoint 时，adapter 应优先走标准 ACP 远程传输，而不是长期依赖 qwen 私有 REST/SSE。</p>
+<h2 id="saeu">SAEU 对齐判断<a class="headerlink" href="#saeu" title="Permanent link">&para;</a></h2>
+<p>qwen serve 与 SAEU 的对应关系如下：</p>
+<table>
+<thead>
+<tr>
+<th>SAEU 要求</th>
+<th>qwen serve 当前能力</th>
+<th>平台是否还要补</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>独立 workspace</td>
+<td>一个 daemon 绑定一个 workspace</td>
+<td>多 workspace -&gt; 多 daemon registry</td>
+</tr>
+<tr>
+<td>Agent runtime</td>
+<td>一个 <code>qwen --acp</code> child process</td>
+<td>不需要重写 runtime</td>
+</tr>
+<tr>
+<td>多客户端连接</td>
+<td>HTTP + SSE，多客户端 attach</td>
+<td>需要接入租户/用户身份</td>
+</tr>
+<tr>
+<td>session/run 控制</td>
+<td><code>POST /session</code>、single/thread scope</td>
+<td>需要映射到平台 run/thread/task</td>
+</tr>
+<tr>
+<td>事件流</td>
+<td><code>GET /session/:id/events</code></td>
+<td>需要持久化为 Event Store</td>
+</tr>
+<tr>
+<td>权限请求</td>
+<td>permission mediation</td>
+<td>需要外部审批、审计、策略</td>
+</tr>
+<tr>
+<td>健康诊断</td>
+<td>health、capabilities、daemon/status、session/status</td>
+<td>需要 worker lease 和自动恢复</td>
+</tr>
+<tr>
+<td>恢复</td>
+<td>load/resume</td>
+<td>需要 workspace snapshot 和 artifact</td>
+</tr>
+<tr>
+<td>工具/MCP</td>
+<td>MCP pool、MCP restart、tool toggle</td>
+<td>需要工具网关和租户级权限</td>
+</tr>
+</tbody>
+</table>
+<p>所以第一版不要再造“Agent worker”。应该做：</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>Run Manager
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>  -&gt; Worker Supervisor
+<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>  -&gt; qwen serve daemon
+<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a>  -&gt; qwen session
+<a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a>  -&gt; qwen SSE / ACP events
+<a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a>  -&gt; canonical Event Store
+</code></pre></div>
+<p>如果未来接入 Claude Code、Codex、OpenCode，则替换的是 <code>qwen serve daemon</code> 这一格，而不是重写 Run Manager、Event Store、Permission Service。</p>
 <h2 id="qwen-serve">qwen serve 能力基线<a class="headerlink" href="#qwen-serve" title="Permanent link">&para;</a></h2>
 <p>从本地 Qwen Code 文档看，<code>qwen serve</code> 当前具备这些关键能力：</p>
 <ul>
@@ -1349,6 +1457,7 @@
 <li>event ring 是有界缓冲，不是长期审计日志。</li>
 <li>一个 daemon 等于一个 workspace，多 workspace 要多个 daemon 或外层编排。</li>
 <li>生产级多客户端、长时间网络抖动和大规模连接需要外层补强。</li>
+<li>当前 northbound 主要是 qwen 私有 REST/SSE；开源生态兼容应推动或适配 ACP Streamable HTTP。</li>
 </ul>
 <h2 id="_2">单元拓扑<a class="headerlink" href="#_2" title="Permanent link">&para;</a></h2>
 <div class="mermaid">flowchart TB
@@ -1377,44 +1486,44 @@
 <h2 id="_3">启动策略<a class="headerlink" href="#_3" title="Permanent link">&para;</a></h2>
 <h3 id="_4">进程模式<a class="headerlink" href="#_4" title="Permanent link">&para;</a></h3>
 <p>适合本地 POC：</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="nb">export</span><span class="w"> </span><span class="nv">QWEN_SERVER_TOKEN</span><span class="o">=</span><span class="s2">&quot;</span><span class="nv">$TOKEN</span><span class="s2">&quot;</span>
-<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="nb">cd</span><span class="w"> </span>/srv/agent/workspaces/run-123
-<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>qwen<span class="w"> </span>serve<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="w">  </span>--host<span class="w"> </span><span class="m">127</span>.0.0.1<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a><span class="w">  </span>--port<span class="w"> </span><span class="m">4170</span><span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a><span class="w">  </span>--require-auth<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a><span class="w">  </span>--token<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$QWEN_SERVER_TOKEN</span><span class="s2">&quot;</span><span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a><span class="w">  </span>--event-ring-size<span class="w"> </span><span class="m">20000</span><span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a><span class="w">  </span>--prompt-deadline-ms<span class="w"> </span><span class="m">3600000</span><span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a><span class="w">  </span>--writer-idle-timeout-ms<span class="w"> </span><span class="m">300000</span><span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-1-11" name="__codelineno-1-11" href="#__codelineno-1-11"></a><span class="w">  </span>--rate-limit
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="nb">export</span><span class="w"> </span><span class="nv">QWEN_SERVER_TOKEN</span><span class="o">=</span><span class="s2">&quot;</span><span class="nv">$TOKEN</span><span class="s2">&quot;</span>
+<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="nb">cd</span><span class="w"> </span>/srv/agent/workspaces/run-123
+<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>qwen<span class="w"> </span>serve<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="w">  </span>--host<span class="w"> </span><span class="m">127</span>.0.0.1<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a><span class="w">  </span>--port<span class="w"> </span><span class="m">4170</span><span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a><span class="w">  </span>--require-auth<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a><span class="w">  </span>--token<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$QWEN_SERVER_TOKEN</span><span class="s2">&quot;</span><span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a><span class="w">  </span>--event-ring-size<span class="w"> </span><span class="m">20000</span><span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-2-9" name="__codelineno-2-9" href="#__codelineno-2-9"></a><span class="w">  </span>--prompt-deadline-ms<span class="w"> </span><span class="m">3600000</span><span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-2-10" name="__codelineno-2-10" href="#__codelineno-2-10"></a><span class="w">  </span>--writer-idle-timeout-ms<span class="w"> </span><span class="m">300000</span><span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-2-11" name="__codelineno-2-11" href="#__codelineno-2-11"></a><span class="w">  </span>--rate-limit
 </code></pre></div>
 <h3 id="_5">容器模式<a class="headerlink" href="#_5" title="Permanent link">&para;</a></h3>
 <p>适合云端单元：</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>docker<span class="w"> </span>run<span class="w"> </span>--rm<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="w">  </span>--name<span class="w"> </span>qwen-unit-run-123<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="w">  </span>--memory<span class="o">=</span>1024m<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="w">  </span>--cpus<span class="o">=</span><span class="m">1</span>.0<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a><span class="w">  </span>--pids-limit<span class="o">=</span><span class="m">256</span><span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a><span class="w">  </span>--cap-drop<span class="o">=</span>ALL<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a><span class="w">  </span>--security-opt<span class="o">=</span>no-new-privileges<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a><span class="w">  </span>-u<span class="w"> </span><span class="m">1000</span>:1000<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-2-9" name="__codelineno-2-9" href="#__codelineno-2-9"></a><span class="w">  </span>-e<span class="w"> </span><span class="nv">QWEN_SERVER_TOKEN</span><span class="o">=</span><span class="s2">&quot;</span><span class="nv">$TOKEN</span><span class="s2">&quot;</span><span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-2-10" name="__codelineno-2-10" href="#__codelineno-2-10"></a><span class="w">  </span>-e<span class="w"> </span><span class="nv">OPENAI_BASE_URL</span><span class="o">=</span><span class="s2">&quot;http://model-proxy:8080/v1&quot;</span><span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-2-11" name="__codelineno-2-11" href="#__codelineno-2-11"></a><span class="w">  </span>-e<span class="w"> </span><span class="nv">OPENAI_API_KEY</span><span class="o">=</span><span class="s2">&quot;proxy-scoped-token&quot;</span><span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-2-12" name="__codelineno-2-12" href="#__codelineno-2-12"></a><span class="w">  </span>-v<span class="w"> </span>/srv/agent/workspaces/run-123:/workspace:rw<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-2-13" name="__codelineno-2-13" href="#__codelineno-2-13"></a><span class="w">  </span>-v<span class="w"> </span>/srv/agent/artifacts/run-123:/artifacts:rw<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-2-14" name="__codelineno-2-14" href="#__codelineno-2-14"></a><span class="w">  </span>-w<span class="w"> </span>/workspace<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-2-15" name="__codelineno-2-15" href="#__codelineno-2-15"></a><span class="w">  </span>qwen-code-runner:latest<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-2-16" name="__codelineno-2-16" href="#__codelineno-2-16"></a><span class="w">  </span>qwen<span class="w"> </span>serve<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-2-17" name="__codelineno-2-17" href="#__codelineno-2-17"></a><span class="w">    </span>--host<span class="w"> </span><span class="m">0</span>.0.0.0<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-2-18" name="__codelineno-2-18" href="#__codelineno-2-18"></a><span class="w">    </span>--port<span class="w"> </span><span class="m">4170</span><span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-2-19" name="__codelineno-2-19" href="#__codelineno-2-19"></a><span class="w">    </span>--require-auth<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-2-20" name="__codelineno-2-20" href="#__codelineno-2-20"></a><span class="w">    </span>--token<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$QWEN_SERVER_TOKEN</span><span class="s2">&quot;</span><span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-2-21" name="__codelineno-2-21" href="#__codelineno-2-21"></a><span class="w">    </span>--event-ring-size<span class="w"> </span><span class="m">20000</span><span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-2-22" name="__codelineno-2-22" href="#__codelineno-2-22"></a><span class="w">    </span>--prompt-deadline-ms<span class="w"> </span><span class="m">3600000</span><span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-2-23" name="__codelineno-2-23" href="#__codelineno-2-23"></a><span class="w">    </span>--writer-idle-timeout-ms<span class="w"> </span><span class="m">300000</span><span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-2-24" name="__codelineno-2-24" href="#__codelineno-2-24"></a><span class="w">    </span>--rate-limit
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>docker<span class="w"> </span>run<span class="w"> </span>--rm<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="w">  </span>--name<span class="w"> </span>qwen-unit-run-123<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="w">  </span>--memory<span class="o">=</span>1024m<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="w">  </span>--cpus<span class="o">=</span><span class="m">1</span>.0<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a><span class="w">  </span>--pids-limit<span class="o">=</span><span class="m">256</span><span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a><span class="w">  </span>--cap-drop<span class="o">=</span>ALL<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a><span class="w">  </span>--security-opt<span class="o">=</span>no-new-privileges<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-3-8" name="__codelineno-3-8" href="#__codelineno-3-8"></a><span class="w">  </span>-u<span class="w"> </span><span class="m">1000</span>:1000<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-3-9" name="__codelineno-3-9" href="#__codelineno-3-9"></a><span class="w">  </span>-e<span class="w"> </span><span class="nv">QWEN_SERVER_TOKEN</span><span class="o">=</span><span class="s2">&quot;</span><span class="nv">$TOKEN</span><span class="s2">&quot;</span><span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-3-10" name="__codelineno-3-10" href="#__codelineno-3-10"></a><span class="w">  </span>-e<span class="w"> </span><span class="nv">OPENAI_BASE_URL</span><span class="o">=</span><span class="s2">&quot;http://model-proxy:8080/v1&quot;</span><span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-3-11" name="__codelineno-3-11" href="#__codelineno-3-11"></a><span class="w">  </span>-e<span class="w"> </span><span class="nv">OPENAI_API_KEY</span><span class="o">=</span><span class="s2">&quot;proxy-scoped-token&quot;</span><span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-3-12" name="__codelineno-3-12" href="#__codelineno-3-12"></a><span class="w">  </span>-v<span class="w"> </span>/srv/agent/workspaces/run-123:/workspace:rw<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-3-13" name="__codelineno-3-13" href="#__codelineno-3-13"></a><span class="w">  </span>-v<span class="w"> </span>/srv/agent/artifacts/run-123:/artifacts:rw<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-3-14" name="__codelineno-3-14" href="#__codelineno-3-14"></a><span class="w">  </span>-w<span class="w"> </span>/workspace<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-3-15" name="__codelineno-3-15" href="#__codelineno-3-15"></a><span class="w">  </span>qwen-code-runner:latest<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-3-16" name="__codelineno-3-16" href="#__codelineno-3-16"></a><span class="w">  </span>qwen<span class="w"> </span>serve<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-3-17" name="__codelineno-3-17" href="#__codelineno-3-17"></a><span class="w">    </span>--host<span class="w"> </span><span class="m">0</span>.0.0.0<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-3-18" name="__codelineno-3-18" href="#__codelineno-3-18"></a><span class="w">    </span>--port<span class="w"> </span><span class="m">4170</span><span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-3-19" name="__codelineno-3-19" href="#__codelineno-3-19"></a><span class="w">    </span>--require-auth<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-3-20" name="__codelineno-3-20" href="#__codelineno-3-20"></a><span class="w">    </span>--token<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$QWEN_SERVER_TOKEN</span><span class="s2">&quot;</span><span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-3-21" name="__codelineno-3-21" href="#__codelineno-3-21"></a><span class="w">    </span>--event-ring-size<span class="w"> </span><span class="m">20000</span><span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-3-22" name="__codelineno-3-22" href="#__codelineno-3-22"></a><span class="w">    </span>--prompt-deadline-ms<span class="w"> </span><span class="m">3600000</span><span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-3-23" name="__codelineno-3-23" href="#__codelineno-3-23"></a><span class="w">    </span>--writer-idle-timeout-ms<span class="w"> </span><span class="m">300000</span><span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-3-24" name="__codelineno-3-24" href="#__codelineno-3-24"></a><span class="w">    </span>--rate-limit
 </code></pre></div>
 <p>注意：</p>
 <ul>
@@ -1459,7 +1568,7 @@
 </tr>
 <tr>
 <td>事件转换</td>
-<td>qwen event -&gt; SAEU event -&gt; Event Store</td>
+<td>qwen event / ACP event -&gt; SAEU canonical event -&gt; Event Store</td>
 </tr>
 <tr>
 <td>权限中继</td>
@@ -1481,16 +1590,25 @@
 </table>
 <h2 id="api">对外 API<a class="headerlink" href="#api" title="Permanent link">&para;</a></h2>
 <p>Run Manager 不直接暴露 qwen serve 原始 API，而暴露稳定接口：</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="err">POST /runs</span>
-<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="err">GET  /runs/{run_id}</span>
-<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="err">GET  /runs/{run_id}/events</span>
-<a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="err">POST /runs/{run_id}/input</span>
-<a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a><span class="err">POST /runs/{run_id}/cancel</span>
-<a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a><span class="err">GET  /runs/{run_id}/artifacts</span>
-<a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a><span class="err">GET  /runs/{run_id}/diagnostics</span>
-<a id="__codelineno-3-8" name="__codelineno-3-8" href="#__codelineno-3-8"></a><span class="err">POST /permissions/{permission_id}/resolve</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="err">POST /runs</span>
+<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="err">GET  /runs/{run_id}</span>
+<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="err">GET  /runs/{run_id}/events</span>
+<a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a><span class="err">POST /runs/{run_id}/input</span>
+<a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a><span class="err">POST /runs/{run_id}/cancel</span>
+<a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a><span class="err">GET  /runs/{run_id}/artifacts</span>
+<a id="__codelineno-4-7" name="__codelineno-4-7" href="#__codelineno-4-7"></a><span class="err">GET  /runs/{run_id}/diagnostics</span>
+<a id="__codelineno-4-8" name="__codelineno-4-8" href="#__codelineno-4-8"></a><span class="err">POST /permissions/{permission_id}/resolve</span>
 </code></pre></div>
 <p>这样以后可以替换 worker，不影响客户端。</p>
+<p>替换原则：</p>
+<ul>
+<li>Qwen Code adapter 调 qwen serve。</li>
+<li>Claude Code adapter 调 Claude 的 headless/SDK server。</li>
+<li>Codex adapter 调 Codex 的 CLI/API wrapper。</li>
+<li>OpenCode adapter 调 OpenCode session runtime。</li>
+<li>原生开源 worker 直接实现 ACP server。</li>
+</ul>
+<p>这些 adapter 都必须输出相同 canonical events，并接入同一个 Permission Service 和 Artifact Store。</p>
 <h2 id="_6">事件采集<a class="headerlink" href="#_6" title="Permanent link">&para;</a></h2>
 <p>qwen serve SSE 是实时事件源，但不是唯一事实源。Supervisor 必须：</p>
 <ol>
@@ -1504,18 +1622,18 @@
 <p>event ring 只能用于短线重连。长期审计必须依赖外部 Event Store。</p>
 <h2 id="_7">审计设计<a class="headerlink" href="#_7" title="Permanent link">&para;</a></h2>
 <p>每个 run 结束后至少产出：</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>artifacts/run-123/
-<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>  manifest.json
-<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a>  qwen-sse.raw.jsonl
-<a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a>  events.canonical.jsonl
-<a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a>  transcript.jsonl
-<a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a>  permissions.jsonl
-<a id="__codelineno-4-7" name="__codelineno-4-7" href="#__codelineno-4-7"></a>  diagnostics.start.json
-<a id="__codelineno-4-8" name="__codelineno-4-8" href="#__codelineno-4-8"></a>  diagnostics.end.json
-<a id="__codelineno-4-9" name="__codelineno-4-9" href="#__codelineno-4-9"></a>  stdout.log
-<a id="__codelineno-4-10" name="__codelineno-4-10" href="#__codelineno-4-10"></a>  stderr.log
-<a id="__codelineno-4-11" name="__codelineno-4-11" href="#__codelineno-4-11"></a>  diff.patch
-<a id="__codelineno-4-12" name="__codelineno-4-12" href="#__codelineno-4-12"></a>  final.md
+<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>artifacts/run-123/
+<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>  manifest.json
+<a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a>  qwen-sse.raw.jsonl
+<a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a>  events.canonical.jsonl
+<a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a>  transcript.jsonl
+<a id="__codelineno-5-6" name="__codelineno-5-6" href="#__codelineno-5-6"></a>  permissions.jsonl
+<a id="__codelineno-5-7" name="__codelineno-5-7" href="#__codelineno-5-7"></a>  diagnostics.start.json
+<a id="__codelineno-5-8" name="__codelineno-5-8" href="#__codelineno-5-8"></a>  diagnostics.end.json
+<a id="__codelineno-5-9" name="__codelineno-5-9" href="#__codelineno-5-9"></a>  stdout.log
+<a id="__codelineno-5-10" name="__codelineno-5-10" href="#__codelineno-5-10"></a>  stderr.log
+<a id="__codelineno-5-11" name="__codelineno-5-11" href="#__codelineno-5-11"></a>  diff.patch
+<a id="__codelineno-5-12" name="__codelineno-5-12" href="#__codelineno-5-12"></a>  final.md
 </code></pre></div>
 <p><code>manifest.json</code> 至少包含：</p>
 <ul>

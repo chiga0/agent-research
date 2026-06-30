@@ -16,7 +16,7 @@
         <link rel="prev" href="../">
       
       
-        <link rel="next" href="../qwen-serve-single-agent-cloud-unit/">
+        <link rel="next" href="../subagent-vs-execution-unit/">
       
       
       <link rel="icon" href="../../assets/images/favicon.png">
@@ -409,9 +409,18 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#qwen-serve" class="md-nav__link">
+    <span class="md-ellipsis">
+      与 qwen serve 的关系
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#_2" class="md-nav__link">
     <span class="md-ellipsis">
-      为什么需要这个抽象
+      执行边界选择
     </span>
   </a>
   
@@ -420,7 +429,25 @@
         <li class="md-nav__item">
   <a href="#_3" class="md-nav__link">
     <span class="md-ellipsis">
-      边界
+      开源兼容原则
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#acp" class="md-nav__link">
+    <span class="md-ellipsis">
+      ACP 兼容目标
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#subagent" class="md-nav__link">
+    <span class="md-ellipsis">
+      与 SubAgent 的边界
     </span>
   </a>
   
@@ -481,9 +508,9 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#a2aacp" class="md-nav__link">
+  <a href="#a2a-mcp" class="md-nav__link">
     <span class="md-ellipsis">
-      与 A2A/ACP 的关系
+      与 A2A / MCP 的关系
     </span>
   </a>
   
@@ -511,6 +538,29 @@
   
 </nav>
       
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../subagent-vs-execution-unit/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    SubAgent 与独立执行单元边界
+    
+  </span>
+  
+
+      </a>
     </li>
   
 
@@ -1008,9 +1058,18 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#qwen-serve" class="md-nav__link">
+    <span class="md-ellipsis">
+      与 qwen serve 的关系
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#_2" class="md-nav__link">
     <span class="md-ellipsis">
-      为什么需要这个抽象
+      执行边界选择
     </span>
   </a>
   
@@ -1019,7 +1078,25 @@
         <li class="md-nav__item">
   <a href="#_3" class="md-nav__link">
     <span class="md-ellipsis">
-      边界
+      开源兼容原则
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#acp" class="md-nav__link">
+    <span class="md-ellipsis">
+      ACP 兼容目标
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#subagent" class="md-nav__link">
+    <span class="md-ellipsis">
+      与 SubAgent 的边界
     </span>
   </a>
   
@@ -1080,9 +1157,9 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#a2aacp" class="md-nav__link">
+  <a href="#a2a-mcp" class="md-nav__link">
     <span class="md-ellipsis">
-      与 A2A/ACP 的关系
+      与 A2A / MCP 的关系
     </span>
   </a>
   
@@ -1125,59 +1202,260 @@
   
 
 
-<h1 id="agent">稳定单 Agent 执行单元<a class="headerlink" href="#agent" title="Permanent link">&para;</a></h1>
+<h1 id="agent">稳定 Agent 执行单元<a class="headerlink" href="#agent" title="Permanent link">&para;</a></h1>
 <blockquote>
-<p>结论：应该把云端 Agent 的基础调度原子抽象成“稳定单 Agent 执行单元”。外部编排系统只依赖这个执行单元的统一契约，而不直接依赖 Qwen Code、Claude Code、OpenCode 或 Gemini CLI 的内部实现。</p>
+<p>结论：SAEU 不应该被理解为在 <code>qwen serve</code> 外面再造一层新的 Agent worker。更准确地说，稳定 Agent 执行单元（Stable Agent Execution Unit，简称 SAEU）是云端控制面对“一个可管理 Agent 运行边界”的统一契约。<br />
+在 Qwen Code 路线下，一个受 Supervisor 管理的 <code>qwen serve</code> daemon 就是 SAEU 的第一版实现；未来 Claude Code、Codex、OpenCode、Gemini CLI、自研 Agent 只要实现同一通信契约，也可以成为 SAEU。</p>
 </blockquote>
 <h2 id="_1">定义<a class="headerlink" href="#_1" title="Permanent link">&para;</a></h2>
-<p>稳定单 Agent 执行单元（Stable Agent Execution Unit，简称 SAEU）是一个可被云端控制面调度、观察、取消、恢复和审计的长期运行 Agent worker。</p>
-<p>它不是一个模型调用，也不是一个 CLI 进程，而是以下能力的封装：</p>
+<p>SAEU 是一个可被云端控制面调度、观察、取消、恢复、审计和计费的 Agent 执行边界。它不是模型调用，也不必然是一个独立 CLI 进程；它可以映射到：</p>
 <ul>
-<li>一个隔离 workspace。</li>
-<li>一个 Agent runtime。</li>
-<li>一个受控工具集合。</li>
-<li>一个事件流。</li>
-<li>一个权限请求通道。</li>
-<li>一个 artifact 输出面。</li>
-<li>一个健康检查和恢复面。</li>
-<li>一个审计与回放面。</li>
+<li>一个 <code>qwen serve</code> daemon。</li>
+<li>一个 <code>qwen serve</code> daemon 内的 thread-scoped session。</li>
+<li>一个 Claude Code / Codex / OpenCode / Gemini CLI 的 headless server。</li>
+<li>一个实现 ACP Streamable HTTP / WebSocket transport 的第三方 Agent server。</li>
+<li>一个容器、远程 worker、microVM 或托管 sandbox 中的 Agent runtime。</li>
 </ul>
-<p>外部多 Agent 编排、任务调度、Kanban 控制面、A2A Gateway、Web UI 都只把 SAEU 当作基础执行单元。</p>
-<h2 id="_2">为什么需要这个抽象<a class="headerlink" href="#_2" title="Permanent link">&para;</a></h2>
-<p>直接调度 CLI 或容器会把上层系统绑定到具体实现：</p>
+<p>SAEU 必须提供这些能力：</p>
 <ul>
-<li>Qwen Code 的 session event 和 OpenCode 的 session event 不同。</li>
-<li>Claude Code 的 tool permission 与 Qwen Code 的 permission mediation 不同。</li>
-<li>Gemini CLI remote subagent 走 A2A，而 qwen serve 走 HTTP + SSE + ACP bridge。</li>
-<li>某些 worker 支持 resume，某些只支持重新开始。</li>
+<li>workspace 或 project boundary。</li>
+<li>Agent runtime。</li>
+<li>受控工具集合。</li>
+<li>session / run 控制接口。</li>
+<li>实时事件流。</li>
+<li>权限请求通道。</li>
+<li>artifact 输出面。</li>
+<li>健康检查、诊断和恢复面。</li>
+<li>审计与回放面。</li>
 </ul>
-<p>SAEU 的价值是把这些差异收敛到统一接口：</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>external orchestrator -&gt; SAEU contract -&gt; concrete agent adapter -&gt; qwen-code serve
+<p>外部多 Agent 编排、任务调度、Kanban 控制面、A2A Gateway、Web UI 都只把 SAEU 当作基础执行单元，而不直接绑定某个 Agent 项目的私有 API。</p>
+<h2 id="qwen-serve">与 qwen serve 的关系<a class="headerlink" href="#qwen-serve" title="Permanent link">&para;</a></h2>
+<p>Qwen Code 的 <code>qwen serve</code> 已经天然覆盖 SAEU 的大部分 worker 语义：</p>
+<table>
+<thead>
+<tr>
+<th>SAEU 能力</th>
+<th>qwen serve 对应能力</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>workspace boundary</td>
+<td>一个 daemon 绑定一个 workspace</td>
+</tr>
+<tr>
+<td>Agent runtime</td>
+<td>daemon 内部启动一个 <code>qwen --acp</code> child process</td>
+</tr>
+<tr>
+<td>多客户端连接</td>
+<td>HTTP + SSE，多客户端共享或附着 session</td>
+</tr>
+<tr>
+<td>session 控制</td>
+<td><code>POST /session</code>、<code>sessionScope: single/thread</code></td>
+</tr>
+<tr>
+<td>prompt/input</td>
+<td><code>POST /session/:id/prompt</code></td>
+</tr>
+<tr>
+<td>实时事件</td>
+<td><code>GET /session/:id/events</code>，支持 <code>Last-Event-ID</code></td>
+</tr>
+<tr>
+<td>权限请求</td>
+<td><code>permission_request</code>、<code>permission_resolved</code>、多客户端 mediation</td>
+</tr>
+<tr>
+<td>健康诊断</td>
+<td><code>/health</code>、<code>/capabilities</code>、<code>/daemon/status</code>、<code>/session/:id/status</code></td>
+</tr>
+<tr>
+<td>恢复</td>
+<td><code>/session/:id/load</code>、<code>/session/:id/resume</code></td>
+</tr>
+<tr>
+<td>runtime control</td>
+<td>approval mode、tool toggle、MCP restart、workspace memory/agents</td>
+</tr>
+</tbody>
+</table>
+<p>因此在 Qwen Code 路线下，不需要再设计一个替代 <code>qwen serve</code> 的 worker。第一版应当是：</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>Run Manager
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>  -&gt; Worker Supervisor
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>  -&gt; qwen serve daemon
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>  -&gt; qwen --acp child
 </code></pre></div>
-<p>这样多 Agent 编排调度的是“可靠执行单元”，而不是某个项目的私有 API。</p>
-<h2 id="_3">边界<a class="headerlink" href="#_3" title="Permanent link">&para;</a></h2>
-<p>SAEU 内部负责：</p>
+<p>平台需要补的是 <code>qwen serve</code> 外层的云端运行时能力：</p>
 <ul>
-<li>启动 Agent。</li>
-<li>持有 workspace。</li>
-<li>接收 prompt/input。</li>
-<li>输出事件。</li>
-<li>请求权限。</li>
-<li>执行取消。</li>
-<li>产出 artifact。</li>
-<li>上报健康状态。</li>
-<li>支持恢复或声明不可恢复。</li>
+<li>daemon registry：记录哪些 workspace / tenant / run 绑定到哪些 daemon。</li>
+<li>daemon lifecycle：启动、停止、重启、租约、心跳、容量、端口/token 管理。</li>
+<li>multi-daemon orchestration：同机或跨机器启动多个 daemon。</li>
+<li>durable event store：把 qwen SSE ring 转成持久事件。</li>
+<li>external audit sink：权限、工具、文件、模型调用全部落库。</li>
+<li>artifact store：diff、transcript、logs、diagnostics、final report。</li>
+<li>sandbox isolation：Docker/rootless Docker、cgroup、网络、密钥和 model proxy。</li>
+<li>identity mapping：用户、租户、client、审批者与 Agent 内部事件关联。</li>
 </ul>
-<p>SAEU 外部负责：</p>
+<p>一句话：<strong>qwen serve 是 SAEU 的 Qwen 实现；SAEU contract 是平台调度它和替换它的抽象层。</strong></p>
+<h2 id="_2">执行边界选择<a class="headerlink" href="#_2" title="Permanent link">&para;</a></h2>
+<p>执行单元不总是等于“一个进程”。边界要按任务隔离需求选择：</p>
+<table>
+<thead>
+<tr>
+<th>场景</th>
+<th>推荐边界</th>
+<th>原因</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>同一项目长期任务，需要连续上下文</td>
+<td>一个常驻 <code>qwen serve</code> daemon + single session</td>
+<td>memory、上下文、试错信息连续</td>
+</tr>
+<tr>
+<td>同一 workspace 内多条独立任务线</td>
+<td>同一 daemon + thread-scoped sessions</td>
+<td>共享 workspace/runtime，但隔离对话线</td>
+</tr>
+<tr>
+<td>不同 repo 或不同 workspace</td>
+<td>多个 <code>qwen serve</code> daemon</td>
+<td>qwen serve 本身是一 daemon 一 workspace</td>
+</tr>
+<tr>
+<td>高风险代码执行或强资源隔离</td>
+<td>daemon 跑在独立容器 / worker 节点</td>
+<td>独立 CPU/mem/network/FS 边界</td>
+</tr>
+<tr>
+<td>多框架执行器并存</td>
+<td>多种 ACP-compatible SAEU adapter</td>
+<td>Qwen、Claude、Codex、OpenCode 可共存</td>
+</tr>
+<tr>
+<td>外部团队或供应商 Agent</td>
+<td>A2A Gateway</td>
+<td>Agent-to-Agent 互操作，不直接暴露内部控制面</td>
+</tr>
+</tbody>
+</table>
+<p>所以“启动多个 qwen serve daemon”不是 SAEU 之外的另一件事，而是 SAEU 在 Qwen 路线下的主要部署形态。</p>
+<h2 id="_3">开源兼容原则<a class="headerlink" href="#_3" title="Permanent link">&para;</a></h2>
+<p>这个项目如果要成为开源系统，不能把执行器写死成 Qwen Code。推荐的原则是：</p>
+<ol>
+<li><strong>ACP-first</strong>：内部 Agent 执行器优先实现 Agent Client Protocol。</li>
+<li><strong>Transport pluggable</strong>：本地可用 stdio，远程优先 ACP Streamable HTTP / WebSocket。</li>
+<li><strong>Adapter thin</strong>：对 Qwen/Claude/Codex/OpenCode 的适配只做协议和事件映射，不重写 Agent harness。</li>
+<li><strong>Canonical events</strong>：平台内部只消费统一事件，不把 qwen SSE、Claude event、OpenCode session event 当作数据库事实源。</li>
+<li><strong>Capability negotiation</strong>：执行器必须声明 capabilities，控制面按能力决定 UI 和调度策略。</li>
+<li><strong>No private lock-in</strong>：Run Manager、Supervisor、A2A Gateway、Web UI 不直接依赖某个 Agent 的私有对象模型。</li>
+</ol>
+<p>推荐执行器接口：</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>Agent Runtime Adapter
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>  expose: capabilities / create-session / send-input / stream-events / cancel / restore / status
+<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>  translate: native events -&gt; canonical events
+<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a>  delegate: native permission -&gt; platform permission service
+</code></pre></div>
+<h2 id="acp">ACP 兼容目标<a class="headerlink" href="#acp" title="Permanent link">&para;</a></h2>
+<p>ACP 适合作为 Client-to-Agent 的核心协议。对本项目而言，ACP 负责控制 SAEU：</p>
 <ul>
-<li>租户和用户身份。</li>
-<li>run/thread 业务建模。</li>
-<li>任务队列和资源调度。</li>
-<li>跨执行单元编排。</li>
-<li>全局审计和计费。</li>
-<li>长期 artifact 归档。</li>
-<li>A2A/MCP 网关。</li>
+<li>initialize / capabilities。</li>
+<li>session new / load / resume / close。</li>
+<li>session prompt / cancel。</li>
+<li>session update streaming。</li>
+<li>permission request / response。</li>
+<li>filesystem read/write request。</li>
+<li>terminal/tool request。</li>
 </ul>
+<p>远程执行器应优先支持 ACP Streamable HTTP / WebSocket transport。它的价值是让 Zed、Web 控制台、Run Manager、CLI、IDE 插件和第三方 Agent server 使用同一套 JSON-RPC 生命周期，而不是每个项目都发明一套 HTTP + SSE API。</p>
+<p>对于暂时没有 ACP server 的 Agent，可以通过 adapter 兼容：</p>
+<table>
+<thead>
+<tr>
+<th>Agent</th>
+<th>接入方式</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Qwen Code</td>
+<td>原生 <code>qwen serve</code> REST/SSE；优先演进到 <code>/acp</code> Streamable HTTP</td>
+</tr>
+<tr>
+<td>Claude Code</td>
+<td>通过 headless/SDK wrapper 暴露 ACP-compatible server</td>
+</tr>
+<tr>
+<td>Codex</td>
+<td>通过 CLI/API wrapper 暴露 ACP-compatible server</td>
+</tr>
+<tr>
+<td>OpenCode</td>
+<td>通过 session event adapter 暴露 ACP-compatible server</td>
+</tr>
+<tr>
+<td>自研 Agent</td>
+<td>直接实现 ACP server</td>
+</tr>
+</tbody>
+</table>
+<h2 id="subagent">与 SubAgent 的边界<a class="headerlink" href="#subagent" title="Permanent link">&para;</a></h2>
+<p>SubAgent 是 Agent runtime 内部的协作机制，SAEU 是平台外部的治理边界。二者可以共存。</p>
+<table>
+<thead>
+<tr>
+<th>问题</th>
+<th>SubAgent</th>
+<th>SAEU</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>谁调度</td>
+<td>主 Agent 内部</td>
+<td>Run Manager / Supervisor</td>
+</tr>
+<tr>
+<td>生命周期</td>
+<td>依附主 Agent 或主 session</td>
+<td>平台独立管理</td>
+</tr>
+<tr>
+<td>状态可见性</td>
+<td>主要在 Agent 内部</td>
+<td>平台可查询、可审计</td>
+</tr>
+<tr>
+<td>memory/context</td>
+<td>天然共享主上下文或项目上下文</td>
+<td>通过 thread、summary、artifact、memory store 显式注入</td>
+</tr>
+<tr>
+<td>并行能力</td>
+<td>支持内部并行</td>
+<td>支持跨 daemon / 跨机器 / 跨框架并行</td>
+</tr>
+<tr>
+<td>权限与审计</td>
+<td>依赖 Agent 实现</td>
+<td>平台强制记录</td>
+</tr>
+<tr>
+<td>适合</td>
+<td>探索、研究、review、短中任务</td>
+<td>长任务、高风险执行、企业审计、跨客户端托管</td>
+</tr>
+</tbody>
+</table>
+<p>推荐组合不是“只用 SubAgent”或“只用 SAEU”，而是：</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>常驻 Project/Supervisor Agent
+<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>  -&gt; 内部使用 SubAgent 做快速并行探索
+<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>  -&gt; 对长任务/高风险/可审计任务分配 SAEU run
+<a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a>  -&gt; 汇总 artifacts、diff、报告和验证结果
+</code></pre></div>
 <h2 id="saeu">SAEU 接口契约<a class="headerlink" href="#saeu" title="Permanent link">&para;</a></h2>
 <p>最小控制面接口：</p>
 <table>
@@ -1191,7 +1469,7 @@
 <tbody>
 <tr>
 <td><code>CreateUnit</code></td>
-<td>为一个 run 创建执行单元</td>
+<td>创建或分配一个执行边界，可映射到 daemon、session 或远程 worker</td>
 <td><code>run_id</code> 幂等</td>
 </tr>
 <tr>
@@ -1236,31 +1514,38 @@
 </tr>
 <tr>
 <td><code>RestoreUnit</code></td>
-<td>从 checkpoint/transcript 恢复</td>
+<td>从 checkpoint/transcript/session 恢复</td>
 <td><code>run_id</code> 幂等</td>
 </tr>
 <tr>
 <td><code>DestroyUnit</code></td>
-<td>释放容器、workspace、端口</td>
+<td>释放容器、workspace、端口、session 或 daemon</td>
 <td>可重复调用</td>
 </tr>
 </tbody>
 </table>
 <p>最小数据契约：</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="p">{</span>
-<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="w">  </span><span class="nt">&quot;unit_id&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;unit_run_123&quot;</span><span class="p">,</span>
-<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="w">  </span><span class="nt">&quot;run_id&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;run_123&quot;</span><span class="p">,</span>
-<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="w">  </span><span class="nt">&quot;workspace_id&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;ws_abc&quot;</span><span class="p">,</span>
-<a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a><span class="w">  </span><span class="nt">&quot;agent_type&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;qwen-code-serve&quot;</span><span class="p">,</span>
-<a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a><span class="w">  </span><span class="nt">&quot;status&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;running&quot;</span><span class="p">,</span>
-<a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a><span class="w">  </span><span class="nt">&quot;capabilities&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
-<a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a><span class="w">    </span><span class="nt">&quot;streaming&quot;</span><span class="p">:</span><span class="w"> </span><span class="kc">true</span><span class="p">,</span>
-<a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a><span class="w">    </span><span class="nt">&quot;permission_requests&quot;</span><span class="p">:</span><span class="w"> </span><span class="kc">true</span><span class="p">,</span>
-<a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a><span class="w">    </span><span class="nt">&quot;resume&quot;</span><span class="p">:</span><span class="w"> </span><span class="kc">true</span><span class="p">,</span>
-<a id="__codelineno-1-11" name="__codelineno-1-11" href="#__codelineno-1-11"></a><span class="w">    </span><span class="nt">&quot;artifacts&quot;</span><span class="p">:</span><span class="w"> </span><span class="kc">true</span><span class="p">,</span>
-<a id="__codelineno-1-12" name="__codelineno-1-12" href="#__codelineno-1-12"></a><span class="w">    </span><span class="nt">&quot;diagnostics&quot;</span><span class="p">:</span><span class="w"> </span><span class="kc">true</span>
-<a id="__codelineno-1-13" name="__codelineno-1-13" href="#__codelineno-1-13"></a><span class="w">  </span><span class="p">}</span>
-<a id="__codelineno-1-14" name="__codelineno-1-14" href="#__codelineno-1-14"></a><span class="p">}</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="p">{</span>
+<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="w">  </span><span class="nt">&quot;unit_id&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;unit_run_123&quot;</span><span class="p">,</span>
+<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="w">  </span><span class="nt">&quot;run_id&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;run_123&quot;</span><span class="p">,</span>
+<a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="w">  </span><span class="nt">&quot;workspace_id&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;ws_abc&quot;</span><span class="p">,</span>
+<a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a><span class="w">  </span><span class="nt">&quot;agent_type&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;qwen-code&quot;</span><span class="p">,</span>
+<a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a><span class="w">  </span><span class="nt">&quot;runtime&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a><span class="w">    </span><span class="nt">&quot;kind&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;qwen-serve-daemon&quot;</span><span class="p">,</span>
+<a id="__codelineno-3-8" name="__codelineno-3-8" href="#__codelineno-3-8"></a><span class="w">    </span><span class="nt">&quot;endpoint&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;http://127.0.0.1:4170&quot;</span><span class="p">,</span>
+<a id="__codelineno-3-9" name="__codelineno-3-9" href="#__codelineno-3-9"></a><span class="w">    </span><span class="nt">&quot;protocol&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;rest-sse&quot;</span><span class="p">,</span>
+<a id="__codelineno-3-10" name="__codelineno-3-10" href="#__codelineno-3-10"></a><span class="w">    </span><span class="nt">&quot;preferred_protocol&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;acp-streamable-http&quot;</span>
+<a id="__codelineno-3-11" name="__codelineno-3-11" href="#__codelineno-3-11"></a><span class="w">  </span><span class="p">},</span>
+<a id="__codelineno-3-12" name="__codelineno-3-12" href="#__codelineno-3-12"></a><span class="w">  </span><span class="nt">&quot;status&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;running&quot;</span><span class="p">,</span>
+<a id="__codelineno-3-13" name="__codelineno-3-13" href="#__codelineno-3-13"></a><span class="w">  </span><span class="nt">&quot;capabilities&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-3-14" name="__codelineno-3-14" href="#__codelineno-3-14"></a><span class="w">    </span><span class="nt">&quot;streaming&quot;</span><span class="p">:</span><span class="w"> </span><span class="kc">true</span><span class="p">,</span>
+<a id="__codelineno-3-15" name="__codelineno-3-15" href="#__codelineno-3-15"></a><span class="w">    </span><span class="nt">&quot;permission_requests&quot;</span><span class="p">:</span><span class="w"> </span><span class="kc">true</span><span class="p">,</span>
+<a id="__codelineno-3-16" name="__codelineno-3-16" href="#__codelineno-3-16"></a><span class="w">    </span><span class="nt">&quot;resume&quot;</span><span class="p">:</span><span class="w"> </span><span class="kc">true</span><span class="p">,</span>
+<a id="__codelineno-3-17" name="__codelineno-3-17" href="#__codelineno-3-17"></a><span class="w">    </span><span class="nt">&quot;artifacts&quot;</span><span class="p">:</span><span class="w"> </span><span class="kc">true</span><span class="p">,</span>
+<a id="__codelineno-3-18" name="__codelineno-3-18" href="#__codelineno-3-18"></a><span class="w">    </span><span class="nt">&quot;diagnostics&quot;</span><span class="p">:</span><span class="w"> </span><span class="kc">true</span><span class="p">,</span>
+<a id="__codelineno-3-19" name="__codelineno-3-19" href="#__codelineno-3-19"></a><span class="w">    </span><span class="nt">&quot;subagents&quot;</span><span class="p">:</span><span class="w"> </span><span class="kc">true</span>
+<a id="__codelineno-3-20" name="__codelineno-3-20" href="#__codelineno-3-20"></a><span class="w">  </span><span class="p">}</span>
+<a id="__codelineno-3-21" name="__codelineno-3-21" href="#__codelineno-3-21"></a><span class="p">}</span>
 </code></pre></div>
 <h2 id="_4">生命周期状态<a class="headerlink" href="#_4" title="Permanent link">&para;</a></h2>
 <div class="mermaid">stateDiagram-v2
@@ -1294,14 +1579,14 @@
 <tr>
 <th>SAEU 事件</th>
 <th>含义</th>
-<th>Qwen serve 对应</th>
+<th>qwen serve 对应</th>
 </tr>
 </thead>
 <tbody>
 <tr>
 <td><code>unit.created</code></td>
 <td>执行单元创建</td>
-<td>wrapper event</td>
+<td>Supervisor event</td>
 </tr>
 <tr>
 <td><code>unit.ready</code></td>
@@ -1351,7 +1636,7 @@
 <tr>
 <td><code>run.heartbeat</code></td>
 <td>活性心跳</td>
-<td>SSE heartbeat + wrapper heartbeat</td>
+<td>SSE heartbeat + Supervisor heartbeat</td>
 </tr>
 <tr>
 <td><code>run.completed</code></td>
@@ -1371,7 +1656,7 @@
 <tr>
 <td><code>artifact.created</code></td>
 <td>产物落盘</td>
-<td>wrapper artifact collector</td>
+<td>Artifact Collector</td>
 </tr>
 </tbody>
 </table>
@@ -1380,25 +1665,25 @@
 <li><code>event_id</code>：执行单元内单调递增。</li>
 <li><code>run_id</code>。</li>
 <li><code>unit_id</code>。</li>
-<li><code>source</code>：<code>qwen_sse</code>、<code>supervisor</code>、<code>model_proxy</code>、<code>artifact_collector</code> 等。</li>
+<li><code>source</code>：<code>qwen_sse</code>、<code>acp_http</code>、<code>supervisor</code>、<code>model_proxy</code>、<code>artifact_collector</code> 等。</li>
 <li><code>occurred_at</code>。</li>
 <li><code>payload_ref</code>：大对象引用。</li>
 <li><code>correlation_id</code>：关联 prompt、tool call 或 permission。</li>
 </ul>
 <h2 id="_6">权限请求<a class="headerlink" href="#_6" title="Permanent link">&para;</a></h2>
 <p>权限请求必须是一等能力。SAEU 的权限事件需要包含：</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="p">{</span>
-<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="w">  </span><span class="nt">&quot;permission_id&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;perm_123&quot;</span><span class="p">,</span>
-<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="w">  </span><span class="nt">&quot;run_id&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;run_123&quot;</span><span class="p">,</span>
-<a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="w">  </span><span class="nt">&quot;tool_call_id&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;tool_456&quot;</span><span class="p">,</span>
-<a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a><span class="w">  </span><span class="nt">&quot;tool_name&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;run_shell_command&quot;</span><span class="p">,</span>
-<a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a><span class="w">  </span><span class="nt">&quot;risk&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;high&quot;</span><span class="p">,</span>
-<a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a><span class="w">  </span><span class="nt">&quot;options&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span>
-<a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a><span class="w">    </span><span class="p">{</span><span class="nt">&quot;id&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;allow_once&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;label&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;Allow once&quot;</span><span class="p">},</span>
-<a id="__codelineno-2-9" name="__codelineno-2-9" href="#__codelineno-2-9"></a><span class="w">    </span><span class="p">{</span><span class="nt">&quot;id&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;deny&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;label&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;Deny&quot;</span><span class="p">}</span>
-<a id="__codelineno-2-10" name="__codelineno-2-10" href="#__codelineno-2-10"></a><span class="w">  </span><span class="p">],</span>
-<a id="__codelineno-2-11" name="__codelineno-2-11" href="#__codelineno-2-11"></a><span class="w">  </span><span class="nt">&quot;timeout_at&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;2026-06-30T12:10:00Z&quot;</span>
-<a id="__codelineno-2-12" name="__codelineno-2-12" href="#__codelineno-2-12"></a><span class="p">}</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="p">{</span>
+<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="w">  </span><span class="nt">&quot;permission_id&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;perm_123&quot;</span><span class="p">,</span>
+<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="w">  </span><span class="nt">&quot;run_id&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;run_123&quot;</span><span class="p">,</span>
+<a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a><span class="w">  </span><span class="nt">&quot;tool_call_id&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;tool_456&quot;</span><span class="p">,</span>
+<a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a><span class="w">  </span><span class="nt">&quot;tool_name&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;run_shell_command&quot;</span><span class="p">,</span>
+<a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a><span class="w">  </span><span class="nt">&quot;risk&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;high&quot;</span><span class="p">,</span>
+<a id="__codelineno-4-7" name="__codelineno-4-7" href="#__codelineno-4-7"></a><span class="w">  </span><span class="nt">&quot;options&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span>
+<a id="__codelineno-4-8" name="__codelineno-4-8" href="#__codelineno-4-8"></a><span class="w">    </span><span class="p">{</span><span class="nt">&quot;id&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;allow_once&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;label&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;Allow once&quot;</span><span class="p">},</span>
+<a id="__codelineno-4-9" name="__codelineno-4-9" href="#__codelineno-4-9"></a><span class="w">    </span><span class="p">{</span><span class="nt">&quot;id&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;deny&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;label&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;Deny&quot;</span><span class="p">}</span>
+<a id="__codelineno-4-10" name="__codelineno-4-10" href="#__codelineno-4-10"></a><span class="w">  </span><span class="p">],</span>
+<a id="__codelineno-4-11" name="__codelineno-4-11" href="#__codelineno-4-11"></a><span class="w">  </span><span class="nt">&quot;timeout_at&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;2026-06-30T12:10:00Z&quot;</span>
+<a id="__codelineno-4-12" name="__codelineno-4-12" href="#__codelineno-4-12"></a><span class="p">}</span>
 </code></pre></div>
 <p>策略：</p>
 <ul>
@@ -1408,7 +1693,7 @@
 <li>多客户端审批要记录投票人和策略。</li>
 <li>权限请求与工具调用必须能互相关联。</li>
 </ul>
-<p>Qwen serve 已经具备 <code>first-responder</code>、<code>designated</code>、<code>consensus</code>、<code>local-only</code> 等 permission mediation 策略，适合直接映射到 SAEU 的权限面。</p>
+<p>Qwen serve 已经具备 <code>first-responder</code>、<code>designated</code>、<code>consensus</code>、<code>local-only</code> 等 permission mediation 策略，适合直接映射到 SAEU 的权限面。对其他 Agent，adapter 必须把其原生权限事件转换成同一 schema。</p>
 <h2 id="_7">健康检查<a class="headerlink" href="#_7" title="Permanent link">&para;</a></h2>
 <p>SAEU 至少提供四级健康：</p>
 <table>
@@ -1422,22 +1707,22 @@
 <tbody>
 <tr>
 <td>Process</td>
-<td>qwen serve 进程是否存在</td>
-<td>supervisor 重启或标记 failed</td>
+<td>daemon/worker 进程是否存在</td>
+<td>Supervisor 重启或标记 failed</td>
 </tr>
 <tr>
-<td>HTTP</td>
-<td><code>/health</code> 是否 ok</td>
-<td>重试、重启</td>
+<td>Transport</td>
+<td>ACP/HTTP/SSE/WebSocket 是否可达</td>
+<td>重试、重连、降级</td>
 </tr>
 <tr>
 <td>Runtime</td>
-<td><code>/daemon/status</code> 是否可读</td>
+<td><code>/daemon/status</code> 或 protocol status 是否可读</td>
 <td>降级为 degraded</td>
 </tr>
 <tr>
 <td>Session</td>
-<td><code>/session/:id/status</code>、SSE heartbeat</td>
+<td>session status、event heartbeat</td>
 <td>尝试 resume/load</td>
 </tr>
 </tbody>
@@ -1484,8 +1769,8 @@
 <li>对工具和权限事件做外部幂等记录。</li>
 <li>workspace 用 git commit/worktree snapshot 保证现场可恢复。</li>
 </ul>
-<h2 id="a2aacp">与 A2A/ACP 的关系<a class="headerlink" href="#a2aacp" title="Permanent link">&para;</a></h2>
-<p>SAEU 是内部抽象，不等同于 ACP 或 A2A。</p>
+<h2 id="a2a-mcp">与 A2A / MCP 的关系<a class="headerlink" href="#a2a-mcp" title="Permanent link">&para;</a></h2>
+<p>SAEU 是内部执行契约，不等同于 A2A 或 MCP。</p>
 <table>
 <thead>
 <tr>
@@ -1495,8 +1780,8 @@
 </thead>
 <tbody>
 <tr>
-<td>Run Manager -&gt; qwen serve SAEU</td>
-<td>qwen serve HTTP/SSE + ACP bridge</td>
+<td>Run Manager -&gt; SAEU</td>
+<td>ACP Streamable HTTP / WebSocket 优先；兼容 qwen serve REST/SSE</td>
 </tr>
 <tr>
 <td>外部 Agent -&gt; 本系统</td>
@@ -1508,25 +1793,35 @@
 </tr>
 <tr>
 <td>UI/CLI -&gt; Run Manager</td>
-<td>REST/SSE/WebSocket</td>
+<td>REST/SSE/WebSocket；长期可直接 ACP</td>
 </tr>
 </tbody>
 </table>
-<p>A2A 可以表达 Agent Card、task、status、artifact、streaming 和 push notification；但 coding agent 的权限请求、workspace 诊断、tool stdout、session resume 等细节需要用扩展 metadata 或由内部 SAEU contract 承担。</p>
+<p>A2A 可以表达 Agent Card、task、status、artifact、streaming 和 push notification；但 coding agent 的权限请求、workspace 诊断、tool stdout、session resume 等执行细节应由 ACP/SAEU contract 管。MCP 只负责工具和数据接入，不负责 Agent 生命周期。</p>
 <h2 id="_9">验收标准<a class="headerlink" href="#_9" title="Permanent link">&para;</a></h2>
 <p>一个 SAEU 合格的最低标准：</p>
 <ul>
 <li>能用统一接口创建、启动、输入、订阅、取消、销毁。</li>
 <li>所有状态变化和权限请求都有事件。</li>
 <li>客户端断线后能用 <code>last_event_id</code> 追事件。</li>
-<li>qwen serve event ring 丢失窗口时，外部 Event Store 仍有完整事件。</li>
+<li>qwen serve event ring 或其他 runtime buffer 丢失窗口时，外部 Event Store 仍有完整事件。</li>
 <li>权限请求能被审批、拒绝、超时和审计。</li>
 <li>每次运行都有 transcript、events、diff、final report 和 diagnostics。</li>
 <li>进程崩溃后能判断是否恢复、重试或终止。</li>
 <li>不把模型 key、SSH key、Docker socket 暴露给 Agent 容器。</li>
+<li>Adapter 可以替换：同一 Run Manager 能接入 Qwen Code 和至少一个非 Qwen 执行器。</li>
 </ul>
 <h2 id="_10">决策<a class="headerlink" href="#_10" title="Permanent link">&para;</a></h2>
-<p>后续多 Agent 编排应当只调度 SAEU，而不是直接调度“某个 qwen serve 进程”。第一版 SAEU adapter 可以由 Qwen Code 实现，后续可接入 Claude Code、OpenCode、Gemini CLI 或自研 worker。</p>
+<p>后续多 Agent 编排应当调度 SAEU，而不是直接调度“某个 qwen serve 进程”或“某个 SubAgent”。第一版 SAEU adapter 直接采用 Qwen Code <code>qwen serve</code>；但项目的开放接口必须面向 ACP-compatible Agent runtime 设计，允许 Claude Code、Codex、OpenCode、Gemini CLI 或自研 worker 接入。</p>
+<p>参考：</p>
+<ul>
+<li><a href="https://agentclientprotocol.com/get-started/introduction">Agent Client Protocol Introduction</a></li>
+<li><a href="https://agentclientprotocol.com/protocol/v1/overview">Agent Client Protocol Overview</a></li>
+<li><a href="https://agentclientprotocol.com/rfds/streamable-http-websocket-transport">ACP Streamable HTTP &amp; WebSocket Transport RFD</a></li>
+<li><code>/Users/chigao/Documents/codebase/github/qwen-code/docs/users/qwen-serve.md</code></li>
+<li><code>/Users/chigao/Documents/codebase/github/qwen-code/docs/developers/daemon/01-architecture.md</code></li>
+<li><code>/Users/chigao/Documents/codebase/github/qwen-code/docs/design/daemon-acp-http/README.md</code></li>
+</ul>
 
 
 

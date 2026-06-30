@@ -373,6 +373,29 @@
   
   
     <li class="md-nav__item">
+      <a href="../subagent-vs-execution-unit/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    SubAgent 与独立执行单元边界
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../qwen-serve-single-agent-cloud-unit/" class="md-nav__link">
         
   
@@ -684,9 +707,9 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#p4supervisor-agent" class="md-nav__link">
+  <a href="#p4supervisor-subagent-saeu" class="md-nav__link">
     <span class="md-ellipsis">
-      P4：Supervisor 多 Agent 编排
+      P4：Supervisor + SubAgent + SAEU 编排
     </span>
   </a>
   
@@ -1044,9 +1067,9 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#p4supervisor-agent" class="md-nav__link">
+  <a href="#p4supervisor-subagent-saeu" class="md-nav__link">
     <span class="md-ellipsis">
-      P4：Supervisor 多 Agent 编排
+      P4：Supervisor + SubAgent + SAEU 编排
     </span>
   </a>
   
@@ -1109,7 +1132,7 @@
 
 <h1 id="roadmap">实施 Roadmap<a class="headerlink" href="#roadmap" title="Permanent link">&para;</a></h1>
 <blockquote>
-<p>目标：跟踪从 <code>qwen serve</code> 单 Agent 执行单元到多 Agent 编排系统的实施状态。状态字段可持续更新，作为后续开发、审计和复盘入口。</p>
+<p>目标：跟踪从 <code>qwen serve</code> 第一版 SAEU 到 ACP-compatible 多执行器、多 Agent 编排系统的实施状态。状态字段可持续更新，作为后续开发、审计和复盘入口。</p>
 </blockquote>
 <h2 id="_1">状态说明<a class="headerlink" href="#_1" title="Permanent link">&para;</a></h2>
 <table>
@@ -1171,7 +1194,7 @@
 <td>P1</td>
 <td>单 SAEU 最小闭环</td>
 <td><code>not_started</code></td>
-<td>一个 qwen serve run 可创建、输入、订阅、取消、产出 artifact</td>
+<td>一个 qwen serve run 可创建、输入、订阅、取消、产出 artifact，adapter 不泄漏 qwen 私有 API</td>
 </tr>
 <tr>
 <td>P2</td>
@@ -1187,15 +1210,15 @@
 </tr>
 <tr>
 <td>P4</td>
-<td>Supervisor 多 Agent 编排</td>
+<td>Supervisor + SubAgent + SAEU 编排</td>
 <td><code>not_started</code></td>
-<td>planner/coder/tester/reviewer 串联闭环</td>
+<td>常驻 supervisor 可选择 SubAgent 或 SAEU 执行任务</td>
 </tr>
 <tr>
 <td>P5</td>
 <td>外部协议与替代组件评估</td>
 <td><code>not_started</code></td>
-<td>A2A Gateway、E2B/Daytona、Temporal/LangGraph 完成试点评估</td>
+<td>ACP Streamable HTTP、A2A Gateway、E2B/Daytona、Temporal/LangGraph 完成试点评估</td>
 </tr>
 <tr>
 <td>P6</td>
@@ -1210,6 +1233,8 @@
 <p>已完成：</p>
 <ul>
 <li>定义稳定单 Agent 执行单元 SAEU。</li>
+<li>修正 SAEU 与 qwen serve 的关系：qwen serve 是第一版实现，不是额外要替代的 worker。</li>
+<li>明确 SubAgent 与 SAEU 的边界。</li>
 <li>设计基于 <code>qwen serve</code> 的云端单 Agent 单元。</li>
 <li>设计从单 Agent 到多 Agent 编排路线。</li>
 <li>完成协议边界：SAEU、ACP、A2A、MCP。</li>
@@ -1219,6 +1244,7 @@
 <p>产物：</p>
 <ul>
 <li><a href="../stable-agent-execution-unit/">稳定单 Agent 执行单元</a></li>
+<li><a href="../subagent-vs-execution-unit/">SubAgent 与独立执行单元边界</a></li>
 <li><a href="../qwen-serve-single-agent-cloud-unit/">基于 qwen-code serve 的云端单 Agent 单元方案</a></li>
 <li><a href="../single-to-multi-agent-implementation-plan/">从单 Agent 执行单元到多 Agent 编排</a></li>
 <li><a href="../alternative-solutions-comparative-audit/">外部方案对比与多方向审计</a></li>
@@ -1231,6 +1257,7 @@
 <li>用 <code>qwen serve</code> 启动一个单 Agent 执行单元。</li>
 <li>对外只暴露 Run Manager API，不暴露 qwen 原始接口。</li>
 <li>能创建 run、发送 prompt、订阅事件、取消 run、收集 artifact。</li>
+<li>定义可扩展到 ACP-compatible Agent 的 adapter contract。</li>
 </ul>
 <p>任务：</p>
 <table>
@@ -1251,6 +1278,11 @@
 <td>实现 Worker Supervisor 启动 qwen serve</td>
 <td><code>not_started</code></td>
 <td><code>/health</code>、<code>/capabilities</code> 通过</td>
+</tr>
+<tr>
+<td>定义 runtime adapter capability schema</td>
+<td><code>not_started</code></td>
+<td>能表达 qwen、claude、codex、opencode 的差异</td>
 </tr>
 <tr>
 <td>实现 <code>POST /runs</code></td>
@@ -1395,11 +1427,12 @@
 </tr>
 </tbody>
 </table>
-<h2 id="p4supervisor-agent">P4：Supervisor 多 Agent 编排<a class="headerlink" href="#p4supervisor-agent" title="Permanent link">&para;</a></h2>
+<h2 id="p4supervisor-subagent-saeu">P4：Supervisor + SubAgent + SAEU 编排<a class="headerlink" href="#p4supervisor-subagent-saeu" title="Permanent link">&para;</a></h2>
 <p>状态：<code>not_started</code></p>
 <p>目标：</p>
 <ul>
-<li>多 Agent 编排不直接编排 CLI，而是编排 SAEU run。</li>
+<li>多 Agent 编排不直接编排 CLI，也不把所有 SubAgent 都升级为独立 daemon。</li>
+<li>实现常驻 Project/Supervisor Agent，根据任务风险选择 SubAgent 或 SAEU。</li>
 <li>实现 planner -&gt; coder -&gt; tester -&gt; reviewer -&gt; final report。</li>
 </ul>
 <p>任务：</p>
@@ -1421,6 +1454,11 @@
 <td>profile 定义</td>
 <td><code>not_started</code></td>
 <td>planner/coder/tester/reviewer 权限不同</td>
+</tr>
+<tr>
+<td>SubAgent/SAEU 调度策略</td>
+<td><code>not_started</code></td>
+<td>轻量任务走 SubAgent，高风险长任务走 SAEU</td>
 </tr>
 <tr>
 <td>task dependency</td>
@@ -1465,6 +1503,11 @@
 <td>A2A Gateway POC</td>
 <td><code>not_started</code></td>
 <td>外部 task 可映射成 mission/run</td>
+</tr>
+<tr>
+<td>ACP Streamable HTTP POC</td>
+<td><code>not_started</code></td>
+<td>一个非 qwen worker 可通过 ACP 远程协议接入</td>
 </tr>
 <tr>
 <td>E2B sandbox adapter POC</td>
@@ -1567,7 +1610,7 @@
 <tr>
 <td>P1 完成后</td>
 <td>单 SAEU 跑通后</td>
-<td>是否继续 qwen serve，是否需要轻 fork</td>
+<td>qwen serve adapter 是否足够，是否需要优先做 <code>/acp</code> 或非 qwen adapter</td>
 </tr>
 <tr>
 <td>P2 完成后</td>
@@ -1594,11 +1637,12 @@
 <h2 id="_4">当前优先级<a class="headerlink" href="#_4" title="Permanent link">&para;</a></h2>
 <p>近期只做 P1 和 P2，不提前铺太大：</p>
 <ol>
-<li>qwen serve SAEU wrapper。</li>
+<li>qwen serve SAEU adapter。</li>
 <li>canonical event schema。</li>
 <li>Event Store。</li>
 <li>Permission Service。</li>
 <li>Artifact Collector。</li>
+<li>runtime adapter capability schema。</li>
 <li>基础 replay。</li>
 </ol>
 <p>这些完成前，不建议投入复杂多 Agent supervisor，也不建议接入 Temporal 或云沙箱。</p>

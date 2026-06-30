@@ -10,22 +10,28 @@
       
       
       
+        <link rel="canonical" href="https://chiga0.github.io/agent-research/implementation/subagent-vs-execution-unit/">
       
       
+        <link rel="prev" href="../stable-agent-execution-unit/">
       
-      <link rel="icon" href="/agent-research/assets/images/favicon.png">
+      
+        <link rel="next" href="../qwen-serve-single-agent-cloud-unit/">
+      
+      
+      <link rel="icon" href="../../assets/images/favicon.png">
       <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.6.15">
     
     
       
-        <title>Agent Research</title>
+        <title>SubAgent 与独立执行单元边界 - Agent Research</title>
       
     
     
-      <link rel="stylesheet" href="/agent-research/assets/stylesheets/main.342714a4.min.css">
+      <link rel="stylesheet" href="../../assets/stylesheets/main.342714a4.min.css">
       
         
-        <link rel="stylesheet" href="/agent-research/assets/stylesheets/palette.06af60db.min.css">
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.06af60db.min.css">
       
       
 
@@ -44,7 +50,7 @@
       
     
     
-    <script>__md_scope=new URL("/agent-research/",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
     
       
 
@@ -69,6 +75,11 @@
     <label class="md-overlay" for="__drawer"></label>
     <div data-md-component="skip">
       
+        
+        <a href="#subagent" class="md-skip">
+          跳转至
+        </a>
+      
     </div>
     <div data-md-component="announce">
       
@@ -81,7 +92,7 @@
 
 <header class="md-header md-header--shadow" data-md-component="header">
   <nav class="md-header__inner md-grid" aria-label="页眉">
-    <a href="/agent-research/." title="Agent Research" class="md-header__button md-logo" aria-label="Agent Research" data-md-component="logo">
+    <a href="../.." title="Agent Research" class="md-header__button md-logo" aria-label="Agent Research" data-md-component="logo">
       
   
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
@@ -101,7 +112,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              
+              SubAgent 与独立执行单元边界
             
           </span>
         </div>
@@ -219,7 +230,7 @@
 
 <nav class="md-nav md-nav--primary" aria-label="导航栏" data-md-level="0">
   <label class="md-nav__title" for="__drawer">
-    <a href="/agent-research/." title="Agent Research" class="md-nav__button md-logo" aria-label="Agent Research" data-md-component="logo">
+    <a href="../.." title="Agent Research" class="md-nav__button md-logo" aria-label="Agent Research" data-md-component="logo">
       
   
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
@@ -249,7 +260,7 @@
   
   
     <li class="md-nav__item">
-      <a href="/agent-research/." class="md-nav__link">
+      <a href="../.." class="md-nav__link">
         
   
   
@@ -268,8 +279,10 @@
       
   
   
+    
   
   
+  
     
     
     
@@ -280,11 +293,11 @@
       
     
     
-    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" checked>
         
           
           <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="">
@@ -300,7 +313,7 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="true">
           <label class="md-nav__title" for="__nav_2">
             <span class="md-nav__icon md-icon"></span>
             落地方案
@@ -314,7 +327,7 @@
   
   
     <li class="md-nav__item">
-      <a href="/agent-research/implementation/" class="md-nav__link">
+      <a href="../" class="md-nav__link">
         
   
   
@@ -337,7 +350,7 @@
   
   
     <li class="md-nav__item">
-      <a href="/agent-research/implementation/stable-agent-execution-unit/" class="md-nav__link">
+      <a href="../stable-agent-execution-unit/" class="md-nav__link">
         
   
   
@@ -357,10 +370,32 @@
                 
   
   
+    
   
   
-    <li class="md-nav__item">
-      <a href="/agent-research/implementation/subagent-vs-execution-unit/" class="md-nav__link">
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    SubAgent 与独立执行单元边界
+    
+  </span>
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
         
   
   
@@ -371,6 +406,80 @@
   
 
       </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="目录">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      目录
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      为什么这个问题重要
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#subagent_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      SubAgent 什么时候够
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#saeu" class="md-nav__link">
+    <span class="md-ellipsis">
+      SAEU 什么时候必要
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#agent" class="md-nav__link">
+    <span class="md-ellipsis">
+      常驻 Agent 的价值
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      推荐调度策略
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_3" class="md-nav__link">
+    <span class="md-ellipsis">
+      对本项目的修正
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
     </li>
   
 
@@ -383,7 +492,7 @@
   
   
     <li class="md-nav__item">
-      <a href="/agent-research/implementation/qwen-serve-single-agent-cloud-unit/" class="md-nav__link">
+      <a href="../qwen-serve-single-agent-cloud-unit/" class="md-nav__link">
         
   
   
@@ -406,7 +515,7 @@
   
   
     <li class="md-nav__item">
-      <a href="/agent-research/implementation/sandbox-isolation/" class="md-nav__link">
+      <a href="../sandbox-isolation/" class="md-nav__link">
         
   
   
@@ -429,7 +538,7 @@
   
   
     <li class="md-nav__item">
-      <a href="/agent-research/implementation/protocol-acp-a2a/" class="md-nav__link">
+      <a href="../protocol-acp-a2a/" class="md-nav__link">
         
   
   
@@ -452,7 +561,7 @@
   
   
     <li class="md-nav__item">
-      <a href="/agent-research/implementation/temporal-evaluation/" class="md-nav__link">
+      <a href="../temporal-evaluation/" class="md-nav__link">
         
   
   
@@ -475,7 +584,7 @@
   
   
     <li class="md-nav__item">
-      <a href="/agent-research/implementation/event-sourcing-and-replay/" class="md-nav__link">
+      <a href="../event-sourcing-and-replay/" class="md-nav__link">
         
   
   
@@ -498,7 +607,7 @@
   
   
     <li class="md-nav__item">
-      <a href="/agent-research/implementation/single-agent-strategy/" class="md-nav__link">
+      <a href="../single-agent-strategy/" class="md-nav__link">
         
   
   
@@ -521,7 +630,7 @@
   
   
     <li class="md-nav__item">
-      <a href="/agent-research/implementation/single-to-multi-agent-implementation-plan/" class="md-nav__link">
+      <a href="../single-to-multi-agent-implementation-plan/" class="md-nav__link">
         
   
   
@@ -544,7 +653,7 @@
   
   
     <li class="md-nav__item">
-      <a href="/agent-research/implementation/alternative-solutions-comparative-audit/" class="md-nav__link">
+      <a href="../alternative-solutions-comparative-audit/" class="md-nav__link">
         
   
   
@@ -567,7 +676,7 @@
   
   
     <li class="md-nav__item">
-      <a href="/agent-research/implementation/review-and-audit-record/" class="md-nav__link">
+      <a href="../review-and-audit-record/" class="md-nav__link">
         
   
   
@@ -590,7 +699,7 @@
   
   
     <li class="md-nav__item">
-      <a href="/agent-research/implementation/implementation-roadmap/" class="md-nav__link">
+      <a href="../implementation-roadmap/" class="md-nav__link">
         
   
   
@@ -663,7 +772,7 @@
   
   
     <li class="md-nav__item">
-      <a href="/agent-research/cloud-agents/" class="md-nav__link">
+      <a href="../../cloud-agents/" class="md-nav__link">
         
   
   
@@ -736,7 +845,7 @@
   
   
     <li class="md-nav__item">
-      <a href="/agent-research/multi-agent/research-on-multi-agent-orchestration-frameworks/" class="md-nav__link">
+      <a href="../../multi-agent/research-on-multi-agent-orchestration-frameworks/" class="md-nav__link">
         
   
   
@@ -809,7 +918,7 @@
   
   
     <li class="md-nav__item">
-      <a href="/agent-research/other-agents/qwen-code-core-sdk-agent-architecture/" class="md-nav__link">
+      <a href="../../other-agents/qwen-code-core-sdk-agent-architecture/" class="md-nav__link">
         
   
   
@@ -849,6 +958,70 @@
   
   
   
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      目录
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      为什么这个问题重要
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#subagent_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      SubAgent 什么时候够
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#saeu" class="md-nav__link">
+    <span class="md-ellipsis">
+      SAEU 什么时候必要
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#agent" class="md-nav__link">
+    <span class="md-ellipsis">
+      常驻 Agent 的价值
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      推荐调度策略
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_3" class="md-nav__link">
+    <span class="md-ellipsis">
+      对本项目的修正
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
   
 </nav>
                   </div>
@@ -860,8 +1033,182 @@
             <div class="md-content" data-md-component="content">
               <article class="md-content__inner md-typeset">
                 
-  <h1>404 - Not found</h1>
+                  
 
+
+  
+  
+
+
+<h1 id="subagent">SubAgent 与独立执行单元边界<a class="headerlink" href="#subagent" title="Permanent link">&para;</a></h1>
+<blockquote>
+<p>结论：SubAgent 和 SAEU 不是竞争关系。SubAgent 是 Agent runtime 内部的协作机制；SAEU 是云端平台外部的治理、调度和审计边界。<br />
+最合适的形态是：常驻 Project/Supervisor Agent 负责理解长期目标和维护上下文；它可以用 SubAgent 做轻量并行探索；当任务需要长运行、高风险、可审计、可恢复或跨机器调度时，再分配 SAEU run。</p>
+</blockquote>
+<h2 id="_1">为什么这个问题重要<a class="headerlink" href="#_1" title="Permanent link">&para;</a></h2>
+<p>Qwen Code、Claude Code、Codex、OpenCode 这类 coding agent 本身已经支持 subagent、background task、worktree、session、permission、resume 等能力。直接把每个子任务都拆成独立进程或独立 daemon，可能会损失上下文连续性，并增加调度复杂度。</p>
+<p>因此不能简单说“多 Agent = 多个独立执行单元”。更准确的判断是：</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>Agent 内部协作：SubAgent
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>平台外部治理：SAEU
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>长期目标控制：Project/Supervisor Agent
+</code></pre></div>
+<h2 id="subagent_1">SubAgent 什么时候够<a class="headerlink" href="#subagent_1" title="Permanent link">&para;</a></h2>
+<p>SubAgent 更适合这些任务：</p>
+<ul>
+<li>在同一个主 Agent 的认知闭环里完成。</li>
+<li>子任务短周期，例如搜索、阅读、review、测试建议、方案比较。</li>
+<li>共享同一个项目上下文、memory、workspace 和安全边界。</li>
+<li>失败后由主 Agent 自己重试或换策略即可。</li>
+<li>不需要平台级独立取消、恢复、计费和审计。</li>
+<li>结果主要以总结、建议、局部 patch 或中间发现回到主 Agent。</li>
+</ul>
+<p>典型例子：</p>
+<ul>
+<li>主 Agent 让一个 SubAgent 读数据库模块。</li>
+<li>主 Agent 让三个 SubAgent 并行评审不同文件。</li>
+<li>主 Agent 让 tester SubAgent 只读分析测试失败原因。</li>
+<li>主 Agent 让 researcher SubAgent 查外部文档并返回摘要。</li>
+</ul>
+<p>这类任务不需要平台启动一个新 daemon；让 Agent runtime 自己管理更自然。</p>
+<h2 id="saeu">SAEU 什么时候必要<a class="headerlink" href="#saeu" title="Permanent link">&para;</a></h2>
+<p>SAEU 更适合这些任务：</p>
+<ul>
+<li>任务可能运行很久，客户端断开也要继续。</li>
+<li>需要独立 workspace、container、network、resource quota。</li>
+<li>需要平台能取消、恢复、重试、诊断。</li>
+<li>需要审计谁触发了什么工具、谁批准了什么权限。</li>
+<li>需要把任务挂到 Web、IM、API、Kanban 多客户端。</li>
+<li>需要跨机器或跨执行器调度，例如 Qwen + Codex + Claude 混用。</li>
+<li>需要对企业用户提供 SLA、成本统计、权限策略和 artifact。</li>
+</ul>
+<p>典型例子：</p>
+<ul>
+<li>为一个 GitHub issue 自动实现、测试、生成 PR。</li>
+<li>跑一个 90 分钟的重构任务。</li>
+<li>在不可信仓库中执行构建和测试。</li>
+<li>多个用户同时观察同一个长任务。</li>
+<li>一个任务需要在 worker 节点上隔离执行。</li>
+</ul>
+<p>这类任务必须进入平台控制面，否则无法可靠运营。</p>
+<h2 id="agent">常驻 Agent 的价值<a class="headerlink" href="#agent" title="Permanent link">&para;</a></h2>
+<p>用户提出的长期复杂需求，最好由一个常驻 Project/Supervisor Agent 承接。它负责：</p>
+<ul>
+<li>维护项目记忆。</li>
+<li>理解用户长期目标。</li>
+<li>保存试错经验和上下文摘要。</li>
+<li>拆分任务。</li>
+<li>决定用 SubAgent 还是 SAEU。</li>
+<li>汇总结果、产物和最终报告。</li>
+</ul>
+<p>这可以避免每次启动独立执行单元都“失忆”。但 memory 不应只存在进程上下文里。关键事实必须沉淀到平台：</p>
+<ul>
+<li>thread summary。</li>
+<li>run events。</li>
+<li>artifacts。</li>
+<li>workspace snapshot。</li>
+<li>failure notes。</li>
+<li>permission history。</li>
+<li>project memory。</li>
+</ul>
+<p>新的 SAEU run 启动时，由 Project/Supervisor Agent 或 Run Manager 显式注入这些上下文。</p>
+<h2 id="_2">推荐调度策略<a class="headerlink" href="#_2" title="Permanent link">&para;</a></h2>
+<div class="mermaid">flowchart TB
+    User["User request"]
+    Project["Project/Supervisor Agent&lt;br/&gt;resident context + memory"]
+    Sub["Runtime SubAgents&lt;br/&gt;explore / review / summarize"]
+    RunMgr["Run Manager"]
+    SAEU1["SAEU run&lt;br/&gt;qwen serve"]
+    SAEU2["SAEU run&lt;br/&gt;codex/claude/opencode"]
+    Store["Event / Artifact / Memory Store"]
+
+    User --&gt; Project
+    Project --&gt; Sub
+    Project --&gt; RunMgr
+    RunMgr --&gt; SAEU1
+    RunMgr --&gt; SAEU2
+    Sub --&gt; Project
+    SAEU1 --&gt; Store
+    SAEU2 --&gt; Store
+    Store --&gt; Project
+    Project --&gt; User</div>
+<p>决策规则：</p>
+<table>
+<thead>
+<tr>
+<th>问题</th>
+<th>选 SubAgent</th>
+<th>选 SAEU</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>是否需要独立审计</td>
+<td>否</td>
+<td>是</td>
+</tr>
+<tr>
+<td>是否需要独立资源限制</td>
+<td>否</td>
+<td>是</td>
+</tr>
+<tr>
+<td>是否可能长时间运行</td>
+<td>通常否</td>
+<td>是</td>
+</tr>
+<tr>
+<td>是否需要跨客户端观察</td>
+<td>否</td>
+<td>是</td>
+</tr>
+<tr>
+<td>是否共享主 Agent 上下文更重要</td>
+<td>是</td>
+<td>否</td>
+</tr>
+<tr>
+<td>是否高风险工具执行</td>
+<td>否</td>
+<td>是</td>
+</tr>
+<tr>
+<td>是否只是探索/评审/总结</td>
+<td>是</td>
+<td>否</td>
+</tr>
+<tr>
+<td>是否要跨框架执行器</td>
+<td>否</td>
+<td>是</td>
+</tr>
+</tbody>
+</table>
+<h2 id="_3">对本项目的修正<a class="headerlink" href="#_3" title="Permanent link">&para;</a></h2>
+<p>之前文档里“每个子 Agent 都是 SAEU”的表述过强，容易导致过度拆分。更准确的设计是：</p>
+<ul>
+<li>用户面对的是长期 Project/Supervisor Agent。</li>
+<li>Supervisor 内部可以使用 runtime subagents。</li>
+<li>平台只把需要治理的任务升级为 SAEU run。</li>
+<li>Qwen Code 路线中，一个 <code>qwen serve</code> daemon 可以承载常驻项目 Agent，也可以在 thread scope 中承载多条任务线。</li>
+<li>多 workspace、多租户、高风险执行才启动多个 daemon 或多个 worker。</li>
+</ul>
+<p>因此，目标系统不是“多个独立 Agent 进程并行跑”，而是：</p>
+<blockquote>
+<p>一个长期目标控制面，按需在 Agent 内部 SubAgent 与平台级 SAEU 之间切换。</p>
+</blockquote>
+
+
+
+
+
+
+
+
+
+
+
+
+                
               </article>
             </div>
           
@@ -903,14 +1250,14 @@
     
     
       
-      <script id="__config" type="application/json">{"base": "/agent-research/", "features": ["navigation.instant", "navigation.sections", "navigation.top", "search.highlight", "search.suggest", "toc.follow"], "search": "/agent-research/assets/javascripts/workers/search.d50fe291.min.js", "tags": null, "translations": {"clipboard.copied": "\u5df2\u590d\u5236", "clipboard.copy": "\u590d\u5236", "search.result.more.one": "\u5728\u8be5\u9875\u4e0a\u8fd8\u6709 1 \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.more.other": "\u5728\u8be5\u9875\u4e0a\u8fd8\u6709 # \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.none": "\u6ca1\u6709\u627e\u5230\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.one": "\u627e\u5230 1 \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.other": "# \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.placeholder": "\u952e\u5165\u4ee5\u5f00\u59cb\u641c\u7d22", "search.result.term.missing": "\u7f3a\u5c11", "select.version": "\u9009\u62e9\u5f53\u524d\u7248\u672c"}, "version": null}</script>
+      <script id="__config" type="application/json">{"base": "../..", "features": ["navigation.instant", "navigation.sections", "navigation.top", "search.highlight", "search.suggest", "toc.follow"], "search": "../../assets/javascripts/workers/search.d50fe291.min.js", "tags": null, "translations": {"clipboard.copied": "\u5df2\u590d\u5236", "clipboard.copy": "\u590d\u5236", "search.result.more.one": "\u5728\u8be5\u9875\u4e0a\u8fd8\u6709 1 \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.more.other": "\u5728\u8be5\u9875\u4e0a\u8fd8\u6709 # \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.none": "\u6ca1\u6709\u627e\u5230\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.one": "\u627e\u5230 1 \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.other": "# \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.placeholder": "\u952e\u5165\u4ee5\u5f00\u59cb\u641c\u7d22", "search.result.term.missing": "\u7f3a\u5c11", "select.version": "\u9009\u62e9\u5f53\u524d\u7248\u672c"}, "version": null}</script>
     
     
-      <script src="/agent-research/assets/javascripts/bundle.56ea9cef.min.js"></script>
+      <script src="../../assets/javascripts/bundle.56ea9cef.min.js"></script>
       
-        <script src="/agent-research/javascripts/vendor/mermaid.min.js"></script>
+        <script src="../../javascripts/vendor/mermaid.min.js"></script>
       
-        <script src="/agent-research/javascripts/mermaid-init.js"></script>
+        <script src="../../javascripts/mermaid-init.js"></script>
       
         <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
       

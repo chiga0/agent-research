@@ -604,6 +604,29 @@
   
   
     <li class="md-nav__item">
+      <a href="subagent-vs-execution-unit/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    SubAgent 与独立执行单元边界
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="qwen-serve-single-agent-cloud-unit/" class="md-nav__link">
         
   
@@ -1300,15 +1323,15 @@
 <li>多 Agent 是控制平面：负责拆分任务、分派执行器、协调状态、处理失败、做人机协同和审计。</li>
 <li>云端长期运行是运行时问题：必须有 run/thread/session 建模、事件日志、心跳、租约、队列、重试、取消、恢复、artifact 管理和部署治理。</li>
 </ul>
-<p>建议的落地路线是：<strong>先把 Qwen Code <code>qwen serve</code> 包装成稳定单 Agent 执行单元，在外层自建 Cloud Agent Runtime；多 Agent 编排只调度这个执行单元；等控制面稳定后，再按需 fork Qwen Code 的核心模块。不要从头实现完整 coding agent。</strong></p>
-<p>稳定单 Agent 执行单元是后续调度、编排和协议互操作的基础原子。它对外提供统一的启动、输入、事件、权限、取消、恢复、artifact 和 diagnostics 接口；对内可以由 qwen serve、Claude Code、OpenCode、Gemini CLI 或其他 worker 实现。</p>
+<p>建议的落地路线是：<strong>先把 Qwen Code <code>qwen serve</code> 作为第一版稳定 Agent 执行单元实现，在外层自建 Cloud Agent Runtime；但系统接口按 ACP-compatible Agent runtime 设计，不绑定 qwen。</strong> 多 Agent 编排只调度稳定执行单元；等控制面稳定后，再按需接入 Claude Code、Codex、OpenCode、Gemini CLI 或自研 worker。不要从头实现完整 coding agent。</p>
+<p>稳定 Agent 执行单元是后续调度、编排和协议互操作的基础原子。它对外提供统一的启动、输入、事件、权限、取消、恢复、artifact 和 diagnostics 接口；对内可以由 qwen serve、Claude Code、Codex、OpenCode、Gemini CLI 或其他 worker 实现。对开源项目而言，最重要的是保持执行器可替换：只要符合 ACP stdio 或 ACP Streamable HTTP / WebSocket 这类确定通信协议，就可以接入。</p>
 <h2 id="_2">文档归类<a class="headerlink" href="#_2" title="Permanent link">&para;</a></h2>
 <p>本方案拆成以下专题，便于后续持续补充：</p>
 <ul>
-<li><a href="stable-agent-execution-unit/">稳定单 Agent 执行单元</a>：定义外部编排和调度的基础原子。</li>
+<li><a href="stable-agent-execution-unit/">稳定单 Agent 执行单元</a>：定义外部编排和调度的基础原子，并说明 <code>qwen serve</code> 与 SAEU 的关系。</li>
 <li><a href="qwen-serve-single-agent-cloud-unit/">基于 qwen-code serve 的云端单 Agent 单元方案</a>：完整设计单 Agent 云端部署、审计、重放、恢复和排障。</li>
 <li><a href="sandbox-isolation/">沙箱与隔离方案</a>：回答 Docker、多 VPS、资源限制、网络和密钥隔离。</li>
-<li><a href="protocol-acp-a2a/">ACP、A2A 与 MCP 协议选型</a>：回答 ACP 是否可以替代 A2A，以及三类协议的边界。</li>
+<li><a href="protocol-acp-a2a/">ACP、A2A 与 MCP 协议选型</a>：回答 ACP-first 执行器接入、A2A 外部互操作、MCP 工具接入三类边界。</li>
 <li><a href="temporal-evaluation/">Temporal 调研与适配方案</a>：解释 Temporal 的核心概念、适用边界和低资源部署策略。</li>
 <li><a href="event-sourcing-and-replay/">事件溯源、JSONL 与回放</a>：回答 JSONL 是否可复现 qwen-code 场景，以及完整回放还缺什么。</li>
 <li><a href="single-agent-strategy/">单 Agent 基座选型</a>：比较直接部署、fork、抽取核心和从头实现。</li>
@@ -1325,7 +1348,7 @@
 <li>Agent 可以运行数分钟到数小时，客户端断开不影响后台执行。</li>
 <li>支持人类审批高风险工具调用。</li>
 <li>支持任务取消、恢复、重试、超时、失败诊断和历史回放。</li>
-<li>支持多个 Agent 并行运行，并由上层 supervisor 或任务控制面编排。</li>
+<li>支持多个 Agent 并行运行，并由上层 supervisor 或任务控制面编排；执行器可以是 Qwen Code，也可以是任何 ACP-compatible Agent。</li>
 <li>在资源有限的 VPS 上优先稳态运行，而不是追求复杂平台化。</li>
 </ul>
 <h2 id="_4">总体架构<a class="headerlink" href="#_4" title="Permanent link">&para;</a></h2>
@@ -1336,7 +1359,7 @@
     Queue["Job Queue&lt;br/&gt;Lease / Heartbeat / Retry"]
     Worker["Agent Worker Supervisor"]
     Sandbox["Per-run Sandbox&lt;br/&gt;Docker / Worktree / cgroups"]
-    Agent["SAEU Adapter&lt;br/&gt;qwen serve / ACP bridge"]
+    Agent["SAEU Runtime Adapter&lt;br/&gt;ACP / qwen serve / Claude / Codex / OpenCode"]
     ModelProxy["Model Proxy&lt;br/&gt;Budget / Key isolation / Audit"]
     Tools["Tool Gateway&lt;br/&gt;MCP / Git / Shell / Browser"]
     EventStore["Event Store&lt;br/&gt;PostgreSQL + JSONL export"]
@@ -1391,7 +1414,7 @@
 <tr>
 <td>Agent Worker</td>
 <td>真正执行 coding agent loop</td>
-<td>先用 Qwen Code</td>
+<td>先用 Qwen Code，接口按 ACP-compatible runtime 设计</td>
 </tr>
 <tr>
 <td>Sandbox</td>
@@ -1426,7 +1449,7 @@
 </ul>
 <p>因此架构顺序应当是：</p>
 <ol>
-<li>单 Agent worker 稳定可运行。</li>
+<li>单 Agent worker 稳定可运行，且通过稳定协议接入。</li>
 <li>单 run 可审计、可取消、可恢复。</li>
 <li>多 run 可并发、可限流、可隔离。</li>
 <li>supervisor 能拆任务、合并结果、处理失败。</li>
@@ -1537,9 +1560,10 @@
 <h2 id="mvp">MVP 实施路线<a class="headerlink" href="#mvp" title="Permanent link">&para;</a></h2>
 <h3 id="phase-0-qwen-serve-saeu">Phase 0：验证 qwen serve SAEU<a class="headerlink" href="#phase-0-qwen-serve-saeu" title="Permanent link">&para;</a></h3>
 <ul>
-<li>用 <code>qwen serve</code> 包装成一个稳定单 Agent 执行单元，跑真实代码任务。</li>
+<li>用 <code>qwen serve</code> 作为第一个稳定 Agent 执行单元实现，跑真实代码任务。</li>
 <li>记录 token、耗时、失败类型、权限请求和 JSONL。</li>
 <li>明确哪些工具必须禁用，哪些工具需要人工审批。</li>
+<li>同时定义 ACP-compatible adapter contract，避免后续被 qwen 私有 REST/SSE 绑定。</li>
 </ul>
 <p>验收标准：</p>
 <ul>
@@ -1552,7 +1576,7 @@
 <li>新增 run 表、event 表、artifact 表。</li>
 <li>每个 run 分配独立 workspace 和容器。</li>
 <li>worker supervisor 负责启动、心跳、超时、取消和清理。</li>
-<li>qwen-code 事件流转成内部事件。</li>
+<li>qwen-code 事件流转成内部事件；adapter 层保留替换为 Claude/Codex/OpenCode 的空间。</li>
 </ul>
 <p>验收标准：</p>
 <ul>
@@ -1617,7 +1641,7 @@
 </tr>
 <tr>
 <td>ACP 能否替代 A2A</td>
-<td>内部 worker 控制走 SAEU contract，qwen 侧用 qwen serve/ACP bridge；开放式 agent-to-agent 互操作仍建议 A2A Gateway。</td>
+<td>内部 worker 控制采用 ACP-first / SAEU contract；开放式 agent-to-agent 互操作仍建议 A2A Gateway。</td>
 </tr>
 <tr>
 <td>是否立即上 Temporal</td>
@@ -1629,7 +1653,7 @@
 </tr>
 <tr>
 <td>单 Agent 用什么</td>
-<td>先直接部署 <code>qwen serve</code> SAEU，外围做云端 runtime；稳定后再小范围 fork。</td>
+<td>先直接部署 <code>qwen serve</code> SAEU，外围做云端 runtime；但接口面向任意 ACP-compatible Agent，不以 fork qwen 为默认路线。</td>
 </tr>
 </tbody>
 </table>
@@ -1642,10 +1666,9 @@
 </ul>
 <p>本地源码：</p>
 <ul>
-<li><code>/Users/gawain/Documents/codebase/opensource/qwen-code</code></li>
-<li><code>/Users/gawain/Documents/codebase/opensource/claude-code</code></li>
-<li><code>/Users/gawain/Documents/codebase/opensource/gemini-cli</code></li>
-<li><code>/Users/gawain/Documents/codebase/github/opencode</code></li>
+<li><code>/Users/chigao/Documents/codebase/github/qwen-code</code></li>
+<li><code>/Users/chigao/Documents/codebase/github/gemini-cli</code></li>
+<li><code>/Users/chigao/Documents/codebase/github/opencode</code></li>
 </ul>
 <p>官方资料：</p>
 <ul>

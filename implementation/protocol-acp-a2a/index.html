@@ -373,6 +373,29 @@
   
   
     <li class="md-nav__item">
+      <a href="../subagent-vs-execution-unit/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    SubAgent 与独立执行单元边界
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../qwen-serve-single-agent-cloud-unit/" class="md-nav__link">
         
   
@@ -484,6 +507,30 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="ACP 适合什么">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#acp-streamable-http-websocket" class="md-nav__link">
+    <span class="md-ellipsis">
+      ACP Streamable HTTP / WebSocket
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      执行器兼容矩阵
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
@@ -505,7 +552,7 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#_2" class="md-nav__link">
+  <a href="#_3" class="md-nav__link">
     <span class="md-ellipsis">
       推荐协议架构
     </span>
@@ -514,7 +561,7 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#_3" class="md-nav__link">
+  <a href="#_4" class="md-nav__link">
     <span class="md-ellipsis">
       权限请求如何处理
     </span>
@@ -532,7 +579,7 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#_4" class="md-nav__link">
+  <a href="#_5" class="md-nav__link">
     <span class="md-ellipsis">
       协议落地建议
     </span>
@@ -541,7 +588,7 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#_5" class="md-nav__link">
+  <a href="#_6" class="md-nav__link">
     <span class="md-ellipsis">
       参考资料
     </span>
@@ -987,6 +1034,30 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="ACP 适合什么">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#acp-streamable-http-websocket" class="md-nav__link">
+    <span class="md-ellipsis">
+      ACP Streamable HTTP / WebSocket
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      执行器兼容矩阵
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
@@ -1008,7 +1079,7 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#_2" class="md-nav__link">
+  <a href="#_3" class="md-nav__link">
     <span class="md-ellipsis">
       推荐协议架构
     </span>
@@ -1017,7 +1088,7 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#_3" class="md-nav__link">
+  <a href="#_4" class="md-nav__link">
     <span class="md-ellipsis">
       权限请求如何处理
     </span>
@@ -1035,7 +1106,7 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#_4" class="md-nav__link">
+  <a href="#_5" class="md-nav__link">
     <span class="md-ellipsis">
       协议落地建议
     </span>
@@ -1044,7 +1115,7 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#_5" class="md-nav__link">
+  <a href="#_6" class="md-nav__link">
     <span class="md-ellipsis">
       参考资料
     </span>
@@ -1073,7 +1144,8 @@
 
 <h1 id="acpa2a-mcp">ACP、A2A 与 MCP 协议选型<a class="headerlink" href="#acpa2a-mcp" title="Permanent link">&para;</a></h1>
 <blockquote>
-<p>结论：ACP 不能完整替代 A2A。ACP 更适合 Client-to-Agent，尤其是 IDE、CLI、云端控制面对 coding agent 的会话控制；A2A 更适合 Agent-to-Agent 的跨系统互操作；MCP 是 Agent-to-Tool 的工具接入协议。</p>
+<p>结论：内部执行器控制应采用 ACP-first 设计，尤其是面向 coding agent 的 session、prompt、streaming、permission、filesystem 和 terminal 能力。A2A 不应替代 ACP，它更适合系统边界上的 Agent-to-Agent 互操作。MCP 是 Agent-to-Tool 的工具接入协议。<br />
+因此，本项目的开源兼容目标应是：任意 Agent 只要实现 ACP stdio 或 ACP Streamable HTTP / WebSocket transport，就可以被包装成 SAEU；A2A Gateway 只负责外部 Agent 互操作。</p>
 </blockquote>
 <h2 id="_1">三类协议的边界<a class="headerlink" href="#_1" title="Permanent link">&para;</a></h2>
 <table>
@@ -1119,9 +1191,84 @@
 <li>向某个 workspace 发送 prompt。</li>
 <li>接收 token、工具调用、权限请求、状态变更等事件。</li>
 <li>做客户端断线重连。</li>
-<li>让云端 Run Manager 像 IDE 一样控制 Qwen Code、Gemini CLI 或其他 coding agent。</li>
+<li>让云端 Run Manager 像 IDE 一样控制 Qwen Code、Claude Code、Codex、OpenCode、Gemini CLI 或其他 coding agent。</li>
 </ul>
 <p>Qwen Code 的 <code>qwen serve</code> 已经走了类似路线：一个 daemon 绑定一个 workspace，通过 HTTP + SSE 暴露 session、prompt、events 和 permission mediation，并在内部桥接 ACP child process。</p>
+<h3 id="acp-streamable-http-websocket">ACP Streamable HTTP / WebSocket<a class="headerlink" href="#acp-streamable-http-websocket" title="Permanent link">&para;</a></h3>
+<p>本项目应跟随 ACP 官方的远程传输方向，而不是长期维护私有 REST/SSE 方言。ACP Streamable HTTP / WebSocket RFD 的核心设计是：</p>
+<ul>
+<li>单个 HTTP endpoint，例如 <code>/acp</code>。</li>
+<li><code>POST</code> 发送 JSON-RPC 请求、响应或 notification。</li>
+<li>长连接 <code>GET</code> stream 承载 server-to-client 消息。</li>
+<li>WebSocket upgrade 承载低延迟双向消息。</li>
+<li>远程传输仍复用 ACP 的 JSON-RPC 消息格式和生命周期。</li>
+</ul>
+<p>这与 qwen-code 自身的 <code>daemon-acp-http</code> 设计方向一致：<code>qwen serve</code> 现有 northbound 是 bespoke REST + SSE，但 southbound 已经是 ACP JSON-RPC over stdio；新增 <code>/acp</code> endpoint 后，Zed、Goose、未来 ACP SDK 或本项目 Run Manager 都可以直接以 ACP-native 方式驱动 daemon。</p>
+<p>因此，内部执行器兼容分两层：</p>
+<table>
+<thead>
+<tr>
+<th>层</th>
+<th>推荐</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>本地或单机 POC</td>
+<td>ACP stdio 或 qwen serve REST/SSE</td>
+</tr>
+<tr>
+<td>远程 worker / 云端执行器</td>
+<td>ACP Streamable HTTP / WebSocket</td>
+</tr>
+<tr>
+<td>暂不支持 ACP 的 Agent</td>
+<td>用薄 adapter 暴露 ACP-compatible server</td>
+</tr>
+</tbody>
+</table>
+<h3 id="_2">执行器兼容矩阵<a class="headerlink" href="#_2" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Agent runtime</th>
+<th>推荐接入方式</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Qwen Code</td>
+<td><code>qwen serve</code> REST/SSE 起步，优先演进 <code>/acp</code></td>
+<td>现有能力最接近 SAEU</td>
+</tr>
+<tr>
+<td>Claude Code</td>
+<td>headless/SDK wrapper -&gt; ACP server</td>
+<td>不把 Claude 私有事件泄漏到平台</td>
+</tr>
+<tr>
+<td>Codex</td>
+<td>CLI/API wrapper -&gt; ACP server</td>
+<td>平台只依赖 session/event/permission contract</td>
+</tr>
+<tr>
+<td>OpenCode</td>
+<td>session event adapter -&gt; ACP server</td>
+<td>强类型事件可映射 canonical events</td>
+</tr>
+<tr>
+<td>Gemini CLI</td>
+<td>ACP/A2A 能力按用途接入</td>
+<td>remote agent 互操作可走 A2A</td>
+</tr>
+<tr>
+<td>自研 worker</td>
+<td>原生实现 ACP server</td>
+<td>最干净</td>
+</tr>
+</tbody>
+</table>
 <h2 id="a2a">A2A 可以做到什么<a class="headerlink" href="#a2a" title="Permanent link">&para;</a></h2>
 <p>A2A 的核心是让独立、可能黑盒、可能由不同团队或供应商实现的 Agent 应用互操作。它更关注：</p>
 <ul>
@@ -1205,14 +1352,14 @@
 </thead>
 <tbody>
 <tr>
-<td>Web 控制台调用内部 qwen serve SAEU</td>
+<td>Web 控制台调用内部 SAEU</td>
 <td>足够</td>
-<td>用 SAEU contract + qwen serve HTTP/SSE</td>
+<td>Run Manager -&gt; ACP/SAEU contract</td>
 </tr>
 <tr>
 <td>Run Manager 控制多个 coding worker</td>
-<td>基本足够</td>
-<td>ACP + 内部事件模型</td>
+<td>足够</td>
+<td>ACP Streamable HTTP / WebSocket + 内部事件模型</td>
 </tr>
 <tr>
 <td>Supervisor 把任务派给自己的 subagent</td>
@@ -1236,15 +1383,23 @@
 </tr>
 </tbody>
 </table>
-<p>所以，ACP 可以替代一部分“内部执行器控制”的需求，但不能替代开放式 Agent-to-Agent 协议。反过来，A2A 也不应该直接替代内部 SAEU contract，因为 A2A 不关心具体 worker 的 workspace、daemon、event ring、resume 和 tool stdout 细节。</p>
-<h2 id="_2">推荐协议架构<a class="headerlink" href="#_2" title="Permanent link">&para;</a></h2>
+<p>所以，ACP 可以承担内部执行器控制，但不能替代开放式 Agent-to-Agent 协议。反过来，A2A 也不应该直接替代内部 SAEU contract，因为 A2A 不关心具体 worker 的 workspace、daemon、event ring、resume、permission mediation 和 tool stdout 细节。</p>
+<h2 id="_3">推荐协议架构<a class="headerlink" href="#_3" title="Permanent link">&para;</a></h2>
 <p>MVP 阶段：</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>Client -&gt; REST/SSE -&gt; Run Manager -&gt; ACP-like -&gt; Qwen Code Worker
-<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>Qwen Code Worker -&gt; MCP -&gt; Tools
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>Client -&gt; REST/SSE -&gt; Run Manager -&gt; SAEU Adapter -&gt; qwen serve REST/SSE
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>qwen serve -&gt; MCP -&gt; Tools
 </code></pre></div>
 <p>演进阶段：</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>External Agent -&gt; A2A Gateway -&gt; Run Manager -&gt; SAEU -&gt; qwen serve / ACP bridge
-<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>SAEU -&gt; MCP Gateway -&gt; Tools
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>Client / IDE / Run Manager
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>  -&gt; ACP Streamable HTTP / WebSocket
+<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>  -&gt; SAEU Agent Runtime
+<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a>  -&gt; MCP Gateway
+<a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a>  -&gt; Tools
+<a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a>
+<a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a>External Agent
+<a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a>  -&gt; A2A Gateway
+<a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a>  -&gt; Run Manager
+<a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a>  -&gt; SAEU
 </code></pre></div>
 <p>桥接关系：</p>
 <table>
@@ -1252,7 +1407,7 @@
 <tr>
 <th>A2A 概念</th>
 <th>内部概念</th>
-<th>ACP/Qwen 侧</th>
+<th>ACP / SAEU 侧</th>
 </tr>
 </thead>
 <tbody>
@@ -1279,7 +1434,7 @@
 <tr>
 <td>Streaming update</td>
 <td>event summary</td>
-<td>qwen SSE -&gt; canonical events</td>
+<td>ACP session/update or native SSE -&gt; canonical events</td>
 </tr>
 <tr>
 <td>Push notification</td>
@@ -1294,11 +1449,11 @@
 <tr>
 <td>Cancel</td>
 <td>cancel mission/run</td>
-<td><code>/session/:id/cancel</code> or supervisor kill</td>
+<td>ACP cancel / native cancel / supervisor kill</td>
 </tr>
 </tbody>
 </table>
-<h2 id="_3">权限请求如何处理<a class="headerlink" href="#_3" title="Permanent link">&para;</a></h2>
+<h2 id="_4">权限请求如何处理<a class="headerlink" href="#_4" title="Permanent link">&para;</a></h2>
 <p>如果外部 A2A 客户端支持交互式输入，可以把内部 <code>permission.requested</code> 映射成 A2A 的“需要用户输入/审批”状态或扩展 metadata；如果客户端不支持，则走本系统自己的 Web/API 审批面。</p>
 <p>建议：</p>
 <ul>
@@ -1315,25 +1470,27 @@
 <li>workspace 管理。</li>
 <li>run 恢复。</li>
 <li>token 成本。</li>
-<li>qwen-code/claude-code/opencode 的具体事件适配。</li>
+<li>qwen-code/claude-code/codex/opencode 的具体事件适配。</li>
 </ul>
 <p>本项目当前真正缺的是 Cloud Agent Runtime。协议应该服务于运行时，而不是反过来让协议决定系统内部结构。</p>
-<h2 id="_4">协议落地建议<a class="headerlink" href="#_4" title="Permanent link">&para;</a></h2>
+<h2 id="_5">协议落地建议<a class="headerlink" href="#_5" title="Permanent link">&para;</a></h2>
 <ol>
 <li>内部先定义稳定的 run event schema。</li>
-<li>对 Qwen Code、OpenCode、Gemini CLI 事件做 adapter。</li>
-<li>控制 worker 时优先使用 ACP 或 ACP-like session API。</li>
+<li>将 ACP event 映射为 canonical events，同时保留原始 runtime 事件 artifact。</li>
+<li>控制 worker 时优先使用 ACP；qwen serve REST/SSE 是第一阶段兼容路径。</li>
 <li>工具统一通过 MCP Gateway 暴露。</li>
 <li>需要外部 Agent 互操作时，再做 A2A Gateway。</li>
 <li>不要让所有内部状态直接等同于 ACP 或 A2A payload，内部事件模型应当保持自主。</li>
 </ol>
-<h2 id="_5">参考资料<a class="headerlink" href="#_5" title="Permanent link">&para;</a></h2>
+<h2 id="_6">参考资料<a class="headerlink" href="#_6" title="Permanent link">&para;</a></h2>
 <ul>
 <li><a href="https://agentclientprotocol.com/get-started/introduction">Agent Client Protocol Introduction</a></li>
 <li><a href="https://agentclientprotocol.com/protocol/v1/overview">Agent Client Protocol Overview</a></li>
+<li><a href="https://agentclientprotocol.com/rfds/streamable-http-websocket-transport">ACP Streamable HTTP &amp; WebSocket Transport RFD</a></li>
 <li><a href="https://github.com/a2aproject/A2A/blob/main/docs/specification.md">A2A Protocol specification</a></li>
 <li><a href="https://github.com/a2aproject/A2A">A2A Project</a></li>
 <li><a href="https://modelcontextprotocol.io/">Model Context Protocol</a></li>
+<li><code>/Users/chigao/Documents/codebase/github/qwen-code/docs/design/daemon-acp-http/README.md</code></li>
 </ul>
 
 

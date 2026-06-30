@@ -373,6 +373,29 @@
   
   
     <li class="md-nav__item">
+      <a href="../subagent-vs-execution-unit/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    SubAgent 与独立执行单元边界
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../qwen-serve-single-agent-cloud-unit/" class="md-nav__link">
         
   
@@ -1139,9 +1162,9 @@
 <p>Qwen Code 的 background subagent transcript 就采用 JSONL，并配套 meta sidecar。它记录 ChatRecord 形态的 assistant、tool_result、external_message、system bootstrap 等内容，并通过 <code>uuid</code> 和 <code>parentUuid</code> 维护链路。</p>
 <p>相关本地源码：</p>
 <ul>
-<li><code>/Users/gawain/Documents/codebase/opensource/qwen-code/packages/core/src/agents/agent-transcript.ts</code></li>
-<li><code>/Users/gawain/Documents/codebase/opensource/qwen-code/packages/core/src/agents/background-agent-resume.ts</code></li>
-<li><code>/Users/gawain/Documents/codebase/opensource/qwen-code/packages/core/src/tools/agent/agent.ts</code></li>
+<li><code>/Users/chigao/Documents/codebase/github/qwen-code/packages/core/src/agents/agent-transcript.ts</code></li>
+<li><code>/Users/chigao/Documents/codebase/github/qwen-code/packages/core/src/agents/background-agent-resume.ts</code></li>
+<li><code>/Users/chigao/Documents/codebase/github/qwen-code/packages/core/src/tools/agent/agent.ts</code></li>
 </ul>
 <h2 id="qwen-code-jsonl">qwen-code JSONL 能否复现和回放<a class="headerlink" href="#qwen-code-jsonl" title="Permanent link">&para;</a></h2>
 <p>答案分三层：</p>
@@ -1308,8 +1331,8 @@
 <p>OpenCode 的 <code>session-event.ts</code> 很适合作为事件类型设计参考。它把 session 中的 AgentSwitched、ModelSwitched、Prompted、Shell.Started/Ended、Step.Started/Ended/Failed、Tool.Called/Progress/Success/Failed、Compaction 等都建成强类型事件。</p>
 <p>相关本地源码：</p>
 <ul>
-<li><code>/Users/gawain/Documents/codebase/github/opencode/packages/opencode/src/v2/session-event.ts</code></li>
-<li><code>/Users/gawain/Documents/codebase/github/opencode/packages/opencode/src/v2/session.ts</code></li>
+<li><code>/Users/chigao/Documents/codebase/github/opencode/packages/opencode/src/v2/session-event.ts</code></li>
+<li><code>/Users/chigao/Documents/codebase/github/opencode/packages/opencode/src/v2/session.ts</code></li>
 </ul>
 <p>这说明生产系统需要的不是“日志字符串”，而是可消费、可索引、可转换的事件 schema。</p>
 <h2 id="jsonl_2">在线事件与离线 JSONL 的关系<a class="headerlink" href="#jsonl_2" title="Permanent link">&para;</a></h2>
