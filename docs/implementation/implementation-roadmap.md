@@ -80,6 +80,24 @@
 - 默认 `fake` adapter 可完整跑通创建、输入、SSE、取消和 artifact。
 - `qwen` adapter 已支持通过 `QWEN_SERVE_URL` / `QWEN_SERVE_TOKEN` 连接 `qwen serve` REST/SSE；下一步需要在真实 daemon 上做联调并补 worker supervisor 启动策略。
 
+P1 当前判断：
+
+- 已完成：Run Manager API、fake adapter 端到端、artifact 文件、adapter contract。
+- 未完成：真实 `qwen serve` 联调、Worker Supervisor 启动/重启 qwen daemon、Run Manager auth、云端部署脚本。
+- 因此当前是 P1 prototype，不是 P1 cloud-ready。
+
+P1 cloud-ready 最小验收：
+
+| 验收项 | 标准 |
+| --- | --- |
+| 真实 qwen run | `adapter=qwen` 能创建 session、发送 prompt、流式接收事件、完成 run |
+| 进程管理 | Run Manager 可启动/发现/重启一个 `qwen serve` daemon |
+| API 安全 | Run Manager 至少有 bearer token，不允许裸公网访问 |
+| Artifact | 每个 run 保存 run_spec、input、canonical events、raw qwen events、final report |
+| Cancel | `POST /runs/:id/cancel` 能取消 qwen session，并产生 terminal event |
+| 部署 | 提供 systemd 或 Docker Compose，在一台 VPS 上重启后可恢复服务 |
+| 验证脚本 | 一条脚本能跑通 health -> capabilities -> create qwen run -> SSE -> artifact check |
+
 ## P2：审计、权限、恢复硬化
 
 状态：`not_started`
