@@ -23,6 +23,17 @@ Online site: https://chiga0.github.io/agent-research/
 ## Local preview
 
 ```bash
-python -m pip install -r requirements.txt
+python3 -m pip install -r requirements.txt
 mkdocs serve
+```
+
+## Runtime POC
+
+The first P1 runtime slice lives in [runtime](runtime/). It provides a stdlib
+Run Manager with `/runs`, `/runs/{id}/input`, `/runs/{id}/events`, and
+`/runs/{id}/cancel` over a pluggable SAEU adapter boundary.
+
+```bash
+python3 -m runtime.cloud_agents_runtime --host 127.0.0.1 --port 8765
+python3 -m unittest discover -s runtime/tests
 ```

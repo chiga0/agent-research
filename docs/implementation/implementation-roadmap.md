@@ -19,7 +19,7 @@
 | 阶段 | 目标 | 当前状态 | 退出标准 |
 | --- | --- | --- | --- |
 | P0 | 文档、边界和审计定稿 | `done` | 方案、审计、Roadmap 已入库并部署 |
-| P1 | 单 SAEU 最小闭环 | `not_started` | 一个 qwen serve run 可创建、输入、订阅、取消、产出 artifact，adapter 不泄漏 qwen 私有 API |
+| P1 | 单 SAEU 最小闭环 | `in_progress` | 一个 qwen serve run 可创建、输入、订阅、取消、产出 artifact，adapter 不泄漏 qwen 私有 API |
 | P2 | 审计、权限、恢复硬化 | `not_started` | Event Store、Permission Service、Artifact Collector 可用 |
 | P3 | 多 SAEU 并发与任务队列 | `not_started` | 1-2 个 SAEU 并发运行，队列限流生效 |
 | P4 | Supervisor + SubAgent + SAEU 编排 | `not_started` | 常驻 supervisor 可选择 SubAgent 或 SAEU 执行任务 |
@@ -52,7 +52,7 @@
 
 ## P1：单 SAEU 最小闭环
 
-状态：`not_started`
+状态：`in_progress`
 
 目标：
 
@@ -65,14 +65,20 @@
 
 | 任务 | 状态 | 验收 |
 | --- | --- | --- |
-| 定义 `run_spec` JSON schema | `not_started` | 包含 repo、workspace、prompt、model、tool、sandbox、timeout |
-| 实现 Worker Supervisor 启动 qwen serve | `not_started` | `/health`、`/capabilities` 通过 |
-| 定义 runtime adapter capability schema | `not_started` | 能表达 qwen、claude、codex、opencode 的差异 |
-| 实现 `POST /runs` | `not_started` | 创建 run 并返回 run_id |
-| 实现 `POST /runs/:id/input` | `not_started` | qwen prompt 返回 202，记录 prompt_id |
-| 实现 `GET /runs/:id/events` | `not_started` | 能从 Run Manager SSE 收到 canonical events |
-| 实现 `POST /runs/:id/cancel` | `not_started` | qwen session 或容器被取消 |
-| 实现基础 artifact 收集 | `not_started` | stdout/stderr、raw SSE、final report 落盘 |
+| 定义 `run_spec` JSON schema | `done` | POC 已包含 repo、workspace、prompt、model、sandbox、timeout、metadata |
+| 实现 Worker Supervisor 启动 qwen serve | `in_progress` | 已有 qwen REST/SSE adapter；进程 supervisor 与真实 daemon 启动待补 |
+| 定义 runtime adapter capability schema | `done` | `/capabilities` 可表达 fake/qwen adapter 能力 |
+| 实现 `POST /runs` | `done` | 创建 run 并返回 run_id |
+| 实现 `POST /runs/:id/input` | `done` | fake 可异步接受；qwen adapter 可映射到 `/session/:id/prompt` |
+| 实现 `GET /runs/:id/events` | `done` | Run Manager SSE 可返回 canonical events，支持 `Last-Event-ID` |
+| 实现 `POST /runs/:id/cancel` | `done` | fake 可取消；qwen adapter 可映射到 `/session/:id/cancel` |
+| 实现基础 artifact 收集 | `in_progress` | 已保存 run_spec、input、canonical events、raw events、final report；stdout/stderr 待真实 worker 接入 |
+
+当前实现：
+
+- `runtime/`：stdlib Run Manager POC。
+- 默认 `fake` adapter 可完整跑通创建、输入、SSE、取消和 artifact。
+- `qwen` adapter 已支持通过 `QWEN_SERVE_URL` / `QWEN_SERVE_TOKEN` 连接 `qwen serve` REST/SSE；下一步需要在真实 daemon 上做联调并补 worker supervisor 启动策略。
 
 ## P2：审计、权限、恢复硬化
 
