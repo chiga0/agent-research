@@ -39,11 +39,20 @@ def main(argv: list[str] | None = None) -> int:
     if state["status"] != "completed":
         return 1
     if args.artifact_root:
-        required = ["run_spec.json", "events.jsonl", "raw_events.jsonl", "input_1.json"]
+        required = [
+            "run_spec.json",
+            "events.jsonl",
+            "raw_events.jsonl",
+            "input_1.json",
+            "diagnostics.json",
+        ]
         run_dir = args.artifact_root / run_id
         missing = [name for name in required if not (run_dir / name).exists()]
         if missing:
             print(f"missing artifacts: {missing}", file=sys.stderr)
+            return 1
+        if not (args.artifact_root / "runtime.db").exists():
+            print("missing runtime.db", file=sys.stderr)
             return 1
     return 0
 
@@ -108,4 +117,3 @@ class Client:
 
 if __name__ == "__main__":
     raise SystemExit(main())
-

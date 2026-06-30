@@ -19,8 +19,8 @@
 | 阶段 | 目标 | 当前状态 | 退出标准 |
 | --- | --- | --- | --- |
 | P0 | 文档、边界和审计定稿 | `done` | 方案、审计、Roadmap 已入库并部署 |
-| P1 | 单 SAEU 最小闭环 | `in_progress` | 一个 qwen serve run 可创建、输入、订阅、取消、产出 artifact，adapter 不泄漏 qwen 私有 API |
-| P2 | 审计、权限、恢复硬化 | `not_started` | Event Store、Permission Service、Artifact Collector 可用 |
+| P1 | 单 SAEU 最小闭环 | `done` | 一个 qwen serve run 可创建、输入、订阅、取消、产出 artifact，adapter 不泄漏 qwen 私有 API |
+| P2 | 审计、权限、恢复硬化 | `done` | Event Store、Permission Service、Artifact Collector 可用 |
 | P3 | 多 SAEU 并发与任务队列 | `not_started` | 1-2 个 SAEU 并发运行，队列限流生效 |
 | P4 | Supervisor + Profile + SAEU 编排 | `not_started` | 常驻 supervisor 可基于 profile 创建一个或多个 SAEU run；SubAgent 仅作为 SAEU 内部优化 |
 | P5 | 外部协议与替代组件评估 | `not_started` | ACP Streamable HTTP、A2A Gateway、E2B/Daytona、Temporal/LangGraph/Airflow 完成试点评估 |
@@ -52,7 +52,7 @@
 
 ## P1：单 SAEU 最小闭环
 
-状态：`in_progress`
+状态：`done`
 
 目标：
 
@@ -66,37 +66,37 @@
 | 任务 | 状态 | 验收 |
 | --- | --- | --- |
 | 定义 `run_spec` JSON schema | `done` | POC 已包含 repo、workspace、prompt、model、sandbox、timeout、metadata |
-| 实现 Worker Supervisor 启动 qwen serve | `in_progress` | 已有 qwen REST/SSE adapter；进程 supervisor 与真实 daemon 启动待补 |
+| 实现 Worker Supervisor 启动 qwen serve | `done` | 支持 `QWEN_SERVE_COMMAND` 托管 qwen serve，并已在 ECS 上用真实配置验证 |
 | 定义 runtime adapter capability schema | `done` | `/capabilities` 可表达 fake/qwen adapter 能力 |
 | 实现 `POST /runs` | `done` | 创建 run 并返回 run_id |
 | 实现 `POST /runs/:id/input` | `done` | fake 可异步接受；qwen adapter 可映射到 `/session/:id/prompt` |
 | 实现 `GET /runs/:id/events` | `done` | Run Manager SSE 可返回 canonical events，支持 `Last-Event-ID` |
 | 实现 `POST /runs/:id/cancel` | `done` | fake 可取消；qwen adapter 可映射到 `/session/:id/cancel` |
-| 实现基础 artifact 收集 | `in_progress` | 已保存 run_spec、input、canonical events、raw events、final report；stdout/stderr 待真实 worker 接入 |
+| 实现基础 artifact 收集 | `done` | 已保存 run_spec、input、canonical events、raw events、diagnostics、final report |
 
 当前实现：
 
 - `runtime/`：stdlib Run Manager POC。
 - 默认 `fake` adapter 可完整跑通创建、输入、SSE、取消和 artifact。
-- `qwen` adapter 已支持通过 `QWEN_SERVE_URL` / `QWEN_SERVE_TOKEN` 连接 `qwen serve` REST/SSE；下一步需要在真实 daemon 上做联调并补 worker supervisor 启动策略。
+- `qwen` adapter 已支持通过 `QWEN_SERVE_URL` / `QWEN_SERVE_TOKEN` 连接 `qwen serve` REST/SSE；`QWEN_SERVE_COMMAND` 可由 Run Manager supervisor 托管真实 daemon。
 
 P1 当前判断：
 
-- 已完成：Run Manager API、fake adapter 端到端、artifact 文件、adapter contract。
-- 未完成：真实 `qwen serve` 联调、Worker Supervisor 启动/重启 qwen daemon、Run Manager auth、云端部署脚本。
-- 因此当前是 P1 prototype，不是 P1 cloud-ready。
+- 已完成：Run Manager API、fake adapter 端到端、qwen adapter 真实联调、artifact 文件、adapter contract、Run Manager bearer auth、qwen supervisor、systemd/Docker Compose 部署产物。
+- 当前最小云端形态是单控制面、单 qwen worker、单租户的可验收 MVP。
+- 未纳入 P1：公网 HTTPS 反代、多租户隔离、多 worker 队列和资源配额。
 
 P1 cloud-ready 最小验收：
 
 | 验收项 | 标准 |
 | --- | --- |
-| 真实 qwen run | `adapter=qwen` 能创建 session、发送 prompt、流式接收事件、完成 run |
-| 进程管理 | Run Manager 可启动/发现/重启一个 `qwen serve` daemon |
-| API 安全 | Run Manager 至少有 bearer token，不允许裸公网访问 |
-| Artifact | 每个 run 保存 run_spec、input、canonical events、raw qwen events、final report |
-| Cancel | `POST /runs/:id/cancel` 能取消 qwen session，并产生 terminal event |
-| 部署 | 提供 systemd 或 Docker Compose，在一台 VPS 上重启后可恢复服务 |
-| 验证脚本 | 一条脚本能跑通 health -> capabilities -> create qwen run -> SSE -> artifact check |
+| 真实 qwen run | `done`：`adapter=qwen` 能创建 session、发送 prompt、流式接收事件、完成 run |
+| 进程管理 | `done`：Run Manager 可启动/发现/停止一个 `qwen serve` daemon |
+| API 安全 | `done`：Run Manager 支持 bearer token；部署默认绑定 `127.0.0.1` |
+| Artifact | `done`：每个 run 保存 run_spec、input、canonical events、raw qwen events、diagnostics、final report |
+| Cancel | `done`：`POST /runs/:id/cancel` 能取消 qwen session，并产生 terminal event |
+| 部署 | `done`：提供 systemd 与 Docker Compose，已在 VPS 上重启验证 |
+| 验证脚本 | `done`：脚本可跑通 health -> capabilities -> create run -> SSE -> artifact check |
 
 本轮新增工程门禁：
 
@@ -107,7 +107,7 @@ P1 cloud-ready 最小验收：
 
 ## P2：审计、权限、恢复硬化
 
-状态：`not_started`
+状态：`done`
 
 目标：
 
@@ -119,13 +119,21 @@ P1 cloud-ready 最小验收：
 
 | 任务 | 状态 | 验收 |
 | --- | --- | --- |
-| Postgres `run_events` append-only 表 | `not_started` | 任意 run 可从事件表重建状态 |
-| Permission Service | `not_started` | permission request/resolution 全量入库 |
-| qwen SSE adapter | `not_started` | raw event -> canonical event 映射稳定 |
-| Last-Event-ID reconnect | `not_started` | Supervisor 断线后可追上事件 |
-| event gap detection | `not_started` | gap 写入 `event.gap_detected` |
-| diagnostics artifact | `not_started` | start/end/crash diagnostics 保存 |
-| replay CLI | `not_started` | 支持 UI replay 和 state replay |
+| SQLite `run_events` append-only 表 | `done` | 任意 run 可从事件表和 JSONL 重建状态 |
+| Postgres `run_events` append-only 表 | `deferred` | 多控制面/高并发阶段替换 SQLite |
+| Permission Service | `done` | permission request/resolution 全量入库和 artifact |
+| qwen SSE adapter | `done` | raw event -> canonical event 映射稳定，并保存 raw events |
+| Last-Event-ID reconnect | `done` | 客户端重连可按 sequence 追事件 |
+| event gap detection | `done` | gap 写入 `event.gap_detected` |
+| diagnostics artifact | `done` | 每个 run 维护 `diagnostics.json` |
+| replay CLI | `done` | 支持 events、SSE frame 和 state replay |
+
+P2 当前判断：
+
+- 当前实现满足单实例云端 MVP 的审计、恢复和回放要求。
+- SQLite 是 MVP 的 durable event store；迁移到 Postgres 的条件是多控制面实例、跨机器 worker lease 或高并发写入。
+- Permission Service 当前完成“决策入库/入 artifact/入 SSE audit trail”；超时自动 deny/cancel 会放入 P3/P6 的任务生命周期治理。
+- Artifact Collector 当前覆盖 run_spec、input、canonical events、raw events、diagnostics、final；stdout/stderr 类 worker 日志将在独立 sandbox worker 引入后扩展。
 
 硬性规则：
 

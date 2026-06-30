@@ -48,6 +48,55 @@ class RuntimeServerTest(unittest.TestCase):
                 self.assertTrue((run_dir / "events.jsonl").exists())
                 self.assertTrue((run_dir / "final_1.json").exists())
 
+    def test_sse_reconnect_and_gap_detection(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            with running_runtime(artifact_root=Path(tmp)) as base_url:
+                run = request_json(
+                    f"{base_url}/runs",
+                    method="POST",
+                    payload={"prompt": "hello reconnect runtime", "adapter": "fake"},
+                )
+                initial_events = read_sse(f"{base_url}/runs/{run['run_id']}/events")
+                self.assertGreater(len(initial_events), 2)
+
+                replayed = read_sse(
+                    f"{base_url}/runs/{run['run_id']}/events",
+                    headers={"Last-Event-ID": "2"},
+                )
+                self.assertTrue(replayed)
+                self.assertGreater(replayed[0]["data"]["sequence"], 2)
+
+                gap = read_sse(
+                    f"{base_url}/runs/{run['run_id']}/events",
+                    headers={"Last-Event-ID": "999"},
+                )
+                self.assertEqual(gap[0]["event"], "event.gap_detected")
+                self.assertEqual(gap[0]["data"]["data"]["requested_last_sequence"], 999)
+
+    def test_permission_resolution_endpoint_writes_audit_artifact(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            with running_runtime(artifact_root=Path(tmp)) as base_url:
+                run = request_json(
+                    f"{base_url}/runs",
+                    method="POST",
+                    payload={"prompt": "permission audit", "adapter": "fake"},
+                )
+                accepted = request_json(
+                    f"{base_url}/runs/{run['run_id']}/permissions/perm-1",
+                    method="POST",
+                    payload={
+                        "decision": "approve",
+                        "decided_by": "tester",
+                        "reason": "unit test",
+                    },
+                )
+                self.assertTrue(accepted["accepted"])
+                events = read_sse(f"{base_url}/runs/{run['run_id']}/events")
+                self.assertIn("permission.resolved", [event["event"] for event in events])
+                run_dir = Path(tmp) / run["run_id"]
+                permission_artifacts = sorted(run_dir.glob("permission.resolved_*.json"))
+                self.assertEqual(len(permission_artifacts), 1)
+
     def test_qwen_adapter_maps_fake_daemon_events(self) -> None:
         with running_fake_qwen() as qwen_url:
             with tempfile.TemporaryDirectory() as tmp:
@@ -205,9 +254,10 @@ def request_json(
         return parsed
 
 
-def read_sse(url: str) -> list[dict[str, Any]]:
+def read_sse(url: str, headers: dict[str, str] | None = None) -> list[dict[str, Any]]:
     events: list[dict[str, Any]] = []
-    with urllib.request.urlopen(url, timeout=5) as response:
+    request = urllib.request.Request(url, headers=headers or {})
+    with urllib.request.urlopen(request, timeout=5) as response:
         event_name: str | None = None
         data_lines: list[str] = []
         for raw_line in response:
@@ -225,4 +275,3 @@ def read_sse(url: str) -> list[dict[str, Any]]:
 
 if __name__ == "__main__":
     unittest.main()
-

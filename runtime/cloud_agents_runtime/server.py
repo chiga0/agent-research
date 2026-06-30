@@ -84,6 +84,18 @@ def make_handler(
                         status=HTTPStatus.ACCEPTED,
                     )
                     return
+                if (
+                    len(parts) == 4
+                    and parts[0] == "runs"
+                    and parts[2] == "permissions"
+                    and parts[3]
+                ):
+                    manager.resolve_permission(parts[1], parts[3], payload)
+                    self.write_json(
+                        {"accepted": True, "run_id": parts[1], "permission_id": parts[3]},
+                        status=HTTPStatus.ACCEPTED,
+                    )
+                    return
             except KeyError:
                 self.write_error(HTTPStatus.NOT_FOUND, "run not found")
                 return
@@ -101,6 +113,7 @@ def make_handler(
                 return
 
             last_sequence = parse_last_event_id(self.headers.get("Last-Event-ID"))
+            last_sequence = manager.store.record_gap_if_needed(run_id, last_sequence)
             self.send_response(HTTPStatus.OK)
             self.send_header("content-type", "text/event-stream; charset=utf-8")
             self.send_header("cache-control", "no-cache")

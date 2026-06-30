@@ -1,10 +1,15 @@
-# Cloud Agents Runtime POC
+# Cloud Agents Runtime
 
-This directory contains the first P1 implementation slice from the roadmap: a
-single SAEU Run Manager with a pluggable runtime adapter boundary.
+This directory contains the P1/P2 implementation slice from the roadmap: a
+single SAEU Run Manager with a pluggable runtime adapter boundary, durable event
+storage, audit artifacts, permission resolution, replay tooling, and cloud
+deployment assets.
 
 The current implementation intentionally uses only the Python standard library.
 It is small enough to audit and easy to replace once the API contract is proven.
+For the MVP, the durable event store is SQLite plus append-only JSONL artifacts.
+The schema mirrors the planned append-only event table and can be moved to
+Postgres when multiple control-plane instances are required.
 
 ## What works
 
@@ -12,22 +17,23 @@ It is small enough to audit and easy to replace once the API contract is proven.
 - `POST /runs/{run_id}/input` submits a prompt.
 - `GET /runs/{run_id}/events` streams canonical events as SSE.
 - `POST /runs/{run_id}/cancel` cancels a run.
+- `POST /runs/{run_id}/permissions/{permission_id}` records a permission
+  decision.
 - `GET /runs/{run_id}` returns current state.
 - `GET /health` and `GET /capabilities` expose runtime status.
 - Raw run specs, inputs, canonical events, and adapter artifacts are written to
   `runtime/artifacts/`.
+- Canonical events are persisted in `runtime.db` and `events.jsonl`.
+- `diagnostics.json` is maintained per run.
+- `scripts/replay_run.py` can replay events, SSE frames, or rebuilt state from
+  artifacts.
 
 The default adapter is `fake`, which lets the full API run without a model or
 qwen daemon. The `qwen` adapter can connect to an existing `qwen serve`
 REST/SSE daemon through `QWEN_SERVE_URL` and `QWEN_SERVE_TOKEN`.
 
-This is still a P1 prototype, not the cloud-ready MVP. The missing pieces are:
-
-- starting and supervising the `qwen serve` process;
-- validating the qwen adapter against a real daemon;
-- auth on the Run Manager API;
-- durable storage beyond local artifact files;
-- deploy packaging such as systemd or Docker Compose.
+The service is intended to bind to `127.0.0.1` and sit behind an authenticated
+reverse proxy. Do not expose the Run Manager directly to the public internet.
 
 ## Run locally
 
@@ -73,6 +79,24 @@ curl -s -X POST http://127.0.0.1:8765/runs/<run_id>/cancel \
   -d '{"reason":"manual stop"}'
 ```
 
+Resolve a permission request:
+
+```bash
+curl -s -X POST http://127.0.0.1:8765/runs/<run_id>/permissions/<permission_id> \
+  -H "authorization: Bearer $RUN_MANAGER_TOKEN" \
+  -H 'content-type: application/json' \
+  -d '{"decision":"approve","decided_by":"operator","reason":"reviewed"}'
+```
+
+Replay from artifacts:
+
+```bash
+python3 scripts/replay_run.py \
+  --artifact-root runtime/artifacts \
+  --run-id <run_id> \
+  --format state
+```
+
 ## Test
 
 ```bash
@@ -112,8 +136,13 @@ Acceptance:
 - `POST /runs` returns a `run_id`.
 - SSE emits `run.created`, `run.started`, `input.accepted`,
   `message.delta`, `step.completed`, and `run.completed`.
+- SSE honors `Last-Event-ID`; if the client asks for an event sequence beyond
+  what the store has, the server records and streams `event.gap_detected`.
+- `POST /runs/{run_id}/permissions/{permission_id}` records
+  `permission.resolved` in the same audit trail.
 - The run directory contains `run_spec.json`, `events.jsonl`,
-  `raw_events.jsonl`, `input_1.json`, and `final_1.json`.
+  `raw_events.jsonl`, `input_1.json`, `diagnostics.json`, and `final_1.json`.
+- The artifact root contains `runtime.db`.
 
 ## Validate qwen adapter
 
@@ -167,16 +196,18 @@ Use `--adapter qwen` after starting `qwen serve`.
 
 ## Minimal cloud deployment target
 
-The first cloud-runnable slice should include:
+The current cloud-runnable slice includes:
 
-- Run Manager bound to `127.0.0.1` behind an authenticated reverse proxy.
-- A separately managed `qwen serve` process for one workspace.
-- Persistent artifact directory on disk.
-- HTTPS, API token, process restart, and log collection.
+- Run Manager bound to `127.0.0.1` with bearer-token auth.
+- Managed `qwen serve` process for one workspace when `QWEN_SERVE_COMMAND` is
+  configured.
+- Persistent artifact directory on disk with `runtime.db` and JSONL artifacts.
+- systemd unit and Docker Compose assets.
+- CI gates for style, compile, 90%+ runtime coverage, and MkDocs strict build.
+- Validation script for fake/qwen runs and required artifacts.
 
-Do not expose this POC directly to the internet. It does not yet include Run
-Manager authentication, tenant isolation, or durable database-backed event
-storage.
+HTTPS/reverse proxy and multi-tenant isolation remain deployment-layer concerns
+for the next hardening phase.
 
 ### Docker Compose
 

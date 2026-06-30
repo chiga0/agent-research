@@ -32,6 +32,10 @@ class RunManager:
                 "run_events_sse",
                 "run_cancel",
                 "artifact_files",
+                "permission_resolution",
+                "durable_event_store",
+                "run_replay",
+                "event_gap_detection",
                 "runtime_adapter_capabilities",
             ],
             "adapters": {
@@ -57,6 +61,22 @@ class RunManager:
             self.store.append_event(run_id, "cancel.ignored", {"reason": "run already terminal"})
             return
         self._adapter(run.spec.adapter).cancel(run, reason, self.store)
+
+    def resolve_permission(self, run_id: str, permission_id: str, payload: dict[str, Any]) -> None:
+        self._require_run(run_id)
+        decision = payload.get("decision")
+        if decision not in {"approve", "deny", "cancel"}:
+            raise ValueError("decision must be approve, deny, or cancel")
+        self.store.append_event(
+            run_id,
+            "permission.resolved",
+            {
+                "permission_id": permission_id,
+                "decision": decision,
+                "decided_by": payload.get("decided_by"),
+                "reason": payload.get("reason"),
+            },
+        )
 
     def get_run(self, run_id: str) -> RunState | None:
         return self.store.get_run(run_id)

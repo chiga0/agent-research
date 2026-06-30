@@ -218,6 +218,32 @@ qwen serve 已有：
 | 多 Agent patch 冲突 | 中 | 每个 coder 独立 worktree，merge agent 独立处理 |
 | Event Store 写入失败 | 高 | 写入失败时暂停 run 或标记 degraded，不能继续无审计执行 |
 
+## 2026-07-01 P1/P2 实施审计
+
+### 已落地能力
+
+- P1 单 SAEU 闭环：Run Manager API、fake adapter、qwen serve adapter、canonical SSE、input、cancel、artifact 输出。
+- 云端运行：systemd service、Docker Compose、bearer token、`qwen serve` supervisor、VPS 部署脚本。
+- P2 审计硬化：SQLite `runtime.db`、`run_events` append-only 表、`raw_events` 表、per-run `events.jsonl` 和 `diagnostics.json`。
+- 权限决策：`POST /runs/{run_id}/permissions/{permission_id}` 写入 `permission.resolved`，同时生成权限 artifact。
+- 恢复与重连：SSE 支持 `Last-Event-ID`；超出可用序号时写入 `event.gap_detected`。
+- 回放：`scripts/replay_run.py` 支持 events、SSE frame、state 三种输出。
+
+### 验证门禁
+
+- `python3 scripts/check_style.py`
+- `python3 -m compileall -q runtime scripts`
+- `python3 scripts/check_runtime_coverage.py`，当前 runtime 覆盖率高于 90%。
+- `python3 scripts/validate_runtime.py` 可验证 health、capabilities、run、SSE、artifact、`runtime.db`。
+- ECS 验收需覆盖 fake run、qwen run、systemd restart recovery、artifact replay。
+
+### 实施取舍
+
+- MVP 使用 SQLite 作为 durable event store。它满足单控制面、单 VPS 的可部署验收，但不是多控制面/高并发最终方案。
+- Postgres、jobs/leases、worker heartbeat、resource limit 和多 worker 调度进入 P3。
+- Permission timeout 的自动 deny/cancel 尚未进入 P2 MVP；当前先保证人工决策的完整审计链。
+- stdout/stderr 类 worker 进程日志将在独立 sandbox worker 引入后纳入 artifact manifest。
+
 ## Go / No-Go 决策
 
 ### Go
