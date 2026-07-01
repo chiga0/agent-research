@@ -125,8 +125,9 @@ jobs:
             "$RUNTIME_SSH_TARGET" \
             "APP_DIR='$APP_DIR' bash -s" <<'REMOTE'
           set -euo pipefail
-          # shellcheck disable=SC1091
-          source /etc/cloud-agents-runtime.env
+          RUN_MANAGER_TOKEN="$(
+            awk -F= '$1 == "RUN_MANAGER_TOKEN" {print $2}' /etc/cloud-agents-runtime.env
+          )"
           cd "$APP_DIR"
           python3 scripts/validate_runtime.py \
             --base-url http://127.0.0.1:8765 \
