@@ -4,11 +4,6 @@ on:
   push:
     branches:
       - main
-    paths:
-      - "runtime/**"
-      - "scripts/**"
-      - "deploy/**"
-      - ".github/workflows/deploy-runtime.yml"
   workflow_dispatch:
 
 permissions:
@@ -16,7 +11,7 @@ permissions:
 
 concurrency:
   group: runtime-production
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   deploy:
@@ -135,3 +130,39 @@ jobs:
             --adapter fake \
             --timeout 30
           REMOTE
+
+      - name: Verify deployed revision
+        env:
+          RUNTIME_SSH_TARGET: ${{ secrets.RUNTIME_SSH_TARGET }}
+          APP_DIR: ${{ vars.RUNTIME_APP_DIR }}
+        run: |
+          set -euo pipefail
+          APP_DIR="${APP_DIR:-/opt/agent-research}"
+          ssh -i "$RUNNER_TEMP/runtime-deploy/ssh_key" \
+            -o StrictHostKeyChecking=accept-new \
+            "$RUNTIME_SSH_TARGET" \
+            "APP_DIR='$APP_DIR' EXPECTED_SHA='$GITHUB_SHA' bash -s" <<'REMOTE'
+          set -euo pipefail
+          DEPLOYED_SHA="$(git -C "$APP_DIR" rev-parse HEAD)"
+          test "$DEPLOYED_SHA" = "$EXPECTED_SHA" || {
+            echo "server has $DEPLOYED_SHA, expected $EXPECTED_SHA";
+            exit 1;
+          }
+          echo "server revision: $DEPLOYED_SHA"
+          REMOTE
+
+      - name: Smoke test public runtime ingress
+        env:
+          PUBLIC_HOST: ${{ secrets.RUNTIME_PUBLIC_HOST }}
+          BASIC_AUTH_USER: ${{ secrets.RUNTIME_BASIC_AUTH_USER }}
+          BASIC_AUTH_PASSWORD: ${{ secrets.RUNTIME_BASIC_AUTH_PASSWORD }}
+        run: |
+          set -euo pipefail
+          PUBLIC_HOST="${PUBLIC_HOST:-}"
+          BASIC_AUTH_USER="${BASIC_AUTH_USER:-cloudagents}"
+          test -n "$PUBLIC_HOST" || { echo "missing RUNTIME_PUBLIC_HOST"; exit 1; }
+          curl -fsS \
+            --retry 5 \
+            --retry-delay 2 \
+            --user "$BASIC_AUTH_USER:$BASIC_AUTH_PASSWORD" \
+            "http://$PUBLIC_HOST/cloud-agents/health"
