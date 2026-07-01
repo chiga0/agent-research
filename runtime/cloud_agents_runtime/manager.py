@@ -80,6 +80,7 @@ class RunManager:
             self.lease_ttl_seconds,
         )
         self.store.recover_expired_leases()
+        self.store.prune_stale_workers(self.ops.config.stale_worker_seconds)
         self._heartbeat_thread: threading.Thread | None = None
         self._cleanup_thread: threading.Thread | None = None
         if heartbeat_enabled:

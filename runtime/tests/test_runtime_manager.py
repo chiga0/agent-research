@@ -1189,6 +1189,28 @@ class RunManagerTest(unittest.TestCase):
             finally:
                 store.close()
 
+    def test_prune_stale_workers_keeps_workers_with_running_jobs(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            store = RunStore(Path(tmp))
+            try:
+                idle = store.register_worker("idle-worker", capacity=1, lease_ttl_seconds=30)
+                busy = store.register_worker("busy-worker", capacity=1, lease_ttl_seconds=30)
+                idle.heartbeat_at = utc_now_plus(-600)
+                busy.heartbeat_at = utc_now_plus(-600)
+                store._persist_worker(idle)
+                store._persist_worker(busy)
+
+                run = store.create_run(RunSpec(adapter="fake"))
+                store.enqueue_run(run.run_id)
+                self.assertIsNotNone(store.claim_next_job("busy-worker", lease_ttl_seconds=30))
+
+                self.assertEqual(store.prune_stale_workers(300), ["idle-worker"])
+                workers = {worker["worker_id"] for worker in store.queue_snapshot()["workers"]}
+                self.assertNotIn("idle-worker", workers)
+                self.assertIn("busy-worker", workers)
+            finally:
+                store.close()
+
     def test_positive_int_parsing(self) -> None:
         self.assertEqual(positive_int(None, "3", default=1), 3)
         self.assertEqual(positive_int(None, "bad", default=2), 2)

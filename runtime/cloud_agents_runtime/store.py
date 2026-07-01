@@ -422,6 +422,28 @@ class RunStore:
             )
         return [run_id for run_id, _previous_worker, _attempts in recovered]
 
+    def prune_stale_workers(self, stale_after_seconds: int | None) -> list[str]:
+        if not stale_after_seconds or stale_after_seconds <= 0:
+            return []
+        stale_cutoff = datetime.now(timezone.utc) - timedelta(seconds=stale_after_seconds)
+        pruned: list[str] = []
+        with self._lock:
+            for worker_id, worker in list(self._workers.items()):
+                if self.active_job_count(worker_id) > 0:
+                    continue
+                try:
+                    heartbeat_at = datetime.fromisoformat(worker.heartbeat_at)
+                except ValueError:
+                    heartbeat_at = datetime.min.replace(tzinfo=timezone.utc)
+                if heartbeat_at > stale_cutoff:
+                    continue
+                pruned.append(worker_id)
+                del self._workers[worker_id]
+                self._db.execute("delete from workers where worker_id = ?", (worker_id,))
+            if pruned:
+                self._db.commit()
+        return pruned
+
     def queue_snapshot(self, stale_after_seconds: int | None = None) -> dict[str, Any]:
         with self._lock:
             jobs = sorted(self._jobs.values(), key=lambda job: (job.queued_at, job.run_id))
