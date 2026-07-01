@@ -21,7 +21,7 @@
 | P0 | 文档、边界和审计定稿 | `done` | 方案、审计、Roadmap 已入库并部署 |
 | P1 | 单 SAEU 最小闭环 | `done` | 一个 qwen serve run 可创建、输入、订阅、取消、产出 artifact，adapter 不泄漏 qwen 私有 API |
 | P2 | 审计、权限、恢复硬化 | `done` | Event Store、Permission Service、Artifact Collector 可用 |
-| P3 | 多 SAEU 并发与任务队列 | `not_started` | 1-2 个 SAEU 并发运行，队列限流生效 |
+| P3 | 多 SAEU 并发与任务队列 | `in_progress` | 1-2 个 SAEU 并发运行，队列限流生效 |
 | P4 | Supervisor + Profile + SAEU 编排 | `not_started` | 常驻 supervisor 可基于 profile 创建一个或多个 SAEU run；SubAgent 仅作为 SAEU 内部优化 |
 | P5 | 外部协议与替代组件评估 | `not_started` | ACP Streamable HTTP、A2A Gateway、E2B/Daytona、Temporal/LangGraph/Airflow 完成试点评估 |
 | P6 | Beta 稳定化 | `not_started` | 故障演练、回放、监控、备份、部署脚本完成 |
@@ -143,7 +143,7 @@ P2 当前判断：
 
 ## P3：多 SAEU 并发与任务队列
 
-状态：`not_started`
+状态：`in_progress`
 
 目标：
 
@@ -155,13 +155,27 @@ P2 当前判断：
 
 | 任务 | 状态 | 验收 |
 | --- | --- | --- |
-| jobs/leases 表 | `not_started` | worker 宕机后 lease 可回收 |
-| worker heartbeat | `not_started` | dashboard 能看到 worker 状态 |
-| per-worker capacity | `not_started` | 超容量 run 排队 |
+| jobs/leases 表 | `done` | SQLite `run_jobs` 表持久化 queued/running/terminal job，过期 lease 可回收到队列 |
+| worker heartbeat | `done` | SQLite `workers` 表、`/queue`、`/workers` 和浏览器控制台可见 worker 状态 |
+| per-worker capacity | `done` | `RUN_MANAGER_WORKER_CAPACITY` / `--worker-capacity` 生效，超容量 run 保持 queued |
 | per-run workspace | `not_started` | 并发 run 文件隔离 |
 | resource limits | `not_started` | CPU/memory/pids 限制生效 |
 | cleanup policy | `not_started` | workspace/artifact 按保留策略清理 |
 | 双 VPS worker 模式 | `deferred` | control plane 与 sandbox worker 分离 |
+
+P3 当前实现：
+
+- `POST /runs` 先写入 `run.queued`，由本地 worker 在容量允许时 claim lease。
+- `lease.claimed`、`lease.expired`、`run.completed` / `run.failed` / `run.cancelled` 都写入同一 canonical event stream。
+- `GET /queue` 返回 job counts、jobs 和 workers；`GET /workers` 返回 worker heartbeat 视图。
+- 浏览器控制台增加 Queue 面板，显示 queued/running/capacity/active 和 worker heartbeat。
+- 单进程 Run Manager 现在可以用 capacity=1 验证排队，用 capacity=2 在单 VPS 上跑 1-2 个 SAEU。
+
+P3 剩余风险：
+
+- 当前 worker 仍在 Run Manager 进程内，跨 VPS worker 需要把 claim/heartbeat 迁移到远程 worker loop。
+- 当前 workspace 仍依赖 adapter/workspace 参数，尚未强制每个 run 一个 git worktree 或容器目录。
+- 当前 resource limit 仍是部署层要求，尚未由 Run Manager 自动下发 cgroup/Docker 限制。
 
 ## P4：Supervisor + Profile + SAEU 编排
 

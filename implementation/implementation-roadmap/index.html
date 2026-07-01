@@ -840,7 +840,7 @@
 <tr>
 <td>P3</td>
 <td>多 SAEU 并发与任务队列</td>
-<td><code>not_started</code></td>
+<td><code>in_progress</code></td>
 <td>1-2 个 SAEU 并发运行，队列限流生效</td>
 </tr>
 <tr>
@@ -1078,7 +1078,7 @@
 <li>artifact 收集失败必须体现在 terminal failure reason 中。</li>
 </ul>
 <h2 id="p3-saeu">P3：多 SAEU 并发与任务队列<a class="headerlink" href="#p3-saeu" title="Permanent link">&para;</a></h2>
-<p>状态：<code>not_started</code></p>
+<p>状态：<code>in_progress</code></p>
 <p>目标：</p>
 <ul>
 <li>在一台 VPS 上安全运行 1-2 个 SAEU。</li>
@@ -1097,18 +1097,18 @@
 <tbody>
 <tr>
 <td>jobs/leases 表</td>
-<td><code>not_started</code></td>
-<td>worker 宕机后 lease 可回收</td>
+<td><code>done</code></td>
+<td>SQLite <code>run_jobs</code> 表持久化 queued/running/terminal job，过期 lease 可回收到队列</td>
 </tr>
 <tr>
 <td>worker heartbeat</td>
-<td><code>not_started</code></td>
-<td>dashboard 能看到 worker 状态</td>
+<td><code>done</code></td>
+<td>SQLite <code>workers</code> 表、<code>/queue</code>、<code>/workers</code> 和浏览器控制台可见 worker 状态</td>
 </tr>
 <tr>
 <td>per-worker capacity</td>
-<td><code>not_started</code></td>
-<td>超容量 run 排队</td>
+<td><code>done</code></td>
+<td><code>RUN_MANAGER_WORKER_CAPACITY</code> / <code>--worker-capacity</code> 生效，超容量 run 保持 queued</td>
 </tr>
 <tr>
 <td>per-run workspace</td>
@@ -1132,6 +1132,20 @@
 </tr>
 </tbody>
 </table></div>
+<p>P3 当前实现：</p>
+<ul>
+<li><code>POST /runs</code> 先写入 <code>run.queued</code>，由本地 worker 在容量允许时 claim lease。</li>
+<li><code>lease.claimed</code>、<code>lease.expired</code>、<code>run.completed</code> / <code>run.failed</code> / <code>run.cancelled</code> 都写入同一 canonical event stream。</li>
+<li><code>GET /queue</code> 返回 job counts、jobs 和 workers；<code>GET /workers</code> 返回 worker heartbeat 视图。</li>
+<li>浏览器控制台增加 Queue 面板，显示 queued/running/capacity/active 和 worker heartbeat。</li>
+<li>单进程 Run Manager 现在可以用 capacity=1 验证排队，用 capacity=2 在单 VPS 上跑 1-2 个 SAEU。</li>
+</ul>
+<p>P3 剩余风险：</p>
+<ul>
+<li>当前 worker 仍在 Run Manager 进程内，跨 VPS worker 需要把 claim/heartbeat 迁移到远程 worker loop。</li>
+<li>当前 workspace 仍依赖 adapter/workspace 参数，尚未强制每个 run 一个 git worktree 或容器目录。</li>
+<li>当前 resource limit 仍是部署层要求，尚未由 Run Manager 自动下发 cgroup/Docker 限制。</li>
+</ul>
 <h2 id="p4supervisor-profile-saeu">P4：Supervisor + Profile + SAEU 编排<a class="headerlink" href="#p4supervisor-profile-saeu" title="Permanent link">&para;</a></h2>
 <p>状态：<code>not_started</code></p>
 <p>目标：</p>
