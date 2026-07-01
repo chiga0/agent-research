@@ -220,6 +220,12 @@
       gap: 8px;
       margin-bottom: 6px;
     }
+    .permission-actions {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin: 8px 0;
+    }
     .artifacts {
       display: grid;
       grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
@@ -268,6 +274,14 @@
             <select id="adapterSelect"></select>
             <label>Model</label>
             <input id="modelInput" placeholder="optional">
+          </div>
+          <div class="row" style="margin-bottom: 10px;">
+            <label>Workspace</label>
+            <input id="workspaceInput" style="flex: 1 1 280px;" placeholder="optional absolute path">
+            <label class="row" style="gap: 6px;">
+              <input id="sharedWorkspaceInput" type="checkbox" style="min-height: auto;">
+              Shared
+            </label>
           </div>
           <textarea id="promptInput" placeholder="Describe the task for the agent"></textarea>
           <div class="row" style="justify-content: space-between; margin-top: 10px;">
@@ -499,6 +513,13 @@
           prompt: document.querySelector("#promptInput").value,
           model: document.querySelector("#modelInput").value || null
         };
+        const workspace = document.querySelector("#workspaceInput").value.trim();
+        if (workspace) {
+          payload.workspace = workspace;
+        }
+        if (document.querySelector("#sharedWorkspaceInput").checked) {
+          payload.sandbox = { workspace_strategy: "shared" };
+        }
         const run = await api("runs", {
           method: "POST",
           body: JSON.stringify(payload)
@@ -544,7 +565,8 @@
         "message.delta", "step.completed", "run.completed", "run.failed",
         "run.cancelled", "permission.requested", "permission.resolved",
         "event.gap_detected", "run.queued", "lease.claimed", "lease.expired",
-        "cleanup.workspace_deleted", "cleanup.artifacts_deleted", "stream.warning"
+        "cleanup.workspace_deleted", "cleanup.artifacts_deleted", "stream.warning",
+        "adapter.not_configured", "adapter.event", "step.submitted"
       ].forEach((name) => source.addEventListener(name, appendEvent));
       source.onerror = () => {
         closeStream();
@@ -581,10 +603,60 @@
             <strong>${event.sequence}. ${event.type}</strong>
             <span class="muted">${fmt(event.created_at)}</span>
           </div>
+          ${renderPermissionActions(event)}
           <pre>${escapeHtml(JSON.stringify(event.data || {}, null, 2))}</pre>
         </div>
       `).join("");
+      container.querySelectorAll("[data-permission-id]").forEach((button) => {
+        button.addEventListener("click", () => resolvePermission(button));
+      });
       container.scrollTop = container.scrollHeight;
+    }
+
+    function renderPermissionActions(event) {
+      if (event.type !== "permission.requested") return "";
+      const raw = event.data?.raw || {};
+      const request = raw.data || {};
+      const permissionId = request.requestId;
+      if (!permissionId) return "";
+      if (isPermissionResolved(permissionId)) {
+        return '<div class="muted" style="margin: 8px 0;">Permission resolved.</div>';
+      }
+      const options = Array.isArray(request.options) ? request.options : [];
+      if (!options.length) return "";
+      return `<div class="permission-actions">
+        ${options.map((option) => {
+          const decision = option.kind === "reject_once" ? "deny" : "approve";
+          return `<button
+            data-permission-id="${escapeHtml(permissionId)}"
+            data-option-id="${escapeHtml(option.optionId || "")}"
+            data-decision="${decision}">
+            ${escapeHtml(option.name || option.optionId || "Resolve")}
+          </button>`;
+        }).join("")}
+      </div>`;
+    }
+
+    function isPermissionResolved(permissionId) {
+      return state.events.some((event) => {
+        if (event.type !== "permission.resolved") return false;
+        return event.data?.raw?.data?.requestId === permissionId;
+      });
+    }
+
+    async function resolvePermission(button) {
+      if (!state.selected) return;
+      button.disabled = true;
+      await api(`runs/${state.selected}/permissions/${button.dataset.permissionId}`, {
+        method: "POST",
+        body: JSON.stringify({
+          decision: button.dataset.decision,
+          option_id: button.dataset.optionId,
+          decided_by: "web-console",
+          reason: "resolved from web console"
+        })
+      });
+      await loadRunDetail();
     }
 
     async function loadArtifacts() {
