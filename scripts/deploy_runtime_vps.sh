@@ -16,7 +16,7 @@ QWEN_SETTINGS_FILE="${QWEN_SETTINGS_FILE:-}"
 PUBLIC_HOST="${PUBLIC_HOST:-_}"
 PUBLIC_DOMAIN="${PUBLIC_DOMAIN:-}"
 BASIC_AUTH_USER="${BASIC_AUTH_USER:-cloudagents}"
-BASIC_AUTH_PASSWORD="${BASIC_AUTH_PASSWORD:-$(openssl rand -base64 18 | tr -d '=+/' | cut -c1-18)}"
+BASIC_AUTH_PASSWORD="${BASIC_AUTH_PASSWORD:-}"
 RUN_MANAGER_DEFAULT_CPUS="${RUN_MANAGER_DEFAULT_CPUS:-1.0}"
 RUN_MANAGER_MAX_CPUS="${RUN_MANAGER_MAX_CPUS:-$RUN_MANAGER_DEFAULT_CPUS}"
 RUN_MANAGER_DEFAULT_MEMORY_MB="${RUN_MANAGER_DEFAULT_MEMORY_MB:-1024}"
@@ -206,14 +206,34 @@ chown -R cloudagents:cloudagents "$STATE_DIR"
 chmod 600 /etc/cloud-agents-runtime.env
 
 install -d -m 755 /etc/nginx/snippets
-HASH="$(openssl passwd -apr1 "$BASIC_AUTH_PASSWORD")"
-printf '%s:%s\n' "$BASIC_AUTH_USER" "$HASH" > /etc/nginx/cloud-agents.htpasswd
-chown root:www-data /etc/nginx/cloud-agents.htpasswd
-chmod 640 /etc/nginx/cloud-agents.htpasswd
+if [[ -n "$BASIC_AUTH_PASSWORD" ]]; then
+  HASH="$(openssl passwd -apr1 "$BASIC_AUTH_PASSWORD")"
+  printf '%s:%s\n' "$BASIC_AUTH_USER" "$HASH" > /etc/nginx/cloud-agents.htpasswd
+  chown root:www-data /etc/nginx/cloud-agents.htpasswd
+  chmod 640 /etc/nginx/cloud-agents.htpasswd
+elif [[ ! -f /etc/nginx/cloud-agents.htpasswd ]]; then
+  BASIC_AUTH_PASSWORD="$(openssl rand -base64 18 | tr -d '=+/' | cut -c1-18)"
+  HASH="$(openssl passwd -apr1 "$BASIC_AUTH_PASSWORD")"
+  printf '%s:%s\n' "$BASIC_AUTH_USER" "$HASH" > /etc/nginx/cloud-agents.htpasswd
+  chown root:www-data /etc/nginx/cloud-agents.htpasswd
+  chmod 640 /etc/nginx/cloud-agents.htpasswd
+else
+  echo "preserving existing nginx basic auth password"
+fi
 cat > /etc/nginx/snippets/cloud-agents-runtime-auth.conf <<EOF
 proxy_set_header Authorization "Bearer $RUN_MANAGER_TOKEN";
 EOF
 chmod 640 /etc/nginx/snippets/cloud-agents-runtime-auth.conf
+
+if [[ -z "$PUBLIC_DOMAIN" && -f /etc/cloud-agents-runtime.public-domain ]]; then
+  PUBLIC_DOMAIN="$(cat /etc/cloud-agents-runtime.public-domain)"
+  echo "preserving existing PUBLIC_DOMAIN=$PUBLIC_DOMAIN"
+fi
+if [[ -n "$PUBLIC_DOMAIN" ]]; then
+  printf '%s\n' "$PUBLIC_DOMAIN" > /etc/cloud-agents-runtime.public-domain
+  chmod 600 /etc/cloud-agents-runtime.public-domain
+fi
+
 sed "s/__PUBLIC_HOST__/$PUBLIC_HOST/g" \
   "$APP_DIR/deploy/nginx/cloud-agents-runtime.conf.example" \
   > /etc/nginx/conf.d/cloud-agents-runtime.conf
