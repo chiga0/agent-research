@@ -17,26 +17,60 @@ MIN_COVERAGE = 90.0
 
 def main() -> int:
     sys.path.insert(0, str(ROOT))
+    coverage_counts = collect_with_coverage()
+    if coverage_counts is None:
+        coverage_counts = collect_with_trace()
+
+    return report_coverage(coverage_counts)
+
+
+def collect_with_coverage() -> dict[pathlib.Path, set[int]] | None:
+    try:
+        import coverage
+    except ModuleNotFoundError:
+        return None
+
+    cov = coverage.Coverage(source=[str(RUNTIME_ROOT)], concurrency=["thread"])
+    cov.start()
+    result = run_tests()
+    cov.stop()
+    if not result.wasSuccessful():
+        raise SystemExit(1)
+
+    data = cov.get_data()
+    covered = {
+        path.resolve(): set(data.lines(str(path)) or [])
+        for path in executable_lines()
+    }
+    cov.erase()
+    return covered
+
+
+def collect_with_trace() -> dict[pathlib.Path, set[int]]:
     runner = trace.Trace(count=True, trace=False, ignoredirs=[sys.prefix, sys.exec_prefix])
     threading.settrace(runner.globaltrace)
     result = runner.runfunc(run_tests)
     threading.settrace(None)
     if not result.wasSuccessful():
-        return 1
+        raise SystemExit(1)
 
     counts = runner.results().counts
-    executable = executable_lines()
     normalized_counts = {
         (pathlib.Path(filename).resolve(), lineno): count
         for (filename, lineno), count in counts.items()
     }
-    covered = {}
-    for path in executable:
-        covered[path] = {
+    return {
+        path: {
             lineno
             for (filename, lineno), count in normalized_counts.items()
             if filename == path and count
         }
+        for path in executable_lines()
+    }
+
+
+def report_coverage(covered: dict[pathlib.Path, set[int]]) -> int:
+    executable = executable_lines()
     total_lines = sum(len(lines) for lines in executable.values())
     covered_lines = sum(len(executable[path] & covered.get(path, set())) for path in executable)
     percent = (covered_lines / total_lines * 100.0) if total_lines else 100.0

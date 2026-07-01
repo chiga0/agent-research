@@ -25,6 +25,9 @@ jobs:
       - name: Compile runtime
         run: python3 -m compileall -q runtime scripts
 
+      - name: Install coverage tool
+        run: python3 -m pip install "coverage>=7,<8"
+
       - name: Runtime tests with coverage gate
         run: python3 scripts/check_runtime_coverage.py
 
