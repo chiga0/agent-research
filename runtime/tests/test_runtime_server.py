@@ -35,6 +35,8 @@ class RuntimeServerTest(unittest.TestCase):
     def test_fake_run_streams_sse_and_writes_artifacts(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             with running_runtime(artifact_root=Path(tmp)) as base_url:
+                html = request_text(f"{base_url}/")
+                self.assertIn("Cloud Agents Runtime", html)
                 run = request_json(
                     f"{base_url}/runs",
                     method="POST",
@@ -47,6 +49,12 @@ class RuntimeServerTest(unittest.TestCase):
                 run_dir = Path(tmp) / run["run_id"]
                 self.assertTrue((run_dir / "events.jsonl").exists())
                 self.assertTrue((run_dir / "final_1.json").exists())
+                events_json = request_json(f"{base_url}/runs/{run['run_id']}/events.json")
+                self.assertIn("events", events_json)
+                artifacts = request_json(f"{base_url}/runs/{run['run_id']}/artifacts")
+                artifact_names = {artifact["name"] for artifact in artifacts["artifacts"]}
+                self.assertIn("events.jsonl", artifact_names)
+                self.assertIn("diagnostics.json", artifact_names)
 
     def test_sse_reconnect_and_gap_detection(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -252,6 +260,12 @@ def request_json(
         parsed = json.loads(response.read().decode("utf-8"))
         assert isinstance(parsed, dict)
         return parsed
+
+
+def request_text(url: str, headers: dict[str, str] | None = None) -> str:
+    request = urllib.request.Request(url, headers=headers or {})
+    with urllib.request.urlopen(request, timeout=5) as response:
+        return response.read().decode("utf-8")
 
 
 def read_sse(url: str, headers: dict[str, str] | None = None) -> list[dict[str, Any]]:

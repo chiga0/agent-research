@@ -33,6 +33,9 @@ def make_handler(
             if not self.require_auth(path):
                 return
             parts = split_path(path)
+            if path in {"/", "/ui"}:
+                self.write_html(load_index_html())
+                return
             if path == "/health":
                 self.write_json({"ok": True, "version": __version__})
                 return
@@ -51,6 +54,22 @@ def make_handler(
                 return
             if len(parts) == 3 and parts[0] == "runs" and parts[2] == "events":
                 self.stream_events(parts[1])
+                return
+            if len(parts) == 3 and parts[0] == "runs" and parts[2] == "events.json":
+                try:
+                    events = manager.store.events_since(parts[1])
+                except KeyError:
+                    self.write_error(HTTPStatus.NOT_FOUND, "run not found")
+                    return
+                self.write_json({"events": [event.to_dict() for event in events]})
+                return
+            if len(parts) == 3 and parts[0] == "runs" and parts[2] == "artifacts":
+                try:
+                    artifacts = manager.store.list_artifacts(parts[1])
+                except KeyError:
+                    self.write_error(HTTPStatus.NOT_FOUND, "run not found")
+                    return
+                self.write_json({"artifacts": artifacts})
                 return
             self.write_error(HTTPStatus.NOT_FOUND, "not found")
 
@@ -171,6 +190,19 @@ def make_handler(
                 self.send_header(name, value)
             self.end_headers()
             self.wfile.write(body)
+            self.wfile.flush()
+            self.close_connection = True
+
+        def write_html(self, html: str, status: HTTPStatus = HTTPStatus.OK) -> None:
+            body = html.encode("utf-8")
+            self.send_response(status)
+            self.send_header("content-type", "text/html; charset=utf-8")
+            self.send_header("content-length", str(len(body)))
+            self.send_header("cache-control", "no-store")
+            self.end_headers()
+            self.wfile.write(body)
+            self.wfile.flush()
+            self.close_connection = True
 
         def write_error(self, status: HTTPStatus, message: str) -> None:
             self.write_json({"error": message}, status=status)
@@ -201,6 +233,11 @@ def parse_last_event_id(value: str | None) -> int:
         return max(0, int(value))
     except ValueError:
         return 0
+
+
+def load_index_html() -> str:
+    path = Path(__file__).with_name("static") / "index.html"
+    return path.read_text(encoding="utf-8")
 
 
 def build_server(

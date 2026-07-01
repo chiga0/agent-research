@@ -1,0 +1,609 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Cloud Agents Runtime</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #f8fafc;
+      --panel: #ffffff;
+      --text: #111827;
+      --muted: #64748b;
+      --line: #dbe3ee;
+      --brand: #0f766e;
+      --brand-dark: #115e59;
+      --danger: #b91c1c;
+      --warn: #a16207;
+      --ok: #15803d;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
+        "Segoe UI", sans-serif;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-size: 14px;
+      line-height: 1.5;
+    }
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      padding: 16px 24px;
+      border-bottom: 1px solid var(--line);
+      background: var(--panel);
+      position: sticky;
+      top: 0;
+      z-index: 4;
+    }
+    h1, h2, h3 { margin: 0; letter-spacing: 0; }
+    h1 { font-size: 18px; }
+    h2 { font-size: 15px; margin-bottom: 12px; }
+    h3 { font-size: 14px; }
+    main {
+      display: grid;
+      grid-template-columns: minmax(280px, 380px) minmax(0, 1fr);
+      gap: 16px;
+      padding: 16px;
+      max-width: 1480px;
+      margin: 0 auto;
+    }
+    section {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      min-width: 0;
+    }
+    .section-body { padding: 16px; }
+    .stack { display: grid; gap: 16px; align-content: start; }
+    .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+    .toolbar { display: flex; gap: 8px; align-items: center; justify-content: flex-end; }
+    button, select, textarea, input {
+      font: inherit;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      background: #fff;
+      color: var(--text);
+    }
+    button {
+      min-height: 34px;
+      padding: 0 12px;
+      cursor: pointer;
+      font-weight: 600;
+    }
+    button.primary {
+      border-color: var(--brand);
+      background: var(--brand);
+      color: #fff;
+    }
+    button.primary:hover { background: var(--brand-dark); }
+    button:disabled { opacity: 0.55; cursor: not-allowed; }
+    select, input { min-height: 34px; padding: 0 10px; }
+    textarea {
+      width: 100%;
+      min-height: 118px;
+      resize: vertical;
+      padding: 10px;
+    }
+    .status {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      padding: 4px 10px;
+      color: var(--muted);
+      background: #fff;
+      white-space: nowrap;
+    }
+    .dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 999px;
+      background: var(--muted);
+    }
+    .dot.ok { background: var(--ok); }
+    .dot.warn { background: var(--warn); }
+    .dot.bad { background: var(--danger); }
+    .muted { color: var(--muted); }
+    .mono {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 12px;
+    }
+    .runs {
+      display: grid;
+      gap: 8px;
+      max-height: calc(100vh - 330px);
+      overflow: auto;
+    }
+    .run-item {
+      width: 100%;
+      display: grid;
+      gap: 4px;
+      text-align: left;
+      padding: 10px;
+      border: 1px solid var(--line);
+      border-radius: 7px;
+      background: #fff;
+    }
+    .run-item.active {
+      border-color: var(--brand);
+      box-shadow: 0 0 0 2px rgba(15, 118, 110, 0.14);
+    }
+    .run-meta {
+      display: flex;
+      gap: 8px;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .badge {
+      border-radius: 999px;
+      padding: 2px 8px;
+      background: #eef2ff;
+      color: #3730a3;
+      font-size: 12px;
+      white-space: nowrap;
+    }
+    .badge.completed { background: #dcfce7; color: #166534; }
+    .badge.failed, .badge.cancelled { background: #fee2e2; color: #991b1b; }
+    .badge.running, .badge.queued { background: #fef3c7; color: #92400e; }
+    .detail-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+    .metric {
+      border: 1px solid var(--line);
+      border-radius: 7px;
+      padding: 10px;
+      background: #fff;
+      min-width: 0;
+    }
+    .metric div:first-child {
+      color: var(--muted);
+      font-size: 12px;
+      margin-bottom: 4px;
+    }
+    pre {
+      margin: 0;
+      padding: 12px;
+      border-radius: 7px;
+      border: 1px solid var(--line);
+      background: #0f172a;
+      color: #e2e8f0;
+      overflow: auto;
+      max-height: 360px;
+    }
+    .tabs {
+      display: flex;
+      gap: 6px;
+      border-bottom: 1px solid var(--line);
+      padding: 10px 12px 0;
+    }
+    .tab {
+      border-bottom-left-radius: 0;
+      border-bottom-right-radius: 0;
+      background: #f8fafc;
+    }
+    .tab.active {
+      background: #fff;
+      border-bottom-color: #fff;
+      transform: translateY(1px);
+    }
+    .tab-panel { display: none; padding: 16px; }
+    .tab-panel.active { display: block; }
+    .event-list {
+      display: grid;
+      gap: 8px;
+      max-height: 460px;
+      overflow: auto;
+    }
+    .event {
+      border: 1px solid var(--line);
+      border-radius: 7px;
+      padding: 10px;
+      background: #fff;
+    }
+    .event-head {
+      display: flex;
+      justify-content: space-between;
+      gap: 8px;
+      margin-bottom: 6px;
+    }
+    .artifacts {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+      gap: 8px;
+    }
+    .artifact {
+      border: 1px solid var(--line);
+      border-radius: 7px;
+      padding: 10px;
+      background: #fff;
+    }
+    .toast {
+      min-height: 20px;
+      color: var(--danger);
+      margin-top: 8px;
+    }
+    @media (max-width: 880px) {
+      header { align-items: flex-start; flex-direction: column; }
+      main { grid-template-columns: 1fr; }
+      .detail-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .toolbar { justify-content: flex-start; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div>
+      <h1>Cloud Agents Runtime</h1>
+      <div class="muted">SAEU run manager console</div>
+    </div>
+    <div class="toolbar">
+      <span class="status">
+        <span id="healthDot" class="dot"></span>
+        <span id="healthText">Checking</span>
+      </span>
+      <button id="refreshBtn" title="Refresh">Refresh</button>
+    </div>
+  </header>
+  <main>
+    <div class="stack">
+      <section>
+        <div class="section-body">
+          <h2>Create Run</h2>
+          <div class="row" style="margin-bottom: 10px;">
+            <label>Adapter</label>
+            <select id="adapterSelect"></select>
+            <label>Model</label>
+            <input id="modelInput" placeholder="optional">
+          </div>
+          <textarea id="promptInput" placeholder="Describe the task for the agent"></textarea>
+          <div class="row" style="justify-content: space-between; margin-top: 10px;">
+            <span class="muted" id="capabilityText">Loading capabilities</span>
+            <button id="createBtn" class="primary">Create</button>
+          </div>
+          <div id="createError" class="toast"></div>
+        </div>
+      </section>
+      <section>
+        <div class="section-body">
+          <div class="row" style="justify-content: space-between; margin-bottom: 12px;">
+            <h2>Runs</h2>
+            <span class="muted" id="runCount">0 runs</span>
+          </div>
+          <div id="runs" class="runs"></div>
+        </div>
+      </section>
+    </div>
+    <section>
+      <div class="tabs">
+        <button class="tab active" data-tab="overview">Overview</button>
+        <button class="tab" data-tab="events">Events</button>
+        <button class="tab" data-tab="artifacts">Artifacts</button>
+        <button class="tab" data-tab="raw">Raw</button>
+      </div>
+      <div id="overview" class="tab-panel active">
+        <div id="emptyDetail" class="muted">Select or create a run.</div>
+        <div id="detail" style="display: none;">
+          <div class="detail-grid">
+            <div class="metric"><div>Status</div><strong id="dStatus"></strong></div>
+            <div class="metric"><div>Adapter</div><strong id="dAdapter"></strong></div>
+            <div class="metric"><div>Events</div><strong id="dEvents"></strong></div>
+            <div class="metric"><div>Prompts</div><strong id="dPrompts"></strong></div>
+          </div>
+          <div class="row" style="margin-bottom: 12px;">
+            <button id="streamBtn">Stream Events</button>
+            <button id="cancelBtn">Cancel</button>
+            <button id="loadArtifactsBtn">Load Artifacts</button>
+          </div>
+          <h3 style="margin-bottom: 8px;">Prompt</h3>
+          <pre id="dPrompt"></pre>
+        </div>
+      </div>
+      <div id="events" class="tab-panel">
+        <div id="eventsList" class="event-list"></div>
+      </div>
+      <div id="artifacts" class="tab-panel">
+        <div id="artifactsList" class="artifacts"></div>
+      </div>
+      <div id="raw" class="tab-panel">
+        <pre id="rawJson">{}</pre>
+      </div>
+    </section>
+  </main>
+  <script>
+    const state = {
+      runs: [],
+      selected: null,
+      events: [],
+      artifacts: [],
+      source: null
+    };
+
+    const api = async (path, options = {}) => {
+      const response = await fetch(path, {
+        ...options,
+        headers: {
+          "content-type": "application/json",
+          ...(options.headers || {})
+        }
+      });
+      if (!response.ok) {
+        const text = await response.text();
+        throw new Error(text || response.statusText);
+      }
+      return response.json();
+    };
+
+    const fmt = (value) => value ? new Date(value).toLocaleString() : "-";
+    const shortId = (value) => value ? `${value.slice(0, 12)}...` : "-";
+    const terminal = new Set(["completed", "failed", "cancelled"]);
+
+    function setHealth(ok, text) {
+      const dot = document.querySelector("#healthDot");
+      dot.className = `dot ${ok ? "ok" : "bad"}`;
+      document.querySelector("#healthText").textContent = text;
+    }
+
+    async function loadHealth() {
+      try {
+        const health = await api("health");
+        setHealth(Boolean(health.ok), `Healthy ${health.version}`);
+      } catch (error) {
+        setHealth(false, "Unavailable");
+      }
+    }
+
+    async function loadCapabilities() {
+      const capabilities = await api("capabilities");
+      const adapters = Object.keys(capabilities.adapters || {});
+      const select = document.querySelector("#adapterSelect");
+      select.innerHTML = adapters.map((name) => `<option>${name}</option>`).join("");
+      document.querySelector("#capabilityText").textContent =
+        `${adapters.length} adapters: ${adapters.join(", ")}`;
+    }
+
+    async function loadRuns(keepSelection = true) {
+      const payload = await api("runs");
+      state.runs = (payload.runs || []).sort((a, b) =>
+        String(b.created_at).localeCompare(String(a.created_at))
+      );
+      if (!keepSelection || !state.runs.some((run) => run.run_id === state.selected)) {
+        state.selected = state.runs[0]?.run_id || null;
+      }
+      renderRuns();
+      renderDetail();
+    }
+
+    function renderRuns() {
+      document.querySelector("#runCount").textContent = `${state.runs.length} runs`;
+      const container = document.querySelector("#runs");
+      if (!state.runs.length) {
+        container.innerHTML = '<div class="muted">No runs yet.</div>';
+        return;
+      }
+      container.innerHTML = state.runs.map((run) => `
+        <button class="run-item ${run.run_id === state.selected ? "active" : ""}"
+          data-run="${run.run_id}">
+          <div class="run-meta">
+            <strong class="mono">${shortId(run.run_id)}</strong>
+            <span class="badge ${run.status}">${run.status}</span>
+          </div>
+          <div class="muted">${run.spec.adapter} · ${fmt(run.created_at)}</div>
+          <div class="muted">${escapeHtml(run.spec.prompt || "No prompt")}</div>
+        </button>
+      `).join("");
+      container.querySelectorAll("[data-run]").forEach((button) => {
+        button.addEventListener("click", () => selectRun(button.dataset.run));
+      });
+    }
+
+    function selectedRun() {
+      return state.runs.find((run) => run.run_id === state.selected) || null;
+    }
+
+    function renderDetail() {
+      const run = selectedRun();
+      document.querySelector("#emptyDetail").style.display = run ? "none" : "block";
+      document.querySelector("#detail").style.display = run ? "block" : "none";
+      if (!run) {
+        document.querySelector("#rawJson").textContent = "{}";
+        document.querySelector("#eventsList").innerHTML =
+          '<div class="muted">No run selected.</div>';
+        document.querySelector("#artifactsList").innerHTML =
+          '<div class="muted">No run selected.</div>';
+        return;
+      }
+      document.querySelector("#dStatus").textContent = run.status;
+      document.querySelector("#dAdapter").textContent = run.spec.adapter;
+      document.querySelector("#dEvents").textContent = run.event_count;
+      document.querySelector("#dPrompts").textContent = run.prompt_count;
+      document.querySelector("#dPrompt").textContent = run.spec.prompt || "";
+      document.querySelector("#rawJson").textContent = JSON.stringify(run, null, 2);
+      document.querySelector("#cancelBtn").disabled = terminal.has(run.status);
+      renderEvents();
+      renderArtifacts();
+    }
+
+    async function selectRun(runId) {
+      state.selected = runId;
+      state.events = [];
+      state.artifacts = [];
+      closeStream();
+      await loadRunDetail();
+    }
+
+    async function loadRunDetail() {
+      if (!state.selected) return;
+      const run = await api(`runs/${state.selected}`);
+      state.runs = state.runs.map((item) => item.run_id === run.run_id ? run : item);
+      renderRuns();
+      renderDetail();
+      await loadEventsJson();
+    }
+
+    async function createRun() {
+      const error = document.querySelector("#createError");
+      error.textContent = "";
+      const button = document.querySelector("#createBtn");
+      button.disabled = true;
+      try {
+        const payload = {
+          adapter: document.querySelector("#adapterSelect").value || "fake",
+          prompt: document.querySelector("#promptInput").value,
+          model: document.querySelector("#modelInput").value || null
+        };
+        const run = await api("runs", {
+          method: "POST",
+          body: JSON.stringify(payload)
+        });
+        state.selected = run.run_id;
+        document.querySelector("#promptInput").value = "";
+        await loadRuns(true);
+        streamEvents();
+      } catch (err) {
+        error.textContent = err.message;
+      } finally {
+        button.disabled = false;
+      }
+    }
+
+    async function cancelRun() {
+      if (!state.selected) return;
+      await api(`runs/${state.selected}/cancel`, {
+        method: "POST",
+        body: JSON.stringify({ reason: "cancelled from web console" })
+      });
+      await loadRunDetail();
+    }
+
+    async function loadEventsJson() {
+      if (!state.selected) return;
+      const payload = await api(`runs/${state.selected}/events.json`);
+      state.events = payload.events || [];
+      renderEvents();
+    }
+
+    function streamEvents() {
+      if (!state.selected) return;
+      closeStream();
+      state.events = [];
+      renderEvents();
+      const source = new EventSource(`runs/${state.selected}/events`);
+      state.source = source;
+      source.onmessage = appendEvent;
+      [
+        "run.created", "run.started", "input.accepted", "step.started",
+        "message.delta", "step.completed", "run.completed", "run.failed",
+        "run.cancelled", "permission.requested", "permission.resolved",
+        "event.gap_detected"
+      ].forEach((name) => source.addEventListener(name, appendEvent));
+      source.onerror = () => {
+        closeStream();
+        loadRuns(true).catch(() => {});
+      };
+    }
+
+    function appendEvent(message) {
+      const event = JSON.parse(message.data);
+      if (!state.events.some((item) => item.sequence === event.sequence)) {
+        state.events.push(event);
+      }
+      renderEvents();
+      if (["run.completed", "run.failed", "run.cancelled"].includes(event.type)) {
+        closeStream();
+        loadRuns(true).catch(() => {});
+      }
+    }
+
+    function closeStream() {
+      if (state.source) state.source.close();
+      state.source = null;
+    }
+
+    function renderEvents() {
+      const container = document.querySelector("#eventsList");
+      if (!state.events.length) {
+        container.innerHTML = '<div class="muted">No events loaded.</div>';
+        return;
+      }
+      container.innerHTML = state.events.map((event) => `
+        <div class="event">
+          <div class="event-head">
+            <strong>${event.sequence}. ${event.type}</strong>
+            <span class="muted">${fmt(event.created_at)}</span>
+          </div>
+          <pre>${escapeHtml(JSON.stringify(event.data || {}, null, 2))}</pre>
+        </div>
+      `).join("");
+      container.scrollTop = container.scrollHeight;
+    }
+
+    async function loadArtifacts() {
+      if (!state.selected) return;
+      const payload = await api(`runs/${state.selected}/artifacts`);
+      state.artifacts = payload.artifacts || [];
+      renderArtifacts();
+    }
+
+    function renderArtifacts() {
+      const container = document.querySelector("#artifactsList");
+      if (!state.artifacts.length) {
+        container.innerHTML = '<div class="muted">No artifacts loaded.</div>';
+        return;
+      }
+      container.innerHTML = state.artifacts.map((artifact) => `
+        <div class="artifact">
+          <strong class="mono">${escapeHtml(artifact.name)}</strong>
+          <div class="muted">${artifact.size_bytes} bytes</div>
+          <div class="muted">${fmt(artifact.updated_at)}</div>
+        </div>
+      `).join("");
+    }
+
+    function escapeHtml(value) {
+      return String(value)
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;");
+    }
+
+    document.querySelector("#refreshBtn").addEventListener("click", () => refresh());
+    document.querySelector("#createBtn").addEventListener("click", () => createRun());
+    document.querySelector("#streamBtn").addEventListener("click", () => streamEvents());
+    document.querySelector("#cancelBtn").addEventListener("click", () => cancelRun());
+    document.querySelector("#loadArtifactsBtn").addEventListener("click", () => loadArtifacts());
+    document.querySelectorAll(".tab").forEach((button) => {
+      button.addEventListener("click", () => {
+        document.querySelectorAll(".tab").forEach((item) => item.classList.remove("active"));
+        document.querySelectorAll(".tab-panel").forEach((item) => {
+          item.classList.remove("active");
+        });
+        button.classList.add("active");
+        document.querySelector(`#${button.dataset.tab}`).classList.add("active");
+      });
+    });
+
+    async function refresh() {
+      await loadHealth();
+      await loadCapabilities();
+      await loadRuns(true);
+      if (state.selected) await loadEventsJson();
+    }
+
+    refresh().catch((error) => {
+      setHealth(false, "Load failed");
+      document.querySelector("#createError").textContent = error.message;
+    });
+    setInterval(() => loadRuns(true).catch(() => {}), 5000);
+  </script>
+</body>
+</html>

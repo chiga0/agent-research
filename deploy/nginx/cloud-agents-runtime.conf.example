@@ -7,18 +7,12 @@ server {
         return 302 /cloud-agents/;
     }
 
-    location = /cloud-agents/ {
-        auth_basic "Cloud Agents Runtime";
-        auth_basic_user_file /etc/nginx/cloud-agents.htpasswd;
-        default_type text/html;
-        return 200 '<!doctype html><html><head><meta charset="utf-8"><title>Cloud Agents Runtime</title></head><body><h1>Cloud Agents Runtime</h1><ul><li><a href="/cloud-agents/health">health</a></li><li><a href="/cloud-agents/capabilities">capabilities</a></li><li><a href="/cloud-agents/runs">runs</a></li></ul></body></html>';
-    }
-
     location /cloud-agents/ {
         auth_basic "Cloud Agents Runtime";
         auth_basic_user_file /etc/nginx/cloud-agents.htpasswd;
 
         proxy_http_version 1.1;
+        proxy_set_header Connection "";
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
@@ -28,6 +22,7 @@ server {
         proxy_cache off;
         proxy_read_timeout 3600s;
         proxy_send_timeout 3600s;
-        proxy_pass http://127.0.0.1:8765/;
+        rewrite ^/cloud-agents/(.*)$ /$1 break;
+        proxy_pass http://127.0.0.1:8765;
     }
 }

@@ -130,6 +130,26 @@ class RunStore:
             self._require_run(run_id)
             return [event for event in self._events[run_id] if event.sequence > last_sequence]
 
+    def list_artifacts(self, run_id: str) -> list[dict[str, Any]]:
+        with self._lock:
+            self._require_run(run_id)
+            run_dir = self.run_dir(run_id)
+            artifacts: list[dict[str, Any]] = []
+            if not run_dir.exists():
+                return artifacts
+            for path in sorted(run_dir.iterdir()):
+                if not path.is_file():
+                    continue
+                stat = path.stat()
+                artifacts.append(
+                    {
+                        "name": path.name,
+                        "size_bytes": stat.st_size,
+                        "updated_at": utc_now_from_timestamp(stat.st_mtime),
+                    }
+                )
+            return artifacts
+
     def max_sequence(self, run_id: str) -> int:
         with self._lock:
             self._require_run(run_id)
@@ -304,3 +324,9 @@ class RunStore:
             "artifact_dir": str(self.run_dir(run_id)),
         }
         self.write_json(run_id, "diagnostics.json", diagnostics)
+
+
+def utc_now_from_timestamp(timestamp: float) -> str:
+    from datetime import datetime, timezone
+
+    return datetime.fromtimestamp(timestamp, timezone.utc).isoformat(timespec="milliseconds")

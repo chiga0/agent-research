@@ -21,6 +21,9 @@ Postgres when multiple control-plane instances are required.
   decision.
 - `GET /runs/{run_id}` returns current state.
 - `GET /health` and `GET /capabilities` expose runtime status.
+- `GET /` serves the browser management console.
+- `GET /runs/{run_id}/events.json` returns canonical events for UI replay.
+- `GET /runs/{run_id}/artifacts` lists artifact files for the run.
 - Raw run specs, inputs, canonical events, and adapter artifacts are written to
   `runtime/artifacts/`.
 - Canonical events are persisted in `runtime.db` and `events.jsonl`.
@@ -268,3 +271,4 @@ proxy_set_header Authorization "Bearer <RUN_MANAGER_TOKEN>";
 
 The public route is `/cloud-agents/`; API paths are forwarded without that
 prefix, for example `/cloud-agents/health` -> `http://127.0.0.1:8765/health`.
+The same route serves the management console from the runtime root.
