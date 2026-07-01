@@ -935,6 +935,35 @@ class RunManagerTest(unittest.TestCase):
             finally:
                 manager.shutdown()
 
+    def test_reviewer_gate_blocks_preclaimed_queued_task_without_run(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            manager = RunManager(
+                Path(tmp),
+                worker_capacity=0,
+                worker_id="review-gate-paused-worker",
+            )
+            try:
+                mission = manager.create_mission(review_gate_mission_payload("fake"))
+                mission_id = mission["mission_id"]
+                report = manager.store.get_mission_task(mission_id, "report")
+                self.assertIsNotNone(report)
+                report.status = "queued"
+                manager.store.update_mission_task(report)
+
+                manager.missions._block_mission(
+                    mission_id,
+                    {"reason": "blocking race", "blocks": True},
+                )
+                manager.missions._start_task(report)
+
+                blocked = manager.get_mission(mission_id)
+                tasks = {task["task_id"]: task for task in blocked["tasks"]}
+                self.assertEqual(blocked["status"], "blocked")
+                self.assertEqual(tasks["report"]["status"], "blocked")
+                self.assertIsNone(tasks["report"]["run_id"])
+            finally:
+                manager.shutdown()
+
     def test_cancel_mission_cancels_running_and_pending_tasks(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             adapter = HangingAdapter()

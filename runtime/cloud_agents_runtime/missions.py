@@ -298,6 +298,16 @@ class MissionManager:
             return ready
 
     def _start_task(self, task: MissionTask) -> None:
+        current_mission = self.store.get_mission(task.mission_id)
+        current_task = self.store.get_mission_task(task.mission_id, task.task_id)
+        if (
+            current_mission is None
+            or current_mission.status in TERMINAL_MISSION_STATUSES
+            or current_task is None
+            or current_task.status != "queued"
+        ):
+            return
+        task = current_task
         try:
             run_spec = self._run_spec_for_task(task)
             run = self.run_manager.create_run(run_spec)
@@ -455,7 +465,7 @@ class MissionManager:
         if mission is None or mission.status in TERMINAL_MISSION_STATUSES:
             return
         for task in self.store.list_mission_tasks(mission_id):
-            if task.status == "pending":
+            if task.status in {"pending", "queued"} and not task.run_id:
                 task.status = "blocked"
                 task.completed_at = utc_now()
                 task.updated_at = task.completed_at
