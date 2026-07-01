@@ -36,6 +36,11 @@ Postgres when multiple control-plane instances are required.
   without a source receive an empty isolated directory. Remote repo cloning is
   intentionally rejected until credentials, checkout policy, and audit metadata
   are implemented.
+- Each run receives a resolved resource policy before it is queued. The policy is
+  written to `resources.json`, exposed in diagnostics, and emits
+  `resources.resolved`. `timeout_seconds` is enforced by a Run Manager watchdog;
+  CPU, memory, and pids are enforced at the Docker/systemd execution-unit layer
+  in the current P3 slice.
 - `diagnostics.json` is maintained per run.
 - `scripts/replay_run.py` can replay events, SSE frames, or rebuilt state from
   artifacts.
@@ -52,6 +57,10 @@ reverse proxy. Do not expose the Run Manager directly to the public internet.
 ```bash
 export RUN_MANAGER_TOKEN=dev-token
 export RUN_MANAGER_WORKER_CAPACITY=1
+export RUN_MANAGER_DEFAULT_CPUS=1.0
+export RUN_MANAGER_DEFAULT_MEMORY_MB=1024
+export RUN_MANAGER_DEFAULT_PIDS=512
+export RUN_MANAGER_DEFAULT_TIMEOUT_SECONDS=3600
 python3 -m runtime.cloud_agents_runtime \
   --host 127.0.0.1 \
   --port 8765 \
@@ -157,21 +166,22 @@ Acceptance:
 
 - `/health` returns `{"ok": true}`.
 - `/capabilities` lists `fake` and `qwen`.
+- `/capabilities` exposes runtime resource defaults and maximums.
 - `/queue` returns job counts, job leases, and worker heartbeat records.
 - `/workers` returns active worker capacity and heartbeat time.
 - API routes other than `/health` require `Authorization: Bearer ...` when
   `RUN_MANAGER_TOKEN` is set.
 - `POST /runs` returns a `run_id`.
-- SSE emits `run.created`, `workspace.prepared`, `run.queued`, `lease.claimed`,
-  `run.started`, `input.accepted`, `message.delta`, `step.completed`, and
-  `run.completed`.
+- SSE emits `run.created`, `workspace.prepared`, `resources.resolved`,
+  `run.queued`, `lease.claimed`, `run.started`, `input.accepted`,
+  `message.delta`, `step.completed`, and `run.completed`.
 - SSE honors `Last-Event-ID`; if the client asks for an event sequence beyond
   what the store has, the server records and streams `event.gap_detected`.
 - `POST /runs/{run_id}/permissions/{permission_id}` records
   `permission.resolved` in the same audit trail.
 - The run directory contains `run_spec.json`, `events.jsonl`,
-  `raw_events.jsonl`, `input_1.json`, `workspace.json`, `diagnostics.json`, and
-  `final_1.json`.
+  `raw_events.jsonl`, `input_1.json`, `workspace.json`, `resources.json`,
+  `diagnostics.json`, and `final_1.json`.
 - The artifact root contains `runtime.db` with `runs`, `run_events`,
   `raw_events`, `run_jobs`, and `workers`.
 
@@ -234,10 +244,13 @@ The current cloud-runnable slice includes:
   reclamation, and per-worker capacity.
 - Per-run workspace allocation with `workspace.prepared` audit event and
   `workspace.json` artifact.
+- Per-run resource policy with `resources.resolved`, `resources.json`, and a
+  timeout watchdog.
 - Managed `qwen serve` process for one workspace when `QWEN_SERVE_COMMAND` is
   configured.
 - Persistent artifact directory on disk with `runtime.db` and JSONL artifacts.
-- systemd unit and Docker Compose assets.
+- systemd unit and Docker Compose assets with execution-unit CPU/memory/pids
+  limits.
 - CI gates for style, compile, 90%+ runtime coverage, and MkDocs strict build.
 - Validation script for fake/qwen runs and required artifacts.
 
@@ -248,6 +261,9 @@ for the next hardening phase.
 
 ```bash
 export RUN_MANAGER_TOKEN="$(openssl rand -hex 32)"
+export RUNTIME_CPUS=1.0
+export RUNTIME_MEMORY_LIMIT=1g
+export RUNTIME_PIDS_LIMIT=512
 docker compose -f deploy/docker-compose.runtime.yml up -d --build
 python3 scripts/validate_runtime.py \
   --base-url http://127.0.0.1:8765 \

@@ -8,9 +8,11 @@ import time
 import unittest
 from pathlib import Path
 
+from runtime.cloud_agents_runtime.adapters.base import RuntimeAdapter
 from runtime.cloud_agents_runtime.adapters.fake import FakeAdapter
 from runtime.cloud_agents_runtime.manager import RunManager, positive_int
 from runtime.cloud_agents_runtime.models import RunSpec
+from runtime.cloud_agents_runtime.resources import ResourceLimitConfig
 from runtime.cloud_agents_runtime.store import RunStore, utc_now_plus
 
 
@@ -34,15 +36,21 @@ class RunManagerTest(unittest.TestCase):
                 events = manager.store.events_since(run.run_id)
                 self.assertEqual(events[0].type, "run.created")
                 self.assertEqual(events[1].type, "workspace.prepared")
+                self.assertEqual(events[2].type, "resources.resolved")
                 self.assertTrue(any(event.type == "message.delta" for event in events))
                 self.assertTrue((Path(tmp) / run.run_id / "events.jsonl").exists())
                 self.assertTrue((Path(tmp) / run.run_id / "raw_events.jsonl").exists())
                 self.assertTrue((Path(tmp) / run.run_id / "final_1.json").exists())
                 self.assertTrue((Path(tmp) / run.run_id / "workspace.json").exists())
+                self.assertTrue((Path(tmp) / run.run_id / "resources.json").exists())
                 self.assertTrue(Path(current.spec.workspace).is_dir())
                 self.assertEqual(
                     current.spec.metadata["workspace_allocation"]["strategy"],
                     "empty",
+                )
+                self.assertEqual(
+                    current.spec.metadata["resource_policy"]["memory_mb"],
+                    1024,
                 )
             finally:
                 manager.shutdown()
@@ -294,6 +302,107 @@ class RunManagerTest(unittest.TestCase):
             finally:
                 manager.shutdown()
 
+    def test_resource_policy_is_resolved_and_audited(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            manager = RunManager(
+                Path(tmp),
+                worker_capacity=0,
+                worker_id="resource-worker",
+                resource_config=ResourceLimitConfig(
+                    default_cpus=1.0,
+                    max_cpus=2.0,
+                    default_memory_mb=512,
+                    max_memory_mb=1024,
+                    default_pids=128,
+                    max_pids=256,
+                    default_timeout_seconds=60,
+                    max_timeout_seconds=120,
+                ),
+            )
+            try:
+                run = manager.create_run(
+                    RunSpec(
+                        prompt="queued resource run",
+                        adapter="fake",
+                        timeout_seconds=90,
+                        sandbox={
+                            "resources": {
+                                "cpus": "1.5",
+                                "memory": "768m",
+                                "pids": 200,
+                            }
+                        },
+                    )
+                )
+                current = manager.get_run(run.run_id)
+                self.assertIsNotNone(current)
+                self.assertEqual(
+                    current.spec.sandbox["resources"],
+                    {
+                        "cpus": 1.5,
+                        "memory_mb": 768,
+                        "pids": 200,
+                        "timeout_seconds": 90,
+                    },
+                )
+                self.assertEqual(current.spec.timeout_seconds, 90)
+                self.assertEqual(
+                    current.spec.metadata["resource_policy"]["enforcement"][
+                        "timeout_seconds"
+                    ],
+                    "run_manager_watchdog",
+                )
+                self.assertTrue((Path(tmp) / run.run_id / "resources.json").exists())
+                self.assertIn(
+                    "resources.resolved",
+                    [event.type for event in manager.store.events_since(run.run_id)],
+                )
+            finally:
+                manager.shutdown()
+
+    def test_resource_policy_rejects_limits_above_worker_max(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            manager = RunManager(
+                Path(tmp),
+                worker_capacity=0,
+                worker_id="resource-worker",
+                resource_config=ResourceLimitConfig(max_memory_mb=512),
+            )
+            try:
+                with self.assertRaisesRegex(ValueError, "memory_mb exceeds"):
+                    manager.create_run(
+                        RunSpec(
+                            prompt="too much memory",
+                            adapter="fake",
+                            sandbox={"resources": {"memory_mb": 1024}},
+                        )
+                    )
+                self.assertFalse((Path(tmp) / "workspaces").exists())
+            finally:
+                manager.shutdown()
+
+    def test_timeout_watchdog_cancels_hanging_run(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            adapter = HangingAdapter()
+            manager = RunManager(
+                Path(tmp),
+                adapters={"hang": adapter},
+                worker_id="timeout-worker",
+                resource_config=ResourceLimitConfig(
+                    default_timeout_seconds=1,
+                    max_timeout_seconds=1,
+                ),
+            )
+            try:
+                run = manager.create_run(RunSpec(prompt="wait", adapter="hang"))
+                self.wait_for_status(manager, run.run_id, "cancelled")
+                events = [event.type for event in manager.store.events_since(run.run_id)]
+                self.assertIn("resources.timeout", events)
+                self.assertIn("run.cancelled", events)
+                self.assertEqual(adapter.cancelled, [run.run_id])
+            finally:
+                manager.shutdown()
+
     def test_expired_lease_is_recovered_to_queue(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             store = RunStore(Path(tmp))
@@ -357,6 +466,35 @@ class RunManagerTest(unittest.TestCase):
         self.fail(
             f"runs did not reach {first_status}/{second_status}: "
             f"{manager.get_run(first_run_id)} / {manager.get_run(second_run_id)}"
+        )
+
+class HangingAdapter(RuntimeAdapter):
+    name = "hang"
+
+    def __init__(self) -> None:
+        self.cancelled: list[str] = []
+
+    def capabilities(self) -> dict[str, object]:
+        return {"name": self.name}
+
+    def start(self, run, store) -> None:
+        store.set_adapter_run_id(run.run_id, f"hang_{run.run_id}")
+        store.append_event(run.run_id, "run.started", {"adapter": self.name})
+
+    def send_input(self, run, prompt: str, store) -> None:
+        prompt_number = store.increment_prompt_count(run.run_id)
+        store.append_event(
+            run.run_id,
+            "input.accepted",
+            {"prompt_number": prompt_number},
+        )
+
+    def cancel(self, run, reason: str | None, store) -> None:
+        self.cancelled.append(run.run_id)
+        store.append_event(
+            run.run_id,
+            "run.cancelled",
+            {"adapter": self.name, "reason": reason or "cancelled"},
         )
 
 

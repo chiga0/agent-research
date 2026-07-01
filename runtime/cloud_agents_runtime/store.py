@@ -632,6 +632,7 @@ class RunStore:
             "event_count": run.event_count,
             "prompt_count": run.prompt_count,
             "workspace": run.spec.workspace,
+            "resource_policy": run.spec.metadata.get("resource_policy"),
             "artifact_dir": str(self.run_dir(run_id)),
         }
         job = self._jobs.get(run_id)

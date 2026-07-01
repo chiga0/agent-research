@@ -37,6 +37,9 @@ def main(argv: list[str] | None = None) -> int:
     events = client.sse(f"/runs/{run_id}/events", timeout=args.timeout)
     names = [event["event"] for event in events]
     print(f"events: {names}")
+    if "resources.resolved" not in names:
+        print("run did not resolve resources", file=sys.stderr)
+        return 1
     if "run.completed" not in names:
         print("run did not complete", file=sys.stderr)
         return 1
@@ -52,6 +55,7 @@ def main(argv: list[str] | None = None) -> int:
             "input_1.json",
             "diagnostics.json",
             "workspace.json",
+            "resources.json",
         ]
         run_dir = args.artifact_root / run_id
         missing = [name for name in required if not (run_dir / name).exists()]

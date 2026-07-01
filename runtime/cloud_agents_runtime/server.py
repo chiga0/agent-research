@@ -366,6 +366,7 @@ def main(argv: list[str] | None = None) -> int:
     if args.qwen_url:
         print(f"qwen serve: {args.qwen_url}")
     print(f"worker capacity: {server.manager.worker_capacity}")
+    print(f"resource limits: {server.manager.resource_resolver.config.to_dict()}")
     try:
         server.serve_forever()
     except KeyboardInterrupt:

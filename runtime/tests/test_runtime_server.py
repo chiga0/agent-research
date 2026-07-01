@@ -31,6 +31,7 @@ class RuntimeServerTest(unittest.TestCase):
                 headers={"authorization": "Bearer secret"},
             )
             self.assertIn("fake", capabilities["adapters"])
+            self.assertIn("default_cpus", capabilities["resource_limits"])
             queue = request_json(
                 f"{base_url}/queue",
                 headers={"authorization": "Bearer secret"},
@@ -55,11 +56,13 @@ class RuntimeServerTest(unittest.TestCase):
                 events = read_sse(f"{base_url}/runs/{run['run_id']}/events")
                 event_names = [event["event"] for event in events]
                 self.assertIn("run.created", event_names)
+                self.assertIn("resources.resolved", event_names)
                 self.assertIn("run.completed", event_names)
                 run_dir = Path(tmp) / run["run_id"]
                 self.assertTrue((run_dir / "events.jsonl").exists())
                 self.assertTrue((run_dir / "final_1.json").exists())
                 self.assertTrue((run_dir / "workspace.json").exists())
+                self.assertTrue((run_dir / "resources.json").exists())
                 events_json = request_json(f"{base_url}/runs/{run['run_id']}/events.json")
                 self.assertIn("events", events_json)
                 artifacts = request_json(f"{base_url}/runs/{run['run_id']}/artifacts")
@@ -67,6 +70,7 @@ class RuntimeServerTest(unittest.TestCase):
                 self.assertIn("events.jsonl", artifact_names)
                 self.assertIn("diagnostics.json", artifact_names)
                 self.assertIn("workspace.json", artifact_names)
+                self.assertIn("resources.json", artifact_names)
 
     def test_sse_reconnect_and_gap_detection(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

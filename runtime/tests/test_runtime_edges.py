@@ -103,7 +103,7 @@ class RuntimeEdgeTest(unittest.TestCase):
             manager = RunManager(Path(tmp), adapters={"qwen": QwenServeAdapter()})
             try:
                 run = manager.create_run(RunSpec(prompt=None, adapter="qwen"))
-                self.assertEqual(manager.get_run(run.run_id).status, "failed")
+                self.wait_for_status(manager, run.run_id, "failed")
                 manager.send_input(run.run_id, "late prompt")
                 events = [event.type for event in manager.store.events_since(run.run_id)]
                 self.assertIn("adapter.not_configured", events)

@@ -11,6 +11,7 @@ from uuid import uuid4
 from .adapters import FakeAdapter, QwenServeAdapter, RuntimeAdapter
 from .events import RuntimeEvent, TERMINAL_RUN_EVENTS
 from .models import RunSpec, RunState
+from .resources import ResourceLimitConfig, ResourcePolicyResolver
 from .store import RunStore
 from .workspace import WorkspaceAllocator
 
@@ -25,10 +26,12 @@ class RunManager:
         worker_id: str | None = None,
         worker_capacity: int | None = None,
         lease_ttl_seconds: int | None = None,
+        resource_config: ResourceLimitConfig | None = None,
         heartbeat_enabled: bool = False,
     ):
         self.store = RunStore(artifact_root)
         self.workspace_allocator = WorkspaceAllocator(artifact_root)
+        self.resource_resolver = ResourcePolicyResolver(resource_config)
         self.adapters = adapters or {
             "fake": FakeAdapter(),
             "qwen": QwenServeAdapter(base_url=qwen_base_url, token=qwen_token),
@@ -88,7 +91,10 @@ class RunManager:
                 "worker_heartbeat",
                 "worker_capacity",
                 "per_run_workspace",
+                "resource_policy",
+                "run_timeout_watchdog",
             ],
+            "resource_limits": self.resource_resolver.config.to_dict(),
             "queue": self.queue_status(),
             "adapters": {
                 name: adapter.capabilities() for name, adapter in sorted(self.adapters.items())
@@ -98,10 +104,13 @@ class RunManager:
     def create_run(self, spec: RunSpec) -> RunState:
         self._adapter(spec.adapter)
         run_id = f"run_{uuid4().hex}"
+        resource_policy = self.resource_resolver.resolve(spec)
         allocation = self.workspace_allocator.prepare(run_id, spec)
         run = self.store.create_run(spec, run_id=run_id)
         self.store.write_json(run.run_id, "workspace.json", allocation.to_dict())
         self.store.append_event(run.run_id, "workspace.prepared", allocation.to_dict())
+        self.store.write_json(run.run_id, "resources.json", resource_policy.to_dict())
+        self.store.append_event(run.run_id, "resources.resolved", resource_policy.to_dict())
         self.store.enqueue_run(run.run_id)
         self._drain_queue()
         return self.store.get_run(run.run_id) or run
@@ -198,11 +207,47 @@ class RunManager:
         run = self._require_run(run_id)
         if self.store.is_terminal(run_id):
             return
+        self._start_timeout_watchdog(run_id, run.spec.timeout_seconds)
         adapter = self._adapter(run.spec.adapter)
         adapter.start(run, self.store)
         current = self._require_run(run_id)
         if current.spec.prompt and not self.store.is_terminal(run_id):
             adapter.send_input(current, current.spec.prompt, self.store)
+
+    def _start_timeout_watchdog(self, run_id: str, timeout_seconds: int | None) -> None:
+        if not timeout_seconds or timeout_seconds <= 0:
+            return
+        thread = threading.Thread(
+            target=self._timeout_watchdog,
+            args=(run_id, timeout_seconds),
+            name=f"runtime-timeout-{run_id}",
+            daemon=True,
+        )
+        thread.start()
+
+    def _timeout_watchdog(self, run_id: str, timeout_seconds: int) -> None:
+        deadline = time.monotonic() + timeout_seconds
+        while True:
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                break
+            if self._stop.wait(min(1.0, remaining)):
+                return
+            if self.store.is_terminal(run_id):
+                return
+        run = self.store.get_run(run_id)
+        if run is None:
+            return
+        self.store.append_event(
+            run_id,
+            "resources.timeout",
+            {"timeout_seconds": timeout_seconds},
+        )
+        self._adapter(run.spec.adapter).cancel(
+            run,
+            f"resource timeout after {timeout_seconds}s",
+            self.store,
+        )
 
     def _heartbeat_loop(self) -> None:
         interval = max(1.0, min(5.0, self.lease_ttl_seconds / 3))

@@ -20,6 +20,12 @@ NoNewPrivileges=true
 PrivateTmp=true
 ProtectSystem=full
 ReadWritePaths=/var/lib/cloud-agents-runtime
+CPUAccounting=true
+CPUQuota=100%
+MemoryAccounting=true
+MemoryMax=1G
+TasksAccounting=true
+TasksMax=512
 
 [Install]
 WantedBy=multi-user.target

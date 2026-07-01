@@ -539,9 +539,10 @@
       state.source = source;
       source.onmessage = appendEvent;
       [
-        "run.created", "workspace.prepared", "run.started", "input.accepted",
-        "step.started", "message.delta", "step.completed", "run.completed",
-        "run.failed", "run.cancelled", "permission.requested", "permission.resolved",
+        "run.created", "workspace.prepared", "resources.resolved",
+        "resources.timeout", "run.started", "input.accepted", "step.started",
+        "message.delta", "step.completed", "run.completed", "run.failed",
+        "run.cancelled", "permission.requested", "permission.resolved",
         "event.gap_detected", "run.queued", "lease.claimed", "lease.expired",
         "stream.warning"
       ].forEach((name) => source.addEventListener(name, appendEvent));

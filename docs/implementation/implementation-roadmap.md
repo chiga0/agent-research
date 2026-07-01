@@ -159,7 +159,7 @@ P2 当前判断：
 | worker heartbeat | `done` | SQLite `workers` 表、`/queue`、`/workers` 和浏览器控制台可见 worker 状态 |
 | per-worker capacity | `done` | `RUN_MANAGER_WORKER_CAPACITY` / `--worker-capacity` 生效，超容量 run 保持 queued |
 | per-run workspace | `done` | 每个 run 默认分配 `artifact_root/workspaces/<run_id>`；local git source 优先使用 detached worktree |
-| resource limits | `not_started` | CPU/memory/pids 限制生效 |
+| resource limits | `done` | Run Manager 解析并审计 resource policy；timeout watchdog 生效；Docker/systemd 对执行单元施加 CPU/memory/pids cgroup 限制 |
 | cleanup policy | `not_started` | workspace/artifact 按保留策略清理 |
 | 双 VPS worker 模式 | `deferred` | control plane 与 sandbox worker 分离 |
 
@@ -167,17 +167,19 @@ P3 当前实现：
 
 - `POST /runs` 先写入 `run.queued`，由本地 worker 在容量允许时 claim lease。
 - 每个 run 在入队前写入 `workspace.prepared`，并保存 `workspace.json` 和 resolved workspace metadata。
+- 每个 run 在入队前写入 `resources.resolved`，并保存 `resources.json`；`timeout_seconds` 由 Run Manager watchdog 取消超时 run。
 - `lease.claimed`、`lease.expired`、`run.completed` / `run.failed` / `run.cancelled` 都写入同一 canonical event stream。
 - `GET /queue` 返回 job counts、jobs 和 workers；`GET /workers` 返回 worker heartbeat 视图。
 - 浏览器控制台增加 Queue 面板，显示 queued/running/capacity/active 和 worker heartbeat。
 - 单进程 Run Manager 现在可以用 capacity=1 验证排队，用 capacity=2 在单 VPS 上跑 1-2 个 SAEU。
+- Docker Compose 和 systemd 部署默认把整个执行单元限制在 1 CPU / 1G memory / 512 tasks/pids。
 
 P3 剩余风险：
 
 - 当前 worker 仍在 Run Manager 进程内，跨 VPS worker 需要把 claim/heartbeat 迁移到远程 worker loop。
 - 远程 repo clone/credential policy 尚未接入，当前会显式拒绝而不是静默创建空 workspace。
 - qwen adapter 仍连接一个 `qwen serve` endpoint；强隔离 qwen 并发需要 per-workspace daemon registry 或容器 worker。
-- 当前 resource limit 仍是部署层要求，尚未由 Run Manager 自动下发 cgroup/Docker 限制。
+- CPU/memory/pids 当前是执行单元级限制；严格的 per-run cgroup/Docker 限制需要引入容器 worker。
 
 ## P4：Supervisor + Profile + SAEU 编排
 
