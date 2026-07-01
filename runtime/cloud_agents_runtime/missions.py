@@ -6,12 +6,18 @@ from typing import TYPE_CHECKING, Any
 
 from .events import RuntimeEvent, utc_now
 from .models import AgentProfile, MissionSpec, MissionTask, RunSpec, clean_identifier
+from .review_gate import (
+    ReviewGate,
+    is_review_gate_task,
+    load_review_gate,
+    review_gate_artifact_name,
+)
 
 if TYPE_CHECKING:
     from .manager import RunManager
 
 
-TERMINAL_MISSION_STATUSES = {"completed", "failed", "cancelled"}
+TERMINAL_MISSION_STATUSES = {"completed", "failed", "cancelled", "blocked"}
 TERMINAL_TASK_STATUSES = {"completed", "failed", "cancelled", "blocked"}
 
 
@@ -237,6 +243,7 @@ class MissionManager:
         if next_status == "running" and not task.started_at:
             task.started_at = task.updated_at
         if next_status in TERMINAL_TASK_STATUSES:
+            previous_gate = task.result.get("review_gate")
             task.completed_at = task.updated_at
             task.result = {
                 "run_id": run.run_id,
@@ -244,6 +251,8 @@ class MissionManager:
                 "artifacts": self.store.list_artifacts(run.run_id),
                 "final_event": event.to_dict() if event else None,
             }
+            if isinstance(previous_gate, dict):
+                task.result["review_gate"] = previous_gate
         self.store.update_mission_task(task)
         if previous_status != next_status:
             self.store.append_mission_event(
@@ -254,7 +263,9 @@ class MissionManager:
         self._write_task_artifact(task)
 
         if next_status == "completed":
-            self.drain_mission(task.mission_id)
+            gate_blocked = self._evaluate_review_gate_if_needed(task, run.run_id)
+            if not gate_blocked:
+                self.drain_mission(task.mission_id)
         elif next_status in {"failed", "cancelled"}:
             self._finish_mission(
                 task.mission_id,
@@ -370,6 +381,41 @@ class MissionManager:
             )
         return refs
 
+    def _evaluate_review_gate_if_needed(self, task: MissionTask, run_id: str) -> bool:
+        if not is_review_gate_task(task.profile_snapshot):
+            return False
+        existing = task.result.get("review_gate")
+        if isinstance(existing, dict):
+            if existing.get("blocks"):
+                self._block_mission(task.mission_id, existing)
+                return True
+            return False
+
+        artifact_name = review_gate_artifact_name(task.profile_snapshot)
+        gate = load_review_gate(self.store.run_dir(run_id), artifact_name)
+        gate_data = gate.to_dict()
+        task.result = {**task.result, "review_gate": gate_data}
+        task.updated_at = utc_now()
+        self.store.update_mission_task(task)
+        self._write_task_artifact(task)
+        self.store.write_mission_json(task.mission_id, "review_gate.json", gate_data)
+
+        event_type = review_gate_event_type(gate)
+        self.store.append_mission_event(
+            task.mission_id,
+            event_type,
+            {
+                "task_id": task.task_id,
+                "run_id": run_id,
+                "gate": gate_data,
+            },
+        )
+        if gate.blocks:
+            self._block_mission(task.mission_id, gate_data)
+            return True
+        self._write_manifest(task.mission_id)
+        return False
+
     def _complete_if_done(self, mission_id: str) -> None:
         mission = self.store.get_mission(mission_id)
         if mission is None or mission.status in TERMINAL_MISSION_STATUSES:
@@ -404,6 +450,30 @@ class MissionManager:
         self.store.append_mission_event(mission_id, terminal, {"reason": reason})
         self._write_manifest(mission_id)
 
+    def _block_mission(self, mission_id: str, gate: dict[str, Any]) -> None:
+        mission = self.store.get_mission(mission_id)
+        if mission is None or mission.status in TERMINAL_MISSION_STATUSES:
+            return
+        for task in self.store.list_mission_tasks(mission_id):
+            if task.status == "pending":
+                task.status = "blocked"
+                task.completed_at = utc_now()
+                task.updated_at = task.completed_at
+                task.result = {"reason": gate.get("reason"), "review_gate": gate}
+                self.store.update_mission_task(task)
+                self.store.append_mission_event(
+                    mission_id,
+                    "task.blocked",
+                    {"task_id": task.task_id, "reason": gate.get("reason")},
+                )
+        self._write_final_report(mission_id)
+        self.store.append_mission_event(
+            mission_id,
+            "mission.blocked",
+            {"reason": gate.get("reason"), "gate": gate},
+        )
+        self._write_manifest(mission_id)
+
     def _write_task_artifact(self, task: MissionTask) -> None:
         self.store.write_mission_json(
             task.mission_id,
@@ -423,6 +493,11 @@ class MissionManager:
         if mission is None:
             return
         tasks = self.store.list_mission_tasks(mission_id)
+        gate_summaries = [
+            task.result["review_gate"]
+            for task in tasks
+            if isinstance(task.result.get("review_gate"), dict)
+        ]
         lines = [
             f"# Mission Report: {mission.mission_id}",
             "",
@@ -442,6 +517,17 @@ class MissionManager:
                 f"{task.task_id} | {task.profile_id} | {task.status} | "
                 f"{task.run_id or '-'} | {', '.join(artifact_names) or '-'} |"
             )
+        if gate_summaries:
+            lines.extend(["", "## Review Gate", ""])
+            for gate in gate_summaries:
+                lines.append(
+                    "- "
+                    f"decision={gate.get('decision')}, "
+                    f"effective={gate.get('effective_decision')}, "
+                    f"severity={gate.get('severity')}, "
+                    f"blocks={gate.get('blocks')}, "
+                    f"reason={gate.get('reason')}"
+                )
         lines.extend(
             [
                 "",
@@ -564,3 +650,13 @@ def run_status_to_task_status(status: str) -> str | None:
     if status in {"queued", "running", "completed", "failed", "cancelled"}:
         return status
     return None
+
+
+def review_gate_event_type(gate: ReviewGate) -> str:
+    if gate.effective_decision == "pass":
+        return "review.gate_passed"
+    if gate.effective_decision == "warn":
+        return "review.gate_warned"
+    if gate.effective_decision == "block":
+        return "review.gate_blocked"
+    return "review.gate_needs_human"

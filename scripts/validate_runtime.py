@@ -120,9 +120,17 @@ def validate_mission(client: "Client", args: argparse.Namespace) -> bool:
     print(f"mission events: {names}")
     if "mission.completed" not in names:
         return False
+    if "review.gate_passed" not in names:
+        print("mission did not evaluate reviewer gate", file=sys.stderr)
+        return False
     if args.artifact_root:
         mission_dir = args.artifact_root / "missions" / mission_id
-        for name in ["mission_manifest.json", "events.jsonl", "final_report.md"]:
+        for name in [
+            "mission_manifest.json",
+            "events.jsonl",
+            "review_gate.json",
+            "final_report.md",
+        ]:
             if not (mission_dir / name).exists():
                 print(f"missing mission artifact: {name}", file=sys.stderr)
                 return False

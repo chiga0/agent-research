@@ -112,6 +112,7 @@ class RunManager:
                 "mission_task_dag",
                 "mission_supervisor",
                 "artifact_handoff",
+                "reviewer_gate",
                 "mission_final_report",
             ],
             "resource_limits": self.resource_resolver.config.to_dict(),

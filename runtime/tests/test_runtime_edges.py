@@ -26,6 +26,7 @@ from runtime.cloud_agents_runtime.auth import AuthConfig, is_authorized
 from runtime.cloud_agents_runtime.manager import RunManager
 from runtime.cloud_agents_runtime.missions import build_task_definitions, run_status_to_task_status
 from runtime.cloud_agents_runtime.models import MissionSpec, RunSpec, clean_identifier
+from runtime.cloud_agents_runtime.review_gate import parse_review_gate
 from runtime.cloud_agents_runtime.server import parse_last_event_id, parse_optional_int
 from runtime.cloud_agents_runtime.store import RunStore
 from runtime.cloud_agents_runtime.supervisor import QwenServeProcess, qwen_supervisor_from_env
@@ -189,6 +190,51 @@ class RuntimeEdgeTest(unittest.TestCase):
                 )
             )
         self.assertIsNone(run_status_to_task_status("created"))
+
+    def test_review_gate_parser_is_conservative(self) -> None:
+        gate = parse_review_gate(
+            {
+                "decision": "pass",
+                "severity": "low",
+                "findings": [
+                    {
+                        "id": "sec",
+                        "severity": "critical",
+                        "message": "critical finding",
+                    }
+                ],
+            }
+        )
+        self.assertTrue(gate.blocks)
+        self.assertEqual(gate.effective_decision, "block")
+        self.assertEqual(gate.severity, "critical")
+
+        invalid_decision = parse_review_gate({"decision": "maybe"})
+        self.assertTrue(invalid_decision.blocks)
+        self.assertFalse(invalid_decision.valid)
+        self.assertEqual(invalid_decision.effective_decision, "needs_human")
+
+        invalid_finding = parse_review_gate(
+            {"decision": "warn", "findings": [{"severity": "low"}]}
+        )
+        self.assertTrue(invalid_finding.blocks)
+        self.assertIn("finding 1", invalid_finding.error)
+
+        invalid_evidence = parse_review_gate(
+            {
+                "decision": "warn",
+                "findings": [
+                    {
+                        "id": "audit-001",
+                        "severity": "low",
+                        "message": "evidence must be structured",
+                        "evidence": ["not", "an", "object"],
+                    }
+                ],
+            }
+        )
+        self.assertTrue(invalid_evidence.blocks)
+        self.assertFalse(invalid_evidence.valid)
 
     def test_qwen_not_configured_and_inactive_input(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

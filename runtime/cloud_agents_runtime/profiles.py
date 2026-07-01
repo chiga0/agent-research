@@ -60,7 +60,10 @@ BUILTIN_PROFILE_PAYLOADS: list[dict[str, Any]] = [
         "approval": {"mode": "ask", "required_for": ["shell", "network"]},
         "limits": {"max_turns": 25, "timeout_seconds": 2400, "max_parallel_instances": 2},
         "workspace": {"strategy": "shared_readonly", "write_scope": "none"},
-        "artifacts": {"required": ["review-findings.md"]},
+        "artifacts": {
+            "required": ["review-findings.md", "review_gate.json"],
+            "gate": {"type": "reviewer", "artifact": "review_gate.json"},
+        },
     },
     {
         "id": "doc-writer",

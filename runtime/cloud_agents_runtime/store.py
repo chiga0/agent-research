@@ -207,6 +207,8 @@ class RunStore:
                 mission.status = "failed"
             elif event_type == "mission.cancelled":
                 mission.status = "cancelled"
+            elif event_type == "mission.blocked":
+                mission.status = "blocked"
             events = self._mission_events.setdefault(mission_id, [])
             event = MissionEvent(
                 type=event_type,

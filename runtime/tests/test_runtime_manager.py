@@ -798,6 +798,143 @@ class RunManagerTest(unittest.TestCase):
             finally:
                 manager.shutdown()
 
+    def test_reviewer_gate_blocks_downstream_report_on_high_findings(self) -> None:
+        gate_payload = {
+            "decision": "block",
+            "severity": "high",
+            "reason": "security regression risk",
+            "findings": [
+                {
+                    "id": "sec-001",
+                    "severity": "high",
+                    "category": "security",
+                    "message": "host secret exposure risk",
+                }
+            ],
+        }
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            manager = RunManager(
+                root,
+                adapters={"gate": GateAdapter(gate_payload)},
+                worker_capacity=2,
+                worker_id="review-gate-worker",
+            )
+            try:
+                mission = manager.create_mission(review_gate_mission_payload("gate"))
+                mission_id = mission["mission_id"]
+                self.wait_for_mission_status(manager, mission_id, "blocked", timeout=5)
+
+                blocked = manager.get_mission(mission_id)
+                tasks = {task["task_id"]: task for task in blocked["tasks"]}
+                self.assertEqual(tasks["plan"]["status"], "completed")
+                self.assertEqual(tasks["review"]["status"], "completed")
+                self.assertEqual(tasks["report"]["status"], "blocked")
+                self.assertIsNone(tasks["report"]["run_id"])
+                self.assertTrue(tasks["review"]["result"]["review_gate"]["blocks"])
+                self.assertEqual(
+                    tasks["review"]["result"]["review_gate"]["effective_decision"],
+                    "block",
+                )
+
+                names = [
+                    event.type
+                    for event in manager.store.mission_events_since(mission_id)
+                ]
+                self.assertIn("review.gate_blocked", names)
+                self.assertIn("mission.blocked", names)
+                artifacts = {
+                    artifact["name"]
+                    for artifact in manager.store.list_mission_artifacts(mission_id)
+                }
+                self.assertIn("review_gate.json", artifacts)
+                self.assertIn("final_report.md", artifacts)
+            finally:
+                manager.shutdown()
+
+    def test_reviewer_gate_warning_allows_downstream_report(self) -> None:
+        gate_payload = {
+            "decision": "warn",
+            "severity": "medium",
+            "reason": "minor test coverage note",
+            "findings": [
+                {
+                    "id": "test-001",
+                    "severity": "medium",
+                    "category": "tests",
+                    "message": "consider adding an edge case",
+                }
+            ],
+        }
+        with tempfile.TemporaryDirectory() as tmp:
+            manager = RunManager(
+                Path(tmp),
+                adapters={"gate": GateAdapter(gate_payload)},
+                worker_capacity=2,
+                worker_id="review-gate-worker",
+            )
+            try:
+                mission = manager.create_mission(review_gate_mission_payload("gate"))
+                mission_id = mission["mission_id"]
+                self.wait_for_mission_status(manager, mission_id, "completed", timeout=5)
+
+                completed = manager.get_mission(mission_id)
+                tasks = {task["task_id"]: task for task in completed["tasks"]}
+                self.assertEqual(tasks["report"]["status"], "completed")
+                self.assertIsNotNone(tasks["report"]["run_id"])
+                self.assertFalse(tasks["review"]["result"]["review_gate"]["blocks"])
+                names = [
+                    event.type
+                    for event in manager.store.mission_events_since(mission_id)
+                ]
+                self.assertIn("review.gate_warned", names)
+                self.assertIn("mission.completed", names)
+
+                review_run_id = tasks["review"]["run_id"]
+                self.assertIsInstance(review_run_id, str)
+                manager.missions.sync_task_from_run(review_run_id, None)
+                replayed = [
+                    event.type
+                    for event in manager.store.mission_events_since(mission_id)
+                ]
+                self.assertEqual(replayed.count("review.gate_warned"), 1)
+                replayed_review = next(
+                    task
+                    for task in manager.get_mission(mission_id)["tasks"]
+                    if task["task_id"] == "review"
+                )
+                self.assertIn("review_gate", replayed_review["result"])
+            finally:
+                manager.shutdown()
+
+    def test_missing_reviewer_gate_requires_human_and_blocks(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            manager = RunManager(
+                Path(tmp),
+                adapters={"gate": GateAdapter(gate_payload=None)},
+                worker_capacity=2,
+                worker_id="review-gate-worker",
+            )
+            try:
+                mission = manager.create_mission(review_gate_mission_payload("gate"))
+                mission_id = mission["mission_id"]
+                self.wait_for_mission_status(manager, mission_id, "blocked", timeout=5)
+
+                blocked = manager.get_mission(mission_id)
+                review = next(task for task in blocked["tasks"] if task["task_id"] == "review")
+                gate = review["result"]["review_gate"]
+                self.assertEqual(gate["effective_decision"], "needs_human")
+                self.assertFalse(gate["valid"])
+                self.assertIn("missing required", gate["error"])
+                names = [
+                    event.type
+                    for event in manager.store.mission_events_since(mission_id)
+                ]
+                self.assertIn("review.gate_needs_human", names)
+                self.assertIn("mission.blocked", names)
+            finally:
+                manager.shutdown()
+
     def test_cancel_mission_cancels_running_and_pending_tasks(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             adapter = HangingAdapter()
@@ -938,6 +1075,68 @@ class RunManagerTest(unittest.TestCase):
             f"runs did not reach {first_status}/{second_status}: "
             f"{manager.get_run(first_run_id)} / {manager.get_run(second_run_id)}"
         )
+
+
+def review_gate_mission_payload(adapter: str) -> dict[str, object]:
+    return {
+        "goal": "exercise reviewer gate",
+        "strategy": "custom",
+        "adapter": adapter,
+        "tasks": [
+            {"id": "plan", "profile": "planner", "prompt": "plan"},
+            {
+                "id": "review",
+                "profile": "reviewer",
+                "depends_on": ["plan"],
+                "prompt": "review",
+            },
+            {
+                "id": "report",
+                "profile": "doc-writer",
+                "depends_on": ["review"],
+                "prompt": "report",
+            },
+        ],
+    }
+
+
+class GateAdapter(RuntimeAdapter):
+    name = "gate"
+
+    def __init__(self, gate_payload: dict[str, object] | None):
+        self.gate_payload = gate_payload
+
+    def capabilities(self) -> dict[str, object]:
+        return {"name": self.name}
+
+    def start(self, run, store) -> None:
+        store.set_adapter_run_id(run.run_id, f"gate_{run.run_id}")
+        store.append_event(run.run_id, "run.started", {"adapter": self.name})
+
+    def send_input(self, run, prompt: str, store) -> None:
+        prompt_number = store.increment_prompt_count(run.run_id)
+        store.append_event(
+            run.run_id,
+            "input.accepted",
+            {"prompt_number": prompt_number},
+        )
+        profile = run.spec.metadata.get("profile_snapshot")
+        if (
+            isinstance(profile, dict)
+            and profile.get("id") == "reviewer"
+            and self.gate_payload is not None
+        ):
+            store.write_json(run.run_id, "review_gate.json", self.gate_payload)
+        store.write_json(
+            run.run_id,
+            f"final_{prompt_number}.json",
+            {"prompt_number": prompt_number, "text": prompt},
+        )
+        store.append_event(run.run_id, "run.completed", {"prompt_number": prompt_number})
+
+    def cancel(self, run, reason: str | None, store) -> None:
+        store.append_event(run.run_id, "run.cancelled", {"reason": reason or "cancelled"})
+
 
 class HangingAdapter(RuntimeAdapter):
     name = "hang"

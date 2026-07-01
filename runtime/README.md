@@ -49,9 +49,14 @@ Postgres when multiple control-plane instances are required.
 - Built-in profiles currently include `planner`, `coder`, `tester`, `reviewer`,
   and `doc-writer`. Each task stores a resolved profile snapshot before its run
   starts, so later profile edits do not change historical audit meaning.
+- The built-in `reviewer` profile is reviewer-gate enabled. A reviewer run must
+  publish `review_gate.json`; the supervisor records `review.gate_*` events and
+  blocks the mission on `block`, `needs_human`, invalid/missing gate artifacts,
+  or high/critical findings.
 - Mission artifacts are written to `runtime/artifacts/missions/<mission_id>/`.
   They include `mission_spec.json`, `mission_manifest.json`, `events.jsonl`,
-  `task_<task_id>.json`, and `final_report.md`.
+  `task_<task_id>.json`, `review_gate.json` when a reviewer gate runs, and
+  `final_report.md`.
 - Each run receives a resolved workspace before it is queued. Local git sources
   use a detached worktree under `artifact_root/workspaces/<run_id>`; runs
   without a source receive an empty isolated directory. Remote repo cloning is
@@ -200,6 +205,31 @@ curl -s http://127.0.0.1:8765/missions/<mission_id>/events.json \
   -H "authorization: Bearer $RUN_MANAGER_TOKEN"
 ```
 
+Reviewer gate artifact schema:
+
+```json
+{
+  "decision": "pass",
+  "severity": "none",
+  "reason": "review passed",
+  "findings": [
+    {
+      "id": "finding-001",
+      "severity": "low",
+      "category": "tests",
+      "message": "optional follow-up",
+      "evidence": {}
+    }
+  ]
+}
+```
+
+Allowed decisions are `pass`, `warn`, `block`, and `needs_human`. Allowed
+severities are `none`, `low`, `medium`, `high`, and `critical`. A high or
+critical finding blocks the mission even if the decision says `pass` or `warn`.
+Missing or invalid `review_gate.json` is treated as `needs_human` and blocks
+downstream tasks.
+
 ## Test
 
 ```bash
@@ -261,6 +291,10 @@ Acceptance:
   `mission_tasks`, and `mission_events`.
 - A completed mission directory contains `mission_manifest.json`,
   `events.jsonl`, task JSON files, and `final_report.md`.
+- A reviewer-gated mission emits one of `review.gate_passed`,
+  `review.gate_warned`, `review.gate_blocked`, or
+  `review.gate_needs_human`. Blocked reviewer gates set mission status to
+  `blocked` and prevent downstream pending tasks from starting.
 
 ## Validate qwen adapter
 
@@ -332,6 +366,8 @@ The current cloud-runnable slice includes:
 - Mission supervisor that maps `mission -> task -> profile -> SAEU run`,
   supports sequential and fan-out/fan-in DAGs, artifact reference handoff, and a
   final report artifact.
+- Reviewer gate enforcement through structured `review_gate.json` artifacts,
+  mission-level gate events, and automatic blocked mission status.
 - Managed `qwen serve` process for one workspace when `QWEN_SERVE_COMMAND` is
   configured.
 - Persistent artifact directory on disk with `runtime.db` and JSONL artifacts.
@@ -349,8 +385,8 @@ P4 limits in this MVP:
 
 - The supervisor is a deterministic in-process controller, not yet a long-lived
   Project Agent with its own memory model.
-- Reviewer gate records reviewer output as a task artifact, but automatic
-  high-risk finding detection and merge blocking are not implemented yet.
+- Reviewer gate is schema-based; it does not infer risk from free-form markdown
+  findings. Real qwen reviewer runs must write `review_gate.json`.
 - Artifact handoff passes stable artifact references into child run prompts; it
   does not copy sibling workspaces or expose uncontrolled shared memory.
 

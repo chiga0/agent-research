@@ -300,9 +300,36 @@ qwen serve 已有：
 ### P4 剩余风险
 
 - Supervisor 仍是规则控制器，不是长期 Project Agent；长期 memory、目标管理和人机协作需要后续设计。
-- Reviewer gate 尚未解析 reviewer artifact 中的高风险 finding，也不会自动阻塞 merge。
+- Reviewer gate 已支持结构化 JSON 阻塞；人工 override 和 merge/deploy gate 尚未实现。
 - Artifact handoff 只传 artifact 引用，不做 patch merge、diff conflict 解决或 artifact 内容内联。
 - qwen 多 workspace 强隔离仍需 per-workspace daemon registry 或容器 worker；当前 mission 多 task 可以用 fake 完整验收，qwen 真实多 task 要等部署密钥恢复后再跑。
+
+## 2026-07-01 P4.1 Reviewer Gate 实施审计
+
+### 已落地能力
+
+- 内置 `reviewer` profile 要求 `review_gate.json`，并标记 `artifacts.gate.type=reviewer`。
+- 新增 reviewer gate schema：`decision`、`severity`、`reason`、`findings`。
+- 支持 `pass`、`warn`、`block`、`needs_human` 四种 decision。
+- 高/严重 finding 会把 `pass` 或 `warn` 保守提升为 `block`。
+- 缺失或非法 `review_gate.json` 会进入 `needs_human`，并阻塞下游 pending task。
+- Mission Supervisor 产出 `review.gate_passed`、`review.gate_warned`、`review.gate_blocked`、`review.gate_needs_human` 事件。
+- gate 阻塞时 mission 状态为 `blocked`，并写入 mission 级 `review_gate.json` 和 `final_report.md`。
+- fake adapter 会为 reviewer task 生成 pass gate，保证本地 P4/P4.1 smoke 可重复验证。
+
+### 多轮审计结论
+
+- 正向审计：warn gate 允许下游 report task 继续，mission 最终 `completed`。
+- 反向审计：block/high finding 会阻塞 report task，mission 进入 `blocked`。
+- 保守审计：缺失 gate artifact 被判定为 `needs_human`，不会静默放行。
+- schema 审计：非法 decision、非法 finding、未知 severity 都不会降低风险等级。
+- 恢复审计：gate 结果写入 task result、mission event、mission artifact；重启后不会重复评估已写入的 gate。
+
+### P4.1 剩余风险
+
+- 当前 gate 只解析结构化 JSON，不从自由文本 `review-findings.md` 推断风险。
+- 人工 override、审批超时、merge/deploy gate 尚未实现。
+- qwen reviewer 必须按提示写出 `review_gate.json`；否则 mission 会保守阻塞为 `needs_human`。
 
 ## Go / No-Go 决策
 
