@@ -14,6 +14,7 @@ REPO_URL="${REPO_URL:-https://github.com/chiga0/agent-research.git}"
 NODE_PACKAGE="${NODE_PACKAGE:-@qwen-code/qwen-code@0.19.3}"
 QWEN_SETTINGS_FILE="${QWEN_SETTINGS_FILE:-}"
 PUBLIC_HOST="${PUBLIC_HOST:-_}"
+PUBLIC_DOMAIN="${PUBLIC_DOMAIN:-}"
 BASIC_AUTH_USER="${BASIC_AUTH_USER:-cloudagents}"
 BASIC_AUTH_PASSWORD="${BASIC_AUTH_PASSWORD:-$(openssl rand -base64 18 | tr -d '=+/' | cut -c1-18)}"
 RUN_MANAGER_DEFAULT_CPUS="${RUN_MANAGER_DEFAULT_CPUS:-1.0}"
@@ -30,6 +31,8 @@ RUN_MANAGER_CLEANUP_ENABLED="${RUN_MANAGER_CLEANUP_ENABLED:-1}"
 RUN_MANAGER_WORKSPACE_RETENTION_SECONDS="${RUN_MANAGER_WORKSPACE_RETENTION_SECONDS:-604800}"
 RUN_MANAGER_ARTIFACT_RETENTION_SECONDS="${RUN_MANAGER_ARTIFACT_RETENTION_SECONDS:-2592000}"
 RUN_MANAGER_CLEANUP_INTERVAL_SECONDS="${RUN_MANAGER_CLEANUP_INTERVAL_SECONDS:-3600}"
+RUN_MANAGER_PERMISSION_STALL_SECONDS="${RUN_MANAGER_PERMISSION_STALL_SECONDS:-300}"
+RUN_MANAGER_PERMISSION_STALL_ACTION="${RUN_MANAGER_PERMISSION_STALL_ACTION:-audit}"
 RUNTIME_CPU_QUOTA="${RUNTIME_CPU_QUOTA:-100%}"
 RUNTIME_MEMORY_MAX="${RUNTIME_MEMORY_MAX:-1G}"
 RUNTIME_TASKS_MAX="${RUNTIME_TASKS_MAX:-512}"
@@ -38,6 +41,13 @@ DEPLOY_RUNTIME_PRINT_SECRETS="${DEPLOY_RUNTIME_PRINT_SECRETS:-1}"
 case "$PUBLIC_HOST" in
   *[!A-Za-z0-9._-]*)
     echo "PUBLIC_HOST may only contain letters, numbers, dots, underscores, or hyphens" >&2
+    exit 2
+    ;;
+esac
+
+case "$PUBLIC_DOMAIN" in
+  *[!A-Za-z0-9._-]*)
+    echo "PUBLIC_DOMAIN may only contain letters, numbers, dots, underscores, or hyphens" >&2
     exit 2
     ;;
 esac
@@ -75,6 +85,7 @@ REMOTE_ENV=(
   "NODE_PACKAGE=$(shell_quote "$NODE_PACKAGE")"
   "HAS_QWEN_SETTINGS=$(shell_quote "$([[ -n "$QWEN_SETTINGS_FILE" ]] && echo 1 || echo 0)")"
   "PUBLIC_HOST=$(shell_quote "$PUBLIC_HOST")"
+  "PUBLIC_DOMAIN=$(shell_quote "$PUBLIC_DOMAIN")"
   "BASIC_AUTH_USER=$(shell_quote "$BASIC_AUTH_USER")"
   "BASIC_AUTH_PASSWORD=$(shell_quote "$BASIC_AUTH_PASSWORD")"
   "RUN_MANAGER_DEFAULT_CPUS=$(shell_quote "$RUN_MANAGER_DEFAULT_CPUS")"
@@ -99,6 +110,12 @@ append_remote_env \
 append_remote_env \
   RUN_MANAGER_CLEANUP_INTERVAL_SECONDS \
   "$RUN_MANAGER_CLEANUP_INTERVAL_SECONDS"
+append_remote_env \
+  RUN_MANAGER_PERMISSION_STALL_SECONDS \
+  "$RUN_MANAGER_PERMISSION_STALL_SECONDS"
+append_remote_env \
+  RUN_MANAGER_PERMISSION_STALL_ACTION \
+  "$RUN_MANAGER_PERMISSION_STALL_ACTION"
 append_remote_env DEPLOY_RUNTIME_PRINT_SECRETS "$DEPLOY_RUNTIME_PRINT_SECRETS"
 
 ssh_cmd "${REMOTE_ENV[*]} bash -s" <<'REMOTE'
@@ -157,6 +174,8 @@ RUN_MANAGER_CLEANUP_ENABLED=$RUN_MANAGER_CLEANUP_ENABLED
 RUN_MANAGER_WORKSPACE_RETENTION_SECONDS=$RUN_MANAGER_WORKSPACE_RETENTION_SECONDS
 RUN_MANAGER_ARTIFACT_RETENTION_SECONDS=$RUN_MANAGER_ARTIFACT_RETENTION_SECONDS
 RUN_MANAGER_CLEANUP_INTERVAL_SECONDS=$RUN_MANAGER_CLEANUP_INTERVAL_SECONDS
+RUN_MANAGER_PERMISSION_STALL_SECONDS=$RUN_MANAGER_PERMISSION_STALL_SECONDS
+RUN_MANAGER_PERMISSION_STALL_ACTION=$RUN_MANAGER_PERMISSION_STALL_ACTION
 QWEN_SERVER_TOKEN=$QWEN_SERVER_TOKEN
 QWEN_SERVE_URL=http://127.0.0.1:4170
 QWEN_SERVE_TOKEN=$QWEN_SERVER_TOKEN
@@ -188,6 +207,67 @@ chmod 640 /etc/nginx/snippets/cloud-agents-runtime-auth.conf
 sed "s/__PUBLIC_HOST__/$PUBLIC_HOST/g" \
   "$APP_DIR/deploy/nginx/cloud-agents-runtime.conf.example" \
   > /etc/nginx/conf.d/cloud-agents-runtime.conf
+if [[ -n "$PUBLIC_DOMAIN" ]]; then
+  if [[ -f "/etc/letsencrypt/live/$PUBLIC_DOMAIN/fullchain.pem" \
+    && -f "/etc/letsencrypt/live/$PUBLIC_DOMAIN/privkey.pem" ]]; then
+    cat >> /etc/nginx/conf.d/cloud-agents-runtime.conf <<EOF
+
+server {
+    listen 80;
+    listen [::]:80;
+    server_name $PUBLIC_DOMAIN;
+
+    location ^~ /.well-known/acme-challenge/ {
+        root /var/www/letsencrypt;
+        default_type "text/plain";
+    }
+
+    location / {
+        return 301 https://\$host\$request_uri;
+    }
+}
+
+server {
+    listen 443 ssl http2;
+    server_name $PUBLIC_DOMAIN;
+
+    ssl_certificate /etc/letsencrypt/live/$PUBLIC_DOMAIN/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/$PUBLIC_DOMAIN/privkey.pem;
+    include /etc/letsencrypt/options-ssl-nginx.conf;
+    ssl_dhparam /etc/letsencrypt/ssl-dhparams.pem;
+
+    location = /cloud-agents {
+        return 302 /cloud-agents/;
+    }
+
+    location /cloud-agents/ {
+        auth_basic "Cloud Agents Runtime";
+        auth_basic_user_file /etc/nginx/cloud-agents.htpasswd;
+
+        proxy_http_version 1.1;
+        proxy_set_header Connection "";
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+        include /etc/nginx/snippets/cloud-agents-runtime-auth.conf;
+        proxy_buffering off;
+        proxy_cache off;
+        proxy_read_timeout 3600s;
+        proxy_send_timeout 3600s;
+        rewrite ^/cloud-agents/(.*)\$ /\$1 break;
+        proxy_pass http://127.0.0.1:8765;
+    }
+
+    location / {
+        return 302 /cloud-agents/;
+    }
+}
+EOF
+  else
+    echo "PUBLIC_DOMAIN=$PUBLIC_DOMAIN has no local letsencrypt certificate; skipping HTTPS block" >&2
+  fi
+fi
 nginx -t
 systemctl reload nginx
 
