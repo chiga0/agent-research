@@ -79,6 +79,23 @@ BUILTIN_PROFILE_PAYLOADS: list[dict[str, Any]] = [
         "workspace": {"strategy": "git_worktree", "write_scope": "docs_only"},
         "artifacts": {"required": ["final-report.md", "docs-changes.md"]},
     },
+    {
+        "id": "release-gate",
+        "display_name": "Release Gate",
+        "description": "Approve, warn, or block merge and deployment readiness.",
+        "runtime": {"preferred_adapter": "qwen", "model": "default"},
+        "tools": {
+            "allow": ["read_file", "grep", "git_diff", "lightweight_shell"],
+            "deny": ["write_file", "source_write", "git_push", "deploy_prod"],
+        },
+        "approval": {"mode": "ask", "required_for": ["shell", "network"]},
+        "limits": {"max_turns": 20, "timeout_seconds": 1800, "max_parallel_instances": 1},
+        "workspace": {"strategy": "shared_readonly", "write_scope": "none"},
+        "artifacts": {
+            "required": ["release_gate.json"],
+            "gate": {"type": "merge_deploy", "artifact": "release_gate.json"},
+        },
+    },
 ]
 
 

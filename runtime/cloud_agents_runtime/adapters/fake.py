@@ -6,7 +6,7 @@ from typing import Any
 
 from .base import RuntimeAdapter
 from ..models import RunState
-from ..review_gate import is_review_gate_task, review_gate_artifact_name
+from ..review_gate import gate_artifact_name, gate_type, is_structured_gate_task
 from ..store import RunStore
 
 
@@ -103,15 +103,16 @@ class FakeAdapter(RuntimeAdapter):
         store: RunStore,
     ) -> None:
         profile = metadata.get("profile_snapshot")
-        if not isinstance(profile, dict) or not is_review_gate_task(profile):
+        if not isinstance(profile, dict) or not is_structured_gate_task(profile):
             return
+        gate_type_name = gate_type(profile) or "reviewer"
         store.write_json(
             run_id,
-            review_gate_artifact_name(profile),
+            gate_artifact_name(profile),
             {
                 "decision": "pass",
                 "severity": "none",
-                "reason": "fake adapter reviewer gate passed",
+                "reason": f"fake adapter {gate_type_name} gate passed",
                 "findings": [],
             },
         )

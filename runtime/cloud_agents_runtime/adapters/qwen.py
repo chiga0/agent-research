@@ -9,6 +9,12 @@ from typing import Any
 
 from .base import RuntimeAdapter
 from ..models import RunState
+from ..review_gate import (
+    gate_artifact_name,
+    gate_type,
+    is_structured_gate_task,
+    parse_review_gate_from_text,
+)
 from ..store import RunStore
 
 
@@ -34,6 +40,8 @@ class QwenServeAdapter(RuntimeAdapter):
         self._sessions: dict[str, str] = {}
         self._active_prompts: dict[str, int] = {}
         self._prompt_ids: dict[str, dict[str, int]] = {}
+        self._message_text: dict[str, list[str]] = {}
+        self._run_metadata: dict[str, dict[str, Any]] = {}
         self._cancelled: set[str] = set()
         self._lock = threading.Lock()
 
@@ -67,6 +75,8 @@ class QwenServeAdapter(RuntimeAdapter):
                 raise ValueError("qwen /session response missing sessionId")
             with self._lock:
                 self._sessions[run.run_id] = session_id
+                self._message_text[run.run_id] = []
+                self._run_metadata[run.run_id] = dict(run.spec.metadata)
             store.set_adapter_run_id(run.run_id, session_id)
             store.append_event(
                 run.run_id,
@@ -139,6 +149,7 @@ class QwenServeAdapter(RuntimeAdapter):
             "run.cancelled",
             {"adapter": self.name, "qwen_session_id": session_id, "reason": reason or "cancelled"},
         )
+        self._forget_run(run.run_id)
 
     def resolve_permission(
         self,
@@ -191,7 +202,7 @@ class QwenServeAdapter(RuntimeAdapter):
         prompt: str,
         store: RunStore,
     ) -> None:
-        if self._is_cancelled(run_id):
+        if self._is_cancelled(run_id) or store.is_terminal(run_id):
             return
         store.append_event(
             run_id,
@@ -219,7 +230,7 @@ class QwenServeAdapter(RuntimeAdapter):
                     "response": response,
                 },
             )
-            if not self._is_cancelled(run_id):
+            if not self._is_cancelled(run_id) and not store.is_terminal(run_id):
                 store.append_event(
                     run_id,
                     "step.submitted",
@@ -230,7 +241,7 @@ class QwenServeAdapter(RuntimeAdapter):
                     },
                 )
         except Exception as exc:  # noqa: BLE001
-            if not self._is_cancelled(run_id):
+            if not self._is_cancelled(run_id) and not store.is_terminal(run_id):
                 store.append_event(
                     run_id,
                     "run.failed",
@@ -240,6 +251,7 @@ class QwenServeAdapter(RuntimeAdapter):
                         "reason": str(exc),
                     },
                 )
+                self._forget_run(run_id)
 
     def _pump_events(self, run_id: str, session_id: str, store: RunStore) -> None:
         last_sse_id: str | None = None
@@ -287,6 +299,7 @@ class QwenServeAdapter(RuntimeAdapter):
                             "last_sse_id": last_sse_id,
                         },
                     )
+                    self._forget_run(run_id)
                 return
 
     def _read_event_stream(
@@ -343,10 +356,13 @@ class QwenServeAdapter(RuntimeAdapter):
             session_update = data.get("sessionUpdate")
             content = data.get("content")
             if session_update == "agent_message_chunk" and isinstance(content, dict):
+                text = str(content.get("text") or "")
+                with self._lock:
+                    self._message_text.setdefault(run_id, []).append(text)
                 store.append_event(
                     run_id,
                     "message.delta",
-                    {"text": content.get("text", ""), "raw_type": qwen_type},
+                    {"text": text, "raw_type": qwen_type},
                 )
                 return
         if qwen_type == "permission_request":
@@ -357,12 +373,14 @@ class QwenServeAdapter(RuntimeAdapter):
             return
         if qwen_type in {"session_died", "client_evicted"}:
             store.append_event(run_id, "run.failed", {"raw": payload})
+            self._forget_run(run_id)
             return
         if qwen_type == "turn_complete":
             self._complete_turn(run_id, payload, store)
             return
         if qwen_type == "turn_error":
             store.append_event(run_id, "run.failed", {"raw": payload})
+            self._forget_run(run_id)
             return
         store.append_event(run_id, "adapter.event", {"adapter": self.name, "raw": payload})
 
@@ -370,6 +388,7 @@ class QwenServeAdapter(RuntimeAdapter):
         if store.is_terminal(run_id):
             return
         prompt_number = self._prompt_number_for_event(run_id, payload)
+        self._write_gate_from_text_if_needed(run_id, store)
         final_artifact = f"final_{prompt_number}.json" if prompt_number else "final_qwen.json"
         store.write_json(
             run_id,
@@ -386,6 +405,39 @@ class QwenServeAdapter(RuntimeAdapter):
                 "raw": payload,
             },
         )
+        self._forget_run(run_id)
+
+    def _write_gate_from_text_if_needed(self, run_id: str, store: RunStore) -> None:
+        with self._lock:
+            metadata = dict(self._run_metadata.get(run_id) or {})
+            text = "".join(self._message_text.get(run_id) or [])
+        profile = metadata.get("profile_snapshot")
+        if not isinstance(profile, dict) or not is_structured_gate_task(profile):
+            return
+        artifact_name = gate_artifact_name(profile)
+        gate_type_name = gate_type(profile) or "reviewer"
+        gate = parse_review_gate_from_text(
+            text,
+            source_artifact=artifact_name,
+            gate_type_name=gate_type_name,
+        )
+        if not gate.valid:
+            store.append_event(
+                run_id,
+                "gate.extract_failed",
+                {
+                    "artifact": artifact_name,
+                    "gate_type": gate_type_name,
+                    "error": gate.error,
+                },
+            )
+            return
+        store.write_json(run_id, artifact_name, gate.to_dict())
+        store.append_event(
+            run_id,
+            "gate.artifact_extracted",
+            {"artifact": artifact_name, "gate_type": gate_type_name},
+        )
 
     def _prompt_number_for_event(self, run_id: str, payload: dict[str, Any]) -> int | None:
         data = payload.get("data")
@@ -396,6 +448,15 @@ class QwenServeAdapter(RuntimeAdapter):
                 if prompt_number:
                     return prompt_number
             return self._active_prompts.get(run_id)
+
+    def _forget_run(self, run_id: str) -> None:
+        with self._lock:
+            self._sessions.pop(run_id, None)
+            self._active_prompts.pop(run_id, None)
+            self._prompt_ids.pop(run_id, None)
+            self._message_text.pop(run_id, None)
+            self._run_metadata.pop(run_id, None)
+            self._cancelled.discard(run_id)
 
     def _request(
         self, method: str, path: str, payload: dict[str, Any] | None = None

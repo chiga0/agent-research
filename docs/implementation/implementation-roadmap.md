@@ -206,30 +206,35 @@ P3 剩余风险：
 | task dependency | `done` | 支持串行和 fan-out/fan-in |
 | artifact handoff | `done` | 子任务只通过 artifact 引用和事件传递结果 |
 | reviewer gate | `done` | `review_gate.json` 可触发 pass/warn/block/needs_human，阻塞下游 task |
+| reviewer override | `done` | blocked mission 可记录人工 approve/deny；approve 后恢复下游 task |
+| merge/deploy gate | `done` | `release-gate` profile 通过 `release_gate.json` 触发 `merge_deploy.gate_*` |
 | final report | `done` | 汇总所有子任务和 artifact 引用 |
 
 P4 当前实现：
 
 - `GET /profiles`、`GET /profiles/{profile_id}`、`POST /profiles` 提供 profile registry。
-- 内置 `planner`、`coder`、`tester`、`reviewer`、`doc-writer` profile。
+- 内置 `planner`、`coder`、`tester`、`reviewer`、`release-gate`、`doc-writer` profile。
 - `POST /missions` 创建 mission，并支持 `sequential`、`fanout`、`custom` 三种策略。
 - 每个 ready task 都创建一个普通 SAEU run，继承 P1-P3 的 workspace、resource、queue、event、artifact、cleanup 能力。
 - task run spec 写入 `mission_id`、`task_id`、`task_profile`、`profile_snapshot` 和 dependency artifact refs。
 - `GET /missions/{mission_id}`、`events.json`、`artifacts` 可恢复 mission 状态和审计链。
 - `POST /missions/{mission_id}/cancel` 会取消 active child run，并把 pending task 标为 cancelled。
 - reviewer task 可通过 `review_gate.json` 输出结构化 gate；高/严重 finding、`block`、`needs_human`、缺失或非法 gate 都会让 mission 进入 `blocked`。
+- `POST /missions/{mission_id}/review-gate/override` 可记录人工 approve/deny；approve 会让 blocked mission 恢复并继续调度未启动下游 task。
+- `release-gate` 可通过 `release_gate.json` 输出 merge/deploy gate，事件前缀为 `merge_deploy.gate_*`。
+- qwen adapter 会从 gate task 最终文本中的 fenced JSON 抽取 gate artifact，降低真实 qwen reviewer 只输出文本时的接入摩擦。
 - mission artifact 存放在 `artifact_root/missions/<mission_id>/`，包含 manifest、events、task JSON 和 final report。
 
 P4 剩余风险：
 
 - Supervisor 目前是确定性 in-process controller，还不是有长期记忆的 Project Agent SAEU。
-- reviewer gate 已支持结构化阻塞；更细的 finding 分类、人工 override、merge/deploy gate 仍属于 P6 hardening。
+- reviewer gate 已支持结构化阻塞、人工 override 和 release gate；更细的 finding 分类、审批超时和策略化 merge/deploy gate 仍属于 P6 hardening。
 - artifact handoff 当前传递稳定引用，不复制 sibling workspace，也不做 patch merge。
 - qwen adapter 仍是单 `qwen serve` endpoint；强隔离多 qwen daemon registry 属于后续 worker/container 化。
 
 ## P5：外部协议与替代组件评估
 
-状态：`not_started`
+状态：`poc_in_progress`
 
 目标：
 
@@ -240,11 +245,11 @@ P4 剩余风险：
 
 | 任务 | 状态 | 验收 |
 | --- | --- | --- |
-| A2A Gateway POC | `not_started` | 外部 task 可映射成 mission/run |
-| ACP Streamable HTTP POC | `not_started` | 一个非 qwen worker 可通过 ACP 远程协议接入 |
+| A2A Gateway POC | `poc_done` | `/.well-known/agent-card.json`、`/a2a/tasks` 可把外部 task 映射成 mission |
+| ACP JSON-RPC-over-HTTP POC | `poc_done` | `/acp` 可 create/status/input/cancel run；尚非完整 Streamable HTTP/WebSocket |
 | E2B sandbox adapter POC | `not_started` | 一个 SAEU 可跑在 E2B sandbox |
 | Daytona sandbox adapter POC | `not_started` | 一个 SAEU 可跑在 Daytona sandbox |
-| Temporal workflow POC | `not_started` | `AgentRunWorkflow` 可管理单 run |
+| Temporal workflow POC | `poc_done` | 可导出 `AgentRunWorkflow` / `MissionWorkflow` plan；尚未接 Temporal worker |
 | LangGraph supervisor POC | `not_started` | 一个 mission DAG 可恢复执行 |
 | Airflow outer scheduler POC | `deferred` | Airflow 作为外层 batch scheduler 调用 mission API，不进入 Agent session 控制面 |
 | OpenHands SAEU adapter 评估 | `deferred` | 能映射到 SAEU contract |
@@ -293,8 +298,8 @@ P4 剩余风险：
 
 1. 用 fake adapter 跑通 P4 mission/profile smoke。
 2. 等部署密钥可用后，用 qwen serve 验收单 run 和两 task mission。
-3. 设计 reviewer gate 人工 override 和 merge/deploy gate。
-4. 评估 P5 的 ACP Streamable HTTP adapter 和 A2A Gateway。
+3. 用真实 qwen reviewer 验收 fenced JSON gate artifact extraction。
+4. 决定 P5 ACP/A2A POC 是否升级到官方 SDK/完整协议实现。
 5. 评估 Temporal/LangGraph 是否接管 durable mission workflow。
 
 P4 已能证明 `mission -> task -> profile -> SAEU run` 的基础编排闭环；P5/P6 再决定是否把 mission workflow 迁移到 Temporal/LangGraph，或引入云沙箱。

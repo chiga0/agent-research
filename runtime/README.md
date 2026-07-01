@@ -41,18 +41,29 @@ Postgres when multiple control-plane instances are required.
   and final report artifacts.
 - `POST /missions/{mission_id}/cancel` cancels active child runs and marks
   pending tasks cancelled.
+- `POST /missions/{mission_id}/review-gate/override` records a human override
+  for a blocked gate and can resume downstream pending work.
+- `GET /.well-known/agent-card.json`, `POST /a2a/tasks`, and
+  `GET /a2a/tasks/{task_id}` expose the P5.2 A2A gateway POC.
+- `GET /acp` and `POST /acp` expose the P5.1 ACP JSON-RPC-over-HTTP POC.
+- `GET /temporal/workflows/missions/{mission_id}/plan` and
+  `GET /temporal/workflows/runs/{run_id}/plan` expose the P5.3 Temporal
+  workflow-plan POC.
 - Raw run specs, inputs, canonical events, and adapter artifacts are written to
   `runtime/artifacts/`.
 - Canonical events are persisted in `runtime.db` and `events.jsonl`.
 - Run queue state is persisted in `run_jobs`; local worker state is persisted in
   `workers`.
 - Built-in profiles currently include `planner`, `coder`, `tester`, `reviewer`,
-  and `doc-writer`. Each task stores a resolved profile snapshot before its run
-  starts, so later profile edits do not change historical audit meaning.
+  `release-gate`, and `doc-writer`. Each task stores a resolved profile
+  snapshot before its run starts, so later profile edits do not change
+  historical audit meaning.
 - The built-in `reviewer` profile is reviewer-gate enabled. A reviewer run must
   publish `review_gate.json`; the supervisor records `review.gate_*` events and
   blocks the mission on `block`, `needs_human`, invalid/missing gate artifacts,
   or high/critical findings.
+- The built-in `release-gate` profile is merge/deploy-gate enabled. It publishes
+  `release_gate.json` and emits `merge_deploy.gate_*` events.
 - Mission artifacts are written to `runtime/artifacts/missions/<mission_id>/`.
   They include `mission_spec.json`, `mission_manifest.json`, `events.jsonl`,
   `task_<task_id>.json`, `review_gate.json` when a reviewer gate runs, and
@@ -230,6 +241,51 @@ critical finding blocks the mission even if the decision says `pass` or `warn`.
 Missing or invalid `review_gate.json` is treated as `needs_human` and blocks
 downstream tasks.
 
+Override a blocked reviewer gate:
+
+```bash
+curl -s -X POST http://127.0.0.1:8765/missions/<mission_id>/review-gate/override \
+  -H "authorization: Bearer $RUN_MANAGER_TOKEN" \
+  -H 'content-type: application/json' \
+  -d '{
+    "decision": "approve",
+    "decided_by": "operator@example.test",
+    "reason": "accepted for controlled rollout"
+  }'
+```
+
+`approve` resumes blocked downstream tasks that have not started. `deny` records
+the decision and keeps the mission blocked. The runtime writes
+`review_gate_override.json` and emits `review.gate_override_recorded`; approved
+overrides also emit `task.unblocked` and `mission.resumed`.
+
+ACP POC example:
+
+```bash
+curl -s http://127.0.0.1:8765/acp \
+  -H "authorization: Bearer $RUN_MANAGER_TOKEN" \
+  -H 'content-type: application/json' \
+  -d '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}'
+```
+
+A2A gateway POC example:
+
+```bash
+curl -s http://127.0.0.1:8765/.well-known/agent-card.json \
+  -H "authorization: Bearer $RUN_MANAGER_TOKEN"
+curl -s http://127.0.0.1:8765/a2a/tasks \
+  -H "authorization: Bearer $RUN_MANAGER_TOKEN" \
+  -H 'content-type: application/json' \
+  -d '{"goal":"external gateway task","adapter":"fake"}'
+```
+
+Temporal workflow-plan POC example:
+
+```bash
+curl -s http://127.0.0.1:8765/temporal/workflows/missions/<mission_id>/plan \
+  -H "authorization: Bearer $RUN_MANAGER_TOKEN"
+```
+
 ## Test
 
 ```bash
@@ -269,8 +325,8 @@ Acceptance:
 - `/capabilities` exposes built-in profiles and mission orchestration features.
 - `/queue` returns job counts, job leases, and worker heartbeat records.
 - `/workers` returns active worker capacity and heartbeat time.
-- `/profiles` returns `planner`, `coder`, `tester`, `reviewer`, and
-  `doc-writer`.
+- `/profiles` returns `planner`, `coder`, `tester`, `reviewer`,
+  `release-gate`, and `doc-writer`.
 - API routes other than `/health` require `Authorization: Bearer ...` when
   `RUN_MANAGER_TOKEN` is set.
 - `POST /runs` returns a `run_id`.
@@ -295,6 +351,9 @@ Acceptance:
   `review.gate_warned`, `review.gate_blocked`, or
   `review.gate_needs_human`. Blocked reviewer gates set mission status to
   `blocked` and prevent downstream pending tasks from starting.
+- `release-gate` emits `merge_deploy.gate_*` events and uses the same
+  conservative block semantics.
+- ACP/A2A/Temporal POC endpoints are present in `/capabilities`.
 
 ## Validate qwen adapter
 
@@ -333,6 +392,9 @@ Acceptance:
 - SSE exposes canonical events.
 - Raw qwen SSE frames are saved in `raw_events.jsonl`.
 - `POST /runs/{run_id}/cancel` maps to qwen session cancel.
+- When a qwen reviewer or release-gate run includes a valid fenced JSON gate in
+  its final text, the adapter extracts it into `review_gate.json` or
+  `release_gate.json` before `run.completed`.
 
 ## Validate a running service
 
@@ -368,6 +430,9 @@ The current cloud-runnable slice includes:
   final report artifact.
 - Reviewer gate enforcement through structured `review_gate.json` artifacts,
   mission-level gate events, and automatic blocked mission status.
+- Human review-gate override and merge/deploy gate support.
+- P5 POC endpoints for ACP JSON-RPC-over-HTTP, A2A task gateway, and Temporal
+  workflow-plan export.
 - Managed `qwen serve` process for one workspace when `QWEN_SERVE_COMMAND` is
   configured.
 - Persistent artifact directory on disk with `runtime.db` and JSONL artifacts.
@@ -387,6 +452,8 @@ P4 limits in this MVP:
   Project Agent with its own memory model.
 - Reviewer gate is schema-based; it does not infer risk from free-form markdown
   findings. Real qwen reviewer runs must write `review_gate.json`.
+- ACP/A2A/Temporal support is intentionally POC-level and does not claim full
+  protocol compliance yet.
 - Artifact handoff passes stable artifact references into child run prompts; it
   does not copy sibling workspaces or expose uncontrolled shared memory.
 

@@ -13,6 +13,7 @@ from runtime.cloud_agents_runtime.adapters.fake import FakeAdapter
 from runtime.cloud_agents_runtime.cleanup import CleanupPolicy
 from runtime.cloud_agents_runtime.manager import RunManager, positive_int
 from runtime.cloud_agents_runtime.models import RunSpec
+from runtime.cloud_agents_runtime.review_gate import gate_artifact_name, is_structured_gate_task
 from runtime.cloud_agents_runtime.resources import ResourceLimitConfig
 from runtime.cloud_agents_runtime.store import RunStore, utc_now_plus
 
@@ -935,6 +936,110 @@ class RunManagerTest(unittest.TestCase):
             finally:
                 manager.shutdown()
 
+    def test_reviewer_gate_override_resumes_blocked_mission(self) -> None:
+        gate_payload = {
+            "decision": "block",
+            "severity": "high",
+            "reason": "manual review required",
+            "findings": [
+                {"id": "risk-001", "severity": "high", "message": "needs operator"}
+            ],
+        }
+        with tempfile.TemporaryDirectory() as tmp:
+            manager = RunManager(
+                Path(tmp),
+                adapters={"gate": GateAdapter(gate_payload)},
+                worker_capacity=2,
+                worker_id="review-gate-override-worker",
+            )
+            try:
+                mission = manager.create_mission(review_gate_mission_payload("gate"))
+                mission_id = mission["mission_id"]
+                self.wait_for_mission_status(manager, mission_id, "blocked", timeout=5)
+
+                resumed = manager.override_review_gate(
+                    mission_id,
+                    {
+                        "decision": "approve",
+                        "decided_by": "operator@example.test",
+                        "reason": "accepted for controlled rollout",
+                    },
+                )
+                self.assertIn(resumed["status"], {"running", "completed"})
+                self.wait_for_mission_status(manager, mission_id, "completed", timeout=5)
+                completed = manager.get_mission(mission_id)
+                tasks = {task["task_id"]: task for task in completed["tasks"]}
+                self.assertEqual(tasks["report"]["status"], "completed")
+                self.assertTrue(tasks["review"]["result"]["review_gate"]["overridden"])
+                names = [
+                    event.type
+                    for event in manager.store.mission_events_since(mission_id)
+                ]
+                self.assertIn("review.gate_override_recorded", names)
+                self.assertIn("mission.resumed", names)
+                self.assertTrue(
+                    (Path(tmp) / "missions" / mission_id / "review_gate_override.json").exists()
+                )
+            finally:
+                manager.shutdown()
+
+    def test_release_gate_blocks_merge_deploy_profile(self) -> None:
+        gate_payload = {
+            "decision": "block",
+            "severity": "critical",
+            "reason": "deploy window closed",
+            "findings": [
+                {"id": "deploy-001", "severity": "critical", "message": "unsafe deploy"}
+            ],
+        }
+        with tempfile.TemporaryDirectory() as tmp:
+            manager = RunManager(
+                Path(tmp),
+                adapters={"gate": GateAdapter(gate_payload)},
+                worker_capacity=2,
+                worker_id="release-gate-worker",
+            )
+            try:
+                mission = manager.create_mission(
+                    {
+                        "goal": "release check",
+                        "strategy": "custom",
+                        "adapter": "gate",
+                        "tasks": [
+                            {"id": "plan", "profile": "planner", "prompt": "plan"},
+                            {
+                                "id": "release",
+                                "profile": "release-gate",
+                                "depends_on": ["plan"],
+                                "prompt": "check release",
+                            },
+                            {
+                                "id": "deploy",
+                                "profile": "doc-writer",
+                                "depends_on": ["release"],
+                                "prompt": "deploy report",
+                            },
+                        ],
+                    }
+                )
+                mission_id = mission["mission_id"]
+                self.wait_for_mission_status(manager, mission_id, "blocked", timeout=5)
+                blocked = manager.get_mission(mission_id)
+                tasks = {task["task_id"]: task for task in blocked["tasks"]}
+                self.assertEqual(tasks["deploy"]["status"], "blocked")
+                names = [
+                    event.type
+                    for event in manager.store.mission_events_since(mission_id)
+                ]
+                self.assertIn("merge_deploy.gate_blocked", names)
+                artifacts = {
+                    artifact["name"]
+                    for artifact in manager.store.list_mission_artifacts(mission_id)
+                }
+                self.assertIn("release_gate.json", artifacts)
+            finally:
+                manager.shutdown()
+
     def test_reviewer_gate_blocks_preclaimed_queued_task_without_run(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             manager = RunManager(
@@ -1152,10 +1257,10 @@ class GateAdapter(RuntimeAdapter):
         profile = run.spec.metadata.get("profile_snapshot")
         if (
             isinstance(profile, dict)
-            and profile.get("id") == "reviewer"
+            and is_structured_gate_task(profile)
             and self.gate_payload is not None
         ):
-            store.write_json(run.run_id, "review_gate.json", self.gate_payload)
+            store.write_json(run.run_id, gate_artifact_name(profile), self.gate_payload)
         store.write_json(
             run.run_id,
             f"final_{prompt_number}.json",

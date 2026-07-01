@@ -113,7 +113,12 @@ class RunManager:
                 "mission_supervisor",
                 "artifact_handoff",
                 "reviewer_gate",
+                "reviewer_gate_override",
+                "merge_deploy_gate",
                 "mission_final_report",
+                "acp_jsonrpc_poc",
+                "a2a_gateway_poc",
+                "temporal_workflow_plan_poc",
             ],
             "resource_limits": self.resource_resolver.config.to_dict(),
             "cleanup_policy": self.cleanup_manager.policy.to_dict(),
@@ -206,6 +211,13 @@ class RunManager:
 
     def cancel_mission(self, mission_id: str, reason: str | None = None) -> dict[str, Any]:
         return self.missions.cancel_mission(mission_id, reason)
+
+    def override_review_gate(
+        self,
+        mission_id: str,
+        payload: dict[str, Any],
+    ) -> dict[str, Any]:
+        return self.missions.override_review_gate(mission_id, payload)
 
     def shutdown(self) -> None:
         if self._closed:

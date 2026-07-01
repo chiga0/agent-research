@@ -33,6 +33,9 @@ class RuntimeServerTest(unittest.TestCase):
             self.assertIn("fake", capabilities["adapters"])
             self.assertIn("default_cpus", capabilities["resource_limits"])
             self.assertIn("workspace_retention_seconds", capabilities["cleanup_policy"])
+            self.assertIn("acp_jsonrpc_poc", capabilities["features"])
+            self.assertIn("a2a_gateway_poc", capabilities["features"])
+            self.assertIn("temporal_workflow_plan_poc", capabilities["features"])
             queue = request_json(
                 f"{base_url}/queue",
                 headers={"authorization": "Bearer secret"},
@@ -141,6 +144,65 @@ class RuntimeServerTest(unittest.TestCase):
                 missions = request_json(f"{base_url}/missions")
                 self.assertEqual(missions["missions"][0]["mission_id"], mission_id)
 
+    def test_acp_a2a_and_temporal_poc_http_api(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            with running_runtime(artifact_root=Path(tmp), worker_capacity=2) as base_url:
+                acp = request_json(
+                    f"{base_url}/acp",
+                    method="POST",
+                    payload={"jsonrpc": "2.0", "id": 1, "method": "initialize"},
+                )
+                self.assertEqual(acp["result"]["protocol"], "acp-poc")
+                run = request_json(
+                    f"{base_url}/acp",
+                    method="POST",
+                    payload={
+                        "jsonrpc": "2.0",
+                        "id": 2,
+                        "method": "run.create",
+                        "params": {"prompt": "hello acp", "adapter": "fake"},
+                    },
+                )
+                run_id = run["result"]["run_id"]
+                deadline = time.time() + 3
+                run_status: dict[str, Any] = {}
+                while time.time() < deadline:
+                    run_status = request_json(
+                        f"{base_url}/acp",
+                        method="POST",
+                        payload={
+                            "jsonrpc": "2.0",
+                            "id": 3,
+                            "method": "run.status",
+                            "params": {"run_id": run_id},
+                        },
+                    )
+                    if run_status["result"]["status"] == "completed":
+                        break
+                    time.sleep(0.05)
+                self.assertEqual(run_status["result"]["status"], "completed")
+
+                card = request_json(f"{base_url}/.well-known/agent-card.json")
+                self.assertEqual(card["protocol"], "a2a-poc")
+                task = request_json(
+                    f"{base_url}/a2a/tasks",
+                    method="POST",
+                    payload={"goal": "external gateway task", "adapter": "fake"},
+                )
+                task_id = task["task_id"]
+                deadline = time.time() + 5
+                task_status: dict[str, Any] = {}
+                while time.time() < deadline:
+                    task_status = request_json(f"{base_url}/a2a/tasks/{task_id}")
+                    if task_status["status"] == "completed":
+                        break
+                    time.sleep(0.05)
+                self.assertEqual(task_status["status"], "completed")
+                plan = request_json(f"{base_url}/temporal/workflows/missions/{task_id}/plan")
+                self.assertEqual(plan["workflow"], "MissionWorkflow")
+                run_plan = request_json(f"{base_url}/temporal/workflows/runs/{run_id}/plan")
+                self.assertEqual(run_plan["workflow"], "AgentRunWorkflow")
+
     def test_sse_reconnect_and_gap_detection(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             with running_runtime(artifact_root=Path(tmp)) as base_url:
@@ -229,6 +291,39 @@ class RuntimeServerTest(unittest.TestCase):
                         {"outcome": {"outcome": "selected", "optionId": "allow_once"}},
                     )
 
+    def test_qwen_adapter_extracts_structured_gate_from_final_text(self) -> None:
+        gate_text = (
+            "review done\n"
+            "```json\n"
+            '{"decision":"pass","severity":"none","reason":"qwen reviewer passed","findings":[]}'
+            "\n```"
+        )
+        with running_fake_qwen(message_text=gate_text) as qwen_url:
+            with tempfile.TemporaryDirectory() as tmp:
+                with running_runtime(artifact_root=Path(tmp), qwen_url=qwen_url) as base_url:
+                    reviewer = request_json(f"{base_url}/profiles/reviewer")
+                    run = request_json(
+                        f"{base_url}/runs",
+                        method="POST",
+                        payload={
+                            "prompt": "review and emit gate",
+                            "adapter": "qwen",
+                            "metadata": {"profile_snapshot": reviewer},
+                        },
+                    )
+                    deadline = time.time() + 3
+                    current: dict[str, Any] = {}
+                    while time.time() < deadline:
+                        current = request_json(f"{base_url}/runs/{run['run_id']}")
+                        if current["status"] == "completed":
+                            break
+                        time.sleep(0.05)
+                    self.assertEqual(current["status"], "completed")
+                    gate_path = Path(tmp) / run["run_id"] / "review_gate.json"
+                    self.assertTrue(gate_path.exists())
+                    gate = json.loads(gate_path.read_text(encoding="utf-8"))
+                    self.assertFalse(gate["blocks"])
+
 
 class running_runtime:
     def __init__(
@@ -264,15 +359,17 @@ class running_runtime:
 
 
 class running_fake_qwen:
-    def __init__(self):
+    def __init__(self, message_text: str | None = None):
         self.server = ThreadingHTTPServer(("127.0.0.1", 0), FakeQwenHandler)
         self.thread = threading.Thread(target=self.server.serve_forever, daemon=True)
+        self.message_text = message_text or "hello from qwen"
 
     def __enter__(self) -> str:
         FakeQwenHandler.cancelled = False
         FakeQwenHandler.permission_response = None
         FakeQwenHandler.prompt_event = threading.Event()
         FakeQwenHandler.event_connections = 0
+        FakeQwenHandler.message_text = self.message_text
         self.thread.start()
         host, port = self.server.server_address
         return f"http://{host}:{port}"
@@ -289,6 +386,7 @@ class FakeQwenHandler(BaseHTTPRequestHandler):
     permission_response: dict[str, Any] | None = None
     prompt_event = threading.Event()
     event_connections = 0
+    message_text = "hello from qwen"
 
     def do_GET(self) -> None:
         if self.path == "/health":
@@ -310,7 +408,7 @@ class FakeQwenHandler(BaseHTTPRequestHandler):
                     "type": "session_update",
                     "data": {
                         "sessionUpdate": "agent_message_chunk",
-                        "content": {"type": "text", "text": "hello from qwen"},
+                        "content": {"type": "text", "text": FakeQwenHandler.message_text},
                     },
                 },
             )

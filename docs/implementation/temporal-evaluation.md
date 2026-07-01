@@ -60,6 +60,22 @@ Temporal 不适合管这些：
 
 这些内容应当放到 Event Store、artifact 文件或对象存储中，Temporal 只保存引用和关键状态。
 
+## 当前 POC
+
+当前仓库没有引入 Temporal SDK，也不启动 Temporal Service。P5.3 只提供 workflow plan export：
+
+- `GET /temporal/workflows/runs/{run_id}/plan` 导出 `AgentRunWorkflow` 草案。
+- `GET /temporal/workflows/missions/{mission_id}/plan` 导出 `MissionWorkflow` 草案。
+
+这些 plan 会列出 Activity、Signal、Query、event-store ref 和 artifact ref，用来审计“如果引入 Temporal，哪些状态应该进入 Workflow history，哪些仍留在业务 Event Store”。
+
+POC 边界：
+
+- 不保存 token delta、tool stdout 或大 artifact 到 Temporal history。
+- 不替代当前 Run Manager queue/reconcile。
+- 不提供 Temporal Worker、Task Queue 或 SDK workflow 代码。
+- 后续接入 Temporal 时，优先把 `mission -> task` 的粗粒度 DAG 编排迁移为 Workflow，SAEU run 仍作为 Activity/外部执行单元。
+
 ## Agent Workflow 草案
 
 ```mermaid

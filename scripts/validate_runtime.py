@@ -33,6 +33,10 @@ def main(argv: list[str] | None = None) -> int:
     if "cleanup_policy" not in capabilities:
         print("capabilities missing cleanup_policy", file=sys.stderr)
         return 1
+    for feature in ["reviewer_gate_override", "a2a_gateway_poc", "temporal_workflow_plan_poc"]:
+        if feature not in capabilities.get("features", []):
+            print(f"capabilities missing feature: {feature}", file=sys.stderr)
+            return 1
     print(f"cleanup policy: {capabilities['cleanup_policy']}")
     queue = client.get("/queue")
     workers = queue.get("workers") or []
@@ -83,7 +87,7 @@ def validate_mission(client: "Client", args: argparse.Namespace) -> bool:
     profiles = client.get("/profiles")
     profile_ids = {profile["id"] for profile in profiles.get("profiles", [])}
     print(f"profiles: {sorted(profile_ids)}")
-    if "planner" not in profile_ids or "reviewer" not in profile_ids:
+    if not {"planner", "reviewer", "release-gate"}.issubset(profile_ids):
         print("missing built-in profiles", file=sys.stderr)
         return False
     mission = client.post(

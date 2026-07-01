@@ -143,6 +143,32 @@ External Agent
 | Input parts | prompt/context | ACP request |
 | Cancel | cancel mission/run | ACP cancel / native cancel / supervisor kill |
 
+## 当前 P5 POC 落点
+
+当前仓库已实现最小互操作验证，目标是证明 SAEU contract 不会锁死，而不是声明完整协议兼容。
+
+### ACP POC
+
+`/acp` 使用 JSON-RPC-over-HTTP 暴露：
+
+- `initialize`
+- `run.create`
+- `run.status`
+- `run.input`
+- `run.cancel`
+
+这验证了 ACP-style client 可以通过稳定接口控制 SAEU run。后续若升级到官方 Streamable HTTP / WebSocket，需要保持方法语义映射到同一组 Run Manager API。
+
+### A2A Gateway POC
+
+`/.well-known/agent-card.json` 暴露 agent card 形状；`POST /a2a/tasks` 把外部 task 映射为内部 mission；`GET /a2a/tasks/{task_id}` 返回 mission status、artifact refs 和内部 snapshot。
+
+当前未实现完整 A2A JSON-RPC lifecycle、streaming、push notification、auth federation，也不暴露内部 memory/tools。
+
+### Temporal POC
+
+`GET /temporal/workflows/missions/{mission_id}/plan` 和 `GET /temporal/workflows/runs/{run_id}/plan` 导出 workflow plan，展示哪些步骤会成为 Temporal Workflow/Activity/Signal/Query。当前没有引入 Temporal SDK 或 worker。
+
 ## 权限请求如何处理
 
 如果外部 A2A 客户端支持交互式输入，可以把内部 `permission.requested` 映射成 A2A 的“需要用户输入/审批”状态或扩展 metadata；如果客户端不支持，则走本系统自己的 Web/API 审批面。

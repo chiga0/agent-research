@@ -8,9 +8,10 @@ from .events import RuntimeEvent, utc_now
 from .models import AgentProfile, MissionSpec, MissionTask, RunSpec, clean_identifier
 from .review_gate import (
     ReviewGate,
-    is_review_gate_task,
+    gate_artifact_name,
+    gate_type,
+    is_structured_gate_task,
     load_review_gate,
-    review_gate_artifact_name,
 )
 
 if TYPE_CHECKING:
@@ -208,6 +209,84 @@ class MissionManager:
         self._write_manifest(mission_id)
         return self.store.mission_snapshot(mission_id)
 
+    def override_review_gate(
+        self,
+        mission_id: str,
+        payload: dict[str, Any],
+    ) -> dict[str, Any]:
+        mission = self.store.get_mission(mission_id)
+        if mission is None:
+            raise KeyError(mission_id)
+        decision = payload.get("decision")
+        if decision not in {"approve", "deny"}:
+            raise ValueError("decision must be approve or deny")
+        decided_by = payload.get("decided_by")
+        if not isinstance(decided_by, str) or not decided_by.strip():
+            raise ValueError("decided_by is required")
+        reason = payload.get("reason")
+        if not isinstance(reason, str) or not reason.strip():
+            raise ValueError("reason is required")
+
+        blocking_tasks = [
+            task
+            for task in self.store.list_mission_tasks(mission_id)
+            if gate_blocks_without_override(task.result.get("review_gate"))
+        ]
+        if not blocking_tasks:
+            raise ValueError("mission has no blocking review gate to override")
+
+        override = {
+            "decision": decision,
+            "decided_by": decided_by.strip(),
+            "reason": reason.strip(),
+            "created_at": utc_now(),
+        }
+        for task in blocking_tasks:
+            gate = dict(task.result["review_gate"])
+            gate["override"] = override
+            gate["overridden"] = decision == "approve"
+            task.result = {**task.result, "review_gate": gate}
+            task.updated_at = utc_now()
+            self.store.update_mission_task(task)
+            self._write_task_artifact(task)
+
+        self.store.write_mission_json(mission_id, "review_gate_override.json", override)
+        self.store.append_mission_event(
+            mission_id,
+            "review.gate_override_recorded",
+            {"override": override, "task_ids": [task.task_id for task in blocking_tasks]},
+        )
+        if decision == "deny":
+            self._write_manifest(mission_id)
+            return self.store.mission_snapshot(mission_id)
+
+        for task in self.store.list_mission_tasks(mission_id):
+            if task.status == "blocked" and not task.run_id:
+                task.status = "pending"
+                task.completed_at = None
+                task.updated_at = utc_now()
+                task.result = {
+                    **task.result,
+                    "reason": "review gate override approved",
+                    "review_gate_override": override,
+                }
+                self.store.update_mission_task(task)
+                self.store.append_mission_event(
+                    mission_id,
+                    "task.unblocked",
+                    {"task_id": task.task_id, "reason": override["reason"]},
+                )
+                self._write_task_artifact(task)
+        self.store.update_mission_status(mission_id, "running")
+        self.store.append_mission_event(
+            mission_id,
+            "mission.resumed",
+            {"reason": override["reason"], "decided_by": override["decided_by"]},
+        )
+        self._write_manifest(mission_id)
+        self.drain_mission(mission_id)
+        return self.store.mission_snapshot(mission_id)
+
     def handle_run_event(self, event: RuntimeEvent) -> None:
         if event.type in {
             "run.queued",
@@ -243,7 +322,11 @@ class MissionManager:
         if next_status == "running" and not task.started_at:
             task.started_at = task.updated_at
         if next_status in TERMINAL_TASK_STATUSES:
-            previous_gate = task.result.get("review_gate")
+            previous_gate = (
+                task.result.get("review_gate")
+                if is_structured_gate_task(task.profile_snapshot)
+                else None
+            )
             task.completed_at = task.updated_at
             task.result = {
                 "run_id": run.run_id,
@@ -276,7 +359,11 @@ class MissionManager:
     def _claim_ready_tasks(self, mission_id: str) -> list[MissionTask]:
         with self._lock:
             mission = self.store.get_mission(mission_id)
-            if mission is None or mission.status in TERMINAL_MISSION_STATUSES:
+            if (
+                mission is None
+                or mission.status in TERMINAL_MISSION_STATUSES
+                or mission.status == "blocked"
+            ):
                 return []
             tasks = self.store.list_mission_tasks(mission_id)
             completed = {task.task_id for task in tasks if task.status == "completed"}
@@ -392,23 +479,26 @@ class MissionManager:
         return refs
 
     def _evaluate_review_gate_if_needed(self, task: MissionTask, run_id: str) -> bool:
-        if not is_review_gate_task(task.profile_snapshot):
+        if not is_structured_gate_task(task.profile_snapshot):
             return False
         existing = task.result.get("review_gate")
         if isinstance(existing, dict):
-            if existing.get("blocks"):
+            if gate_blocks_without_override(existing):
                 self._block_mission(task.mission_id, existing)
                 return True
             return False
 
-        artifact_name = review_gate_artifact_name(task.profile_snapshot)
-        gate = load_review_gate(self.store.run_dir(run_id), artifact_name)
+        artifact_name = gate_artifact_name(task.profile_snapshot)
+        gate_type_name = gate_type(task.profile_snapshot) or "reviewer"
+        gate = load_review_gate(self.store.run_dir(run_id), artifact_name, gate_type_name)
         gate_data = gate.to_dict()
         task.result = {**task.result, "review_gate": gate_data}
         task.updated_at = utc_now()
         self.store.update_mission_task(task)
         self._write_task_artifact(task)
-        self.store.write_mission_json(task.mission_id, "review_gate.json", gate_data)
+        self.store.write_mission_json(task.mission_id, artifact_name, gate_data)
+        if artifact_name != "review_gate.json":
+            self.store.write_mission_json(task.mission_id, "review_gate.json", gate_data)
 
         event_type = review_gate_event_type(gate)
         self.store.append_mission_event(
@@ -637,9 +727,34 @@ def compose_task_prompt(
         "- Communicate with other tasks only through artifacts and event references.",
         "- Preserve auditability: summarize assumptions, changes, commands, and risks.",
     ]
-    required = task.profile_snapshot.get("artifacts", {}).get("required", [])
+    artifacts_config = task.profile_snapshot.get("artifacts", {})
+    if not isinstance(artifacts_config, dict):
+        artifacts_config = {}
+    required = artifacts_config.get("required", [])
     if required:
         lines.extend(["", f"Expected artifacts: {', '.join(required)}"])
+    if is_structured_gate_task(task.profile_snapshot):
+        artifact_name = gate_artifact_name(task.profile_snapshot)
+        gate_type_name = gate_type(task.profile_snapshot) or "reviewer"
+        lines.extend(
+            [
+                "",
+                "Structured gate output:",
+                f"- You must publish `{artifact_name}` for gate type `{gate_type_name}`.",
+                "- The gate artifact must be a JSON object with this exact schema:",
+                (
+                    '{"decision":"pass|warn|block|needs_human",'
+                    '"severity":"none|low|medium|high|critical",'
+                    '"reason":"short audit reason","findings":[]}'
+                ),
+                "- Each finding, when present, must include id, severity, message, "
+                "and optional category/evidence object.",
+                "- A missing or invalid gate artifact is treated as `needs_human` "
+                "and blocks downstream mission tasks.",
+                "- When using qwen serve, include the same JSON in the final answer "
+                "inside a fenced ```json block so the adapter can recover the artifact.",
+            ]
+        )
     if dependency_refs:
         lines.extend(["", "Dependency artifacts:"])
         for ref in dependency_refs:
@@ -663,10 +778,15 @@ def run_status_to_task_status(status: str) -> str | None:
 
 
 def review_gate_event_type(gate: ReviewGate) -> str:
+    prefix = "review" if gate.gate_type == "reviewer" else gate.gate_type
     if gate.effective_decision == "pass":
-        return "review.gate_passed"
+        return f"{prefix}.gate_passed"
     if gate.effective_decision == "warn":
-        return "review.gate_warned"
+        return f"{prefix}.gate_warned"
     if gate.effective_decision == "block":
-        return "review.gate_blocked"
-    return "review.gate_needs_human"
+        return f"{prefix}.gate_blocked"
+    return f"{prefix}.gate_needs_human"
+
+
+def gate_blocks_without_override(gate: Any) -> bool:
+    return isinstance(gate, dict) and bool(gate.get("blocks")) and not gate.get("overridden")

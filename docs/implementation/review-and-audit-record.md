@@ -331,6 +331,34 @@ qwen serve 已有：
 - 人工 override、审批超时、merge/deploy gate 尚未实现。
 - qwen reviewer 必须按提示写出 `review_gate.json`；否则 mission 会保守阻塞为 `needs_human`。
 
+## 2026-07-01 P4.2/P4.3/P5 POC 实施审计
+
+### 已落地能力
+
+- `POST /missions/{mission_id}/review-gate/override` 支持人工 `approve` / `deny`。
+- approve override 会写入 `review_gate_override.json`、记录 `review.gate_override_recorded`，并恢复未启动下游 task。
+- 新增 `release-gate` profile，使用 `release_gate.json` 和 `merge_deploy.gate_*` 事件做 merge/deploy 前置 gate。
+- qwen adapter 会从 gate task 的最终文本 fenced JSON 中抽取 gate artifact。
+- `/acp` 提供 JSON-RPC-over-HTTP POC：`initialize`、`run.create`、`run.status`、`run.input`、`run.cancel`。
+- `/.well-known/agent-card.json`、`/a2a/tasks` 提供 A2A Gateway POC，把外部 task 映射成内部 mission。
+- `/temporal/workflows/.../plan` 导出 `AgentRunWorkflow` / `MissionWorkflow` plan，明确 Temporal 只管理粗粒度编排引用。
+
+### 审计结论
+
+- 正向审计：blocked reviewer gate 经人工 approve 后可以恢复下游 task，mission 最终完成。
+- 反向审计：release gate 的 critical/block 会阻塞 deploy/report 下游 task。
+- qwen 接入审计：qwen final text 中的 fenced JSON 能落为 `review_gate.json`，再由 supervisor 统一评估。
+- 协议边界审计：ACP/A2A/Temporal 当前都是 POC wrapper，不替代内部 SAEU contract，也不承诺完整协议兼容。
+- 恢复审计：override、gate、A2A task、Temporal plan 都通过 mission/run DB snapshot 和 artifact 引用恢复上下文。
+
+### 剩余风险
+
+- ACP endpoint 只是 JSON-RPC-over-HTTP POC，还不是官方 Streamable HTTP/WebSocket 完整实现。
+- A2A Gateway 尚未实现完整 JSON-RPC task lifecycle、streaming、push notification 和 auth federation。
+- Temporal POC 只导出 workflow plan，没有启动 Temporal Service、Worker 或 Python SDK workflow。
+- qwen gate extraction 依赖模型按提示输出 fenced JSON；不从任意自然语言推断风险。
+- 人工 override 尚未实现审批超时、多人审批、策略引擎或审计签名。
+
 ## Go / No-Go 决策
 
 ### Go

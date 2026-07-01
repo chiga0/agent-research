@@ -1,15 +1,18 @@
 from __future__ import annotations
 
 import json
+import re
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any
 
 
 REVIEW_GATE_ARTIFACT = "review_gate.json"
+DEFAULT_GATE_TYPE = "reviewer"
 ALLOWED_DECISIONS = {"pass", "warn", "block", "needs_human"}
 ALLOWED_SEVERITIES = {"none", "low", "medium", "high", "critical"}
 BLOCKING_SEVERITIES = {"high", "critical"}
+JSON_FENCE_RE = re.compile(r"```(?:json)?\s*(\{.*?\})\s*```", re.DOTALL | re.IGNORECASE)
 
 
 @dataclass(frozen=True)
@@ -34,6 +37,7 @@ class ReviewGate:
     valid: bool = True
     error: str | None = None
     source_artifact: str = REVIEW_GATE_ARTIFACT
+    gate_type: str = DEFAULT_GATE_TYPE
 
     @property
     def blocks(self) -> bool:
@@ -47,14 +51,35 @@ class ReviewGate:
 
 
 def is_review_gate_task(profile_snapshot: dict[str, Any]) -> bool:
+    return gate_type(profile_snapshot) == "reviewer"
+
+
+def is_structured_gate_task(profile_snapshot: dict[str, Any]) -> bool:
+    return gate_config(profile_snapshot) is not None
+
+
+def gate_config(profile_snapshot: dict[str, Any]) -> dict[str, Any] | None:
     artifacts = profile_snapshot.get("artifacts") or {}
     if not isinstance(artifacts, dict):
-        return False
+        return None
     gate = artifacts.get("gate") or {}
-    return isinstance(gate, dict) and gate.get("type") == "reviewer"
+    if not isinstance(gate, dict) or not isinstance(gate.get("type"), str):
+        return None
+    return gate
+
+
+def gate_type(profile_snapshot: dict[str, Any]) -> str | None:
+    gate = gate_config(profile_snapshot)
+    if gate is None:
+        return None
+    return str(gate["type"]).strip().lower() or None
 
 
 def review_gate_artifact_name(profile_snapshot: dict[str, Any]) -> str:
+    return gate_artifact_name(profile_snapshot)
+
+
+def gate_artifact_name(profile_snapshot: dict[str, Any]) -> str:
     artifacts = profile_snapshot.get("artifacts") or {}
     if not isinstance(artifacts, dict):
         return REVIEW_GATE_ARTIFACT
@@ -64,12 +89,17 @@ def review_gate_artifact_name(profile_snapshot: dict[str, Any]) -> str:
     return REVIEW_GATE_ARTIFACT
 
 
-def load_review_gate(run_dir: Path, artifact_name: str = REVIEW_GATE_ARTIFACT) -> ReviewGate:
+def load_review_gate(
+    run_dir: Path,
+    artifact_name: str = REVIEW_GATE_ARTIFACT,
+    gate_type_name: str = DEFAULT_GATE_TYPE,
+) -> ReviewGate:
     path = run_dir / artifact_name
     if not path.exists():
         return invalid_gate(
             f"missing required review gate artifact: {artifact_name}",
             source_artifact=artifact_name,
+            gate_type_name=gate_type_name,
         )
     try:
         payload = json.loads(path.read_text(encoding="utf-8"))
@@ -77,30 +107,82 @@ def load_review_gate(run_dir: Path, artifact_name: str = REVIEW_GATE_ARTIFACT) -
         return invalid_gate(
             f"invalid review gate json: {exc.msg}",
             source_artifact=artifact_name,
+            gate_type_name=gate_type_name,
         )
     if not isinstance(payload, dict):
         return invalid_gate(
             "review gate artifact must be a JSON object",
             source_artifact=artifact_name,
+            gate_type_name=gate_type_name,
         )
-    return parse_review_gate(payload, source_artifact=artifact_name)
+    return parse_review_gate(
+        payload,
+        source_artifact=artifact_name,
+        gate_type_name=gate_type_name,
+    )
+
+
+def parse_review_gate_from_text(
+    text: str,
+    source_artifact: str = REVIEW_GATE_ARTIFACT,
+    gate_type_name: str = DEFAULT_GATE_TYPE,
+) -> ReviewGate:
+    payload = extract_json_object(text)
+    if payload is None:
+        return invalid_gate(
+            "could not extract review gate JSON object from agent text",
+            source_artifact=source_artifact,
+            gate_type_name=gate_type_name,
+        )
+    return parse_review_gate(
+        payload,
+        source_artifact=source_artifact,
+        gate_type_name=gate_type_name,
+    )
+
+
+def extract_json_object(text: str) -> dict[str, Any] | None:
+    for match in JSON_FENCE_RE.finditer(text):
+        try:
+            payload = json.loads(match.group(1))
+        except json.JSONDecodeError:
+            continue
+        if isinstance(payload, dict):
+            return payload
+    decoder = json.JSONDecoder()
+    for index, character in enumerate(text):
+        if character != "{":
+            continue
+        try:
+            payload, _end = decoder.raw_decode(text[index:])
+        except json.JSONDecodeError:
+            continue
+        if isinstance(payload, dict):
+            return payload
+    return None
 
 
 def parse_review_gate(
     payload: dict[str, Any],
     source_artifact: str = REVIEW_GATE_ARTIFACT,
+    gate_type_name: str = DEFAULT_GATE_TYPE,
 ) -> ReviewGate:
     decision = str(payload.get("decision") or "").strip().lower()
     if decision not in ALLOWED_DECISIONS:
         return invalid_gate(
             "decision must be pass, warn, block, or needs_human",
             source_artifact=source_artifact,
+            gate_type_name=gate_type_name,
         )
 
     severity = normalize_severity(payload.get("severity"))
     findings_payload = payload.get("findings") or []
     if not isinstance(findings_payload, list):
-        return invalid_gate("findings must be a list", source_artifact=source_artifact)
+        return invalid_gate(
+            "findings must be a list",
+            source_artifact=source_artifact,
+            gate_type_name=gate_type_name,
+        )
 
     findings: list[ReviewFinding] = []
     for index, item in enumerate(findings_payload, start=1):
@@ -108,12 +190,14 @@ def parse_review_gate(
             return invalid_gate(
                 f"finding {index} must be an object",
                 source_artifact=source_artifact,
+                gate_type_name=gate_type_name,
             )
         finding = parse_finding(item, index)
         if finding is None:
             return invalid_gate(
                 f"finding {index} is missing id, message, or structured evidence",
                 source_artifact=source_artifact,
+                gate_type_name=gate_type_name,
             )
         findings.append(finding)
 
@@ -131,12 +215,14 @@ def parse_review_gate(
         reason=reason,
         findings=findings,
         source_artifact=source_artifact,
+        gate_type=gate_type_name,
     )
 
 
 def invalid_gate(
     error: str,
     source_artifact: str = REVIEW_GATE_ARTIFACT,
+    gate_type_name: str = DEFAULT_GATE_TYPE,
 ) -> ReviewGate:
     return ReviewGate(
         decision="needs_human",
@@ -146,6 +232,7 @@ def invalid_gate(
         valid=False,
         error=error,
         source_artifact=source_artifact,
+        gate_type=gate_type_name,
     )
 
 

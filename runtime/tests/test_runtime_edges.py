@@ -23,10 +23,29 @@ from runtime.cloud_agents_runtime.adapters.qwen import (
     parse_json_or_text,
 )
 from runtime.cloud_agents_runtime.auth import AuthConfig, is_authorized
+from runtime.cloud_agents_runtime.interop import (
+    a2a_task_from_mission,
+    create_a2a_task,
+    handle_acp_jsonrpc,
+    jsonrpc_error,
+    map_a2a_status,
+    require_string,
+)
 from runtime.cloud_agents_runtime.manager import RunManager
 from runtime.cloud_agents_runtime.missions import build_task_definitions, run_status_to_task_status
-from runtime.cloud_agents_runtime.models import MissionSpec, RunSpec, clean_identifier
-from runtime.cloud_agents_runtime.review_gate import parse_review_gate
+from runtime.cloud_agents_runtime.models import MissionSpec, RunSpec, RunState, clean_identifier
+from runtime.cloud_agents_runtime.review_gate import (
+    default_reason,
+    extract_json_object,
+    gate_artifact_name,
+    gate_type,
+    is_review_gate_task,
+    is_structured_gate_task,
+    load_review_gate,
+    parse_review_gate,
+    parse_review_gate_from_text,
+    review_gate_artifact_name,
+)
 from runtime.cloud_agents_runtime.server import parse_last_event_id, parse_optional_int
 from runtime.cloud_agents_runtime.store import RunStore
 from runtime.cloud_agents_runtime.supervisor import QwenServeProcess, qwen_supervisor_from_env
@@ -235,6 +254,205 @@ class RuntimeEdgeTest(unittest.TestCase):
         )
         self.assertTrue(invalid_evidence.blocks)
         self.assertFalse(invalid_evidence.valid)
+
+        extracted = parse_review_gate_from_text(
+            """
+            reviewer summary
+            ```json
+            {"decision":"warn","severity":"medium","reason":"watch this","findings":[]}
+            ```
+            """
+        )
+        self.assertFalse(extracted.blocks)
+        self.assertEqual(extracted.effective_decision, "warn")
+
+    def test_review_gate_metadata_and_load_edges(self) -> None:
+        reviewer_profile = {"artifacts": {"gate": {"type": "reviewer"}}}
+        release_profile = {
+            "artifacts": {"gate": {"type": "merge_deploy", "artifact": "release_gate.json"}}
+        }
+        self.assertTrue(is_review_gate_task(reviewer_profile))
+        self.assertTrue(is_structured_gate_task(release_profile))
+        self.assertFalse(is_structured_gate_task({"artifacts": "bad"}))
+        self.assertEqual(gate_type(release_profile), "merge_deploy")
+        self.assertIsNone(gate_type({}))
+        self.assertEqual(gate_artifact_name(release_profile), "release_gate.json")
+        self.assertEqual(review_gate_artifact_name({}), "review_gate.json")
+        self.assertEqual(gate_artifact_name({"artifacts": "bad"}), "review_gate.json")
+
+        with tempfile.TemporaryDirectory() as tmp:
+            run_dir = Path(tmp)
+            missing = load_review_gate(run_dir, "release_gate.json", "merge_deploy")
+            self.assertFalse(missing.valid)
+            self.assertEqual(missing.source_artifact, "release_gate.json")
+            self.assertEqual(missing.gate_type, "merge_deploy")
+
+            (run_dir / "bad.json").write_text("{", encoding="utf-8")
+            bad_json = load_review_gate(run_dir, "bad.json")
+            self.assertFalse(bad_json.valid)
+            self.assertIn("invalid review gate json", bad_json.error or "")
+
+            (run_dir / "array.json").write_text("[]", encoding="utf-8")
+            not_object = load_review_gate(run_dir, "array.json")
+            self.assertFalse(not_object.valid)
+            self.assertIn("must be a JSON object", not_object.error or "")
+
+        no_json = parse_review_gate_from_text("no json here")
+        self.assertFalse(no_json.valid)
+        self.assertIsNone(extract_json_object("```json\n[\n]\n```"))
+        self.assertEqual(extract_json_object("prefix {\"decision\":\"pass\"}")["decision"], "pass")
+
+        warn_high = parse_review_gate({"decision": "warn", "severity": "high"})
+        self.assertTrue(warn_high.blocks)
+        self.assertEqual(warn_high.effective_decision, "block")
+
+        weird_severity = parse_review_gate({"decision": "pass", "severity": "surprise"})
+        self.assertTrue(weird_severity.blocks)
+        self.assertEqual(weird_severity.severity, "critical")
+
+        self.assertEqual(
+            default_reason("block", "high"),
+            "blocking review finding severity: high",
+        )
+        self.assertEqual(
+            default_reason("needs_human", "critical"),
+            "review requires human decision",
+        )
+        self.assertEqual(
+            default_reason("warn", "medium"),
+            "review completed with warning severity: medium",
+        )
+        self.assertEqual(default_reason("pass", "none"), "review gate passed")
+
+    def test_acp_and_a2a_interop_edges(self) -> None:
+        manager = MiniInteropManager()
+
+        response, status = handle_acp_jsonrpc(manager, {"id": 1})
+        self.assertEqual(status.value, HTTPErrorCode.BAD_REQUEST.value)
+        self.assertEqual(response["error"]["code"], -32600)
+
+        response, status = handle_acp_jsonrpc(
+            manager,
+            {"jsonrpc": "2.0", "id": 2, "params": {}},
+        )
+        self.assertEqual(status.value, HTTPErrorCode.BAD_REQUEST.value)
+        self.assertEqual(response["error"]["code"], -32600)
+
+        response, status = handle_acp_jsonrpc(
+            manager,
+            {"jsonrpc": "2.0", "id": 3, "method": "unknown", "params": {}},
+        )
+        self.assertEqual(status.value, HTTPErrorCode.NOT_FOUND.value)
+        self.assertEqual(response["error"]["code"], -32601)
+
+        response, status = handle_acp_jsonrpc(
+            manager,
+            {"jsonrpc": "2.0", "id": 4, "method": "initialize", "params": {}},
+        )
+        self.assertEqual(status.value, 200)
+        self.assertIn("run.create", response["result"]["methods"])
+
+        response, status = handle_acp_jsonrpc(
+            manager,
+            {
+                "jsonrpc": "2.0",
+                "id": 5,
+                "method": "run.create",
+                "params": {"prompt": "hello", "adapter": "fake"},
+            },
+        )
+        self.assertEqual(status.value, 200)
+        self.assertEqual(response["result"]["run_id"], "run_acp")
+
+        response, status = handle_acp_jsonrpc(
+            manager,
+            {
+                "jsonrpc": "2.0",
+                "id": 6,
+                "method": "run.status",
+                "params": {"run_id": "run_acp"},
+            },
+        )
+        self.assertEqual(status.value, 200)
+        self.assertEqual(response["result"]["run_id"], "run_acp")
+
+        response, status = handle_acp_jsonrpc(
+            manager,
+            {
+                "jsonrpc": "2.0",
+                "id": 7,
+                "method": "run.status",
+                "params": {"run_id": "missing"},
+            },
+        )
+        self.assertEqual(status.value, HTTPErrorCode.NOT_FOUND.value)
+        self.assertEqual(response["error"]["code"], -32004)
+
+        response, status = handle_acp_jsonrpc(
+            manager,
+            {
+                "jsonrpc": "2.0",
+                "id": 8,
+                "method": "run.input",
+                "params": {"run_id": "run_acp", "prompt": "continue"},
+            },
+        )
+        self.assertEqual(status.value, 200)
+        self.assertEqual(manager.inputs, [("run_acp", "continue")])
+
+        response, status = handle_acp_jsonrpc(
+            manager,
+            {
+                "jsonrpc": "2.0",
+                "id": 9,
+                "method": "run.input",
+                "params": {"run_id": "run_acp", "prompt": ""},
+            },
+        )
+        self.assertEqual(status.value, HTTPErrorCode.BAD_REQUEST.value)
+        self.assertEqual(response["error"]["code"], -32602)
+
+        response, status = handle_acp_jsonrpc(
+            manager,
+            {
+                "jsonrpc": "2.0",
+                "id": 10,
+                "method": "run.cancel",
+                "params": {"run_id": "run_acp", "reason": "done"},
+            },
+        )
+        self.assertEqual(status.value, 200)
+        self.assertEqual(manager.cancelled, [("run_acp", "done")])
+
+        response, status = handle_acp_jsonrpc(
+            manager,
+            {
+                "jsonrpc": "2.0",
+                "id": 11,
+                "method": "run.cancel",
+                "params": {"run_id": "missing"},
+            },
+        )
+        self.assertEqual(status.value, HTTPErrorCode.NOT_FOUND.value)
+        self.assertEqual(response["error"]["message"], "run not found")
+
+        self.assertEqual(require_string({"name": " alice "}, "name"), "alice")
+        with self.assertRaisesRegex(ValueError, "name is required"):
+            require_string({"name": " "}, "name")
+        self.assertEqual(jsonrpc_error("x", -1, "boom")["error"]["message"], "boom")
+
+        with self.assertRaisesRegex(ValueError, "goal or message is required"):
+            create_a2a_task(manager, {})
+        task = create_a2a_task(manager, {"message": "ship it"})
+        self.assertEqual(task["task_id"], "mission_acp")
+        self.assertEqual(task["status"], "submitted")
+        self.assertEqual(task["artifacts"], [{"name": "final_report.md"}])
+
+        with self.assertRaises(KeyError):
+            a2a_task_from_mission(manager, "missing")
+        self.assertEqual(map_a2a_status("blocked"), "input-required")
+        self.assertEqual(map_a2a_status("cancelled"), "canceled")
+        self.assertEqual(map_a2a_status("weird"), "unknown")
 
     def test_qwen_not_configured_and_inactive_input(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -457,6 +675,53 @@ class ErrorQwenHandler(BaseHTTPRequestHandler):
 
     def log_message(self, fmt: str, *args: object) -> None:
         return
+
+
+class MiniInteropStore:
+    def list_mission_artifacts(self, mission_id: str) -> list[dict[str, str]]:
+        return [{"name": "final_report.md"}]
+
+
+class MiniInteropManager:
+    def __init__(self) -> None:
+        self.runs: dict[str, RunState] = {}
+        self.inputs: list[tuple[str, str]] = []
+        self.cancelled: list[tuple[str, str | None]] = []
+        self.mission: dict[str, object] | None = None
+        self.store = MiniInteropStore()
+
+    def capabilities(self) -> dict[str, object]:
+        return {"features": ["interop-test"]}
+
+    def create_run(self, spec: RunSpec) -> RunState:
+        run = RunState.create(spec, run_id="run_acp")
+        self.runs[run.run_id] = run
+        return run
+
+    def send_input(self, run_id: str, prompt: str) -> None:
+        self.inputs.append((run_id, prompt))
+
+    def get_run(self, run_id: str) -> RunState | None:
+        return self.runs.get(run_id)
+
+    def cancel(self, run_id: str, reason: str | None = None) -> None:
+        if run_id not in self.runs:
+            raise KeyError(run_id)
+        self.cancelled.append((run_id, reason))
+
+    def create_mission(self, payload: dict[str, object]) -> dict[str, object]:
+        self.mission = {
+            "mission_id": "mission_acp",
+            "status": "created",
+            "goal": payload.get("goal"),
+            "tasks": [],
+        }
+        return self.mission
+
+    def get_mission(self, mission_id: str) -> dict[str, object] | None:
+        if mission_id != "mission_acp":
+            return None
+        return self.mission
 
 
 @contextmanager

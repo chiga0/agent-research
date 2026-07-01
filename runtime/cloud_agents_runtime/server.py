@@ -13,9 +13,16 @@ from urllib.parse import urlparse
 
 from . import __version__
 from .auth import AuthConfig, is_authorized
+from .interop import (
+    a2a_agent_card,
+    a2a_task_from_mission,
+    create_a2a_task,
+    handle_acp_jsonrpc,
+)
 from .manager import RunManager
 from .models import RunSpec
 from .supervisor import qwen_supervisor_from_env
+from .temporal_poc import agent_run_workflow_plan, mission_workflow_plan
 
 
 def make_handler(
@@ -42,6 +49,18 @@ def make_handler(
             if path == "/capabilities":
                 self.write_json(manager.capabilities())
                 return
+            if path == "/acp":
+                self.write_json(
+                    {
+                        "protocol": "acp-poc",
+                        "transport": "json-rpc-over-http",
+                        "endpoint": "/acp",
+                    }
+                )
+                return
+            if path == "/.well-known/agent-card.json":
+                self.write_json(a2a_agent_card(manager, self.base_url()))
+                return
             if path == "/queue":
                 self.write_json(manager.queue_status())
                 return
@@ -60,6 +79,15 @@ def make_handler(
                 return
             if len(parts) == 1 and parts[0] == "missions":
                 self.write_json({"missions": manager.list_missions()})
+                return
+            if len(parts) == 2 and parts[0] == "a2a" and parts[1] == "tasks":
+                self.write_json({"tasks": manager.list_missions()})
+                return
+            if len(parts) == 3 and parts[0] == "a2a" and parts[1] == "tasks":
+                try:
+                    self.write_json(a2a_task_from_mission(manager, parts[2]))
+                except KeyError:
+                    self.write_error(HTTPStatus.NOT_FOUND, "task not found")
                 return
             if len(parts) == 2 and parts[0] == "missions":
                 mission = manager.get_mission(parts[1])
@@ -84,6 +112,19 @@ def make_handler(
                     return
                 self.write_json({"artifacts": artifacts})
                 return
+            if (
+                len(parts) == 5
+                and parts[0] == "temporal"
+                and parts[1] == "workflows"
+                and parts[2] == "missions"
+                and parts[4] == "plan"
+            ):
+                mission = manager.get_mission(parts[3])
+                if mission is None:
+                    self.write_error(HTTPStatus.NOT_FOUND, "mission not found")
+                    return
+                self.write_json(mission_workflow_plan(mission))
+                return
             if len(parts) == 1 and parts[0] == "runs":
                 self.write_json({"runs": [run.to_dict() for run in manager.store.list_runs()]})
                 return
@@ -93,6 +134,19 @@ def make_handler(
                     self.write_error(HTTPStatus.NOT_FOUND, "run not found")
                     return
                 self.write_json(run.to_dict())
+                return
+            if (
+                len(parts) == 5
+                and parts[0] == "temporal"
+                and parts[1] == "workflows"
+                and parts[2] == "runs"
+                and parts[4] == "plan"
+            ):
+                run = manager.get_run(parts[3])
+                if run is None:
+                    self.write_error(HTTPStatus.NOT_FOUND, "run not found")
+                    return
+                self.write_json(agent_run_workflow_plan(run))
                 return
             if len(parts) == 3 and parts[0] == "runs" and parts[2] == "events":
                 self.stream_events(parts[1])
@@ -122,6 +176,10 @@ def make_handler(
             parts = split_path(path)
             try:
                 payload = self.read_json()
+                if path == "/acp":
+                    response, status = handle_acp_jsonrpc(manager, payload)
+                    self.write_json(response, status=status)
+                    return
                 if len(parts) == 1 and parts[0] == "cleanup":
                     self.write_json({"cleanup": manager.cleanup_once()})
                     return
@@ -133,9 +191,26 @@ def make_handler(
                     mission = manager.create_mission(payload)
                     self.write_json(mission, status=HTTPStatus.CREATED)
                     return
+                if len(parts) == 2 and parts[0] == "a2a" and parts[1] == "tasks":
+                    task = create_a2a_task(manager, payload)
+                    self.write_json(task, status=HTTPStatus.CREATED)
+                    return
                 if len(parts) == 3 and parts[0] == "missions" and parts[2] == "cancel":
                     try:
                         mission = manager.cancel_mission(parts[1], payload.get("reason"))
+                    except KeyError:
+                        self.write_error(HTTPStatus.NOT_FOUND, "mission not found")
+                        return
+                    self.write_json(mission, status=HTTPStatus.ACCEPTED)
+                    return
+                if (
+                    len(parts) == 4
+                    and parts[0] == "missions"
+                    and parts[2] == "review-gate"
+                    and parts[3] == "override"
+                ):
+                    try:
+                        mission = manager.override_review_gate(parts[1], payload)
                     except KeyError:
                         self.write_error(HTTPStatus.NOT_FOUND, "mission not found")
                         return
@@ -267,6 +342,13 @@ def make_handler(
             self.wfile.write(body)
             self.wfile.flush()
             self.close_connection = True
+
+        def base_url(self) -> str:
+            host = self.headers.get("host")
+            if host:
+                return f"http://{host}"
+            server_host, server_port = self.server.server_address[:2]
+            return f"http://{server_host}:{server_port}"
 
         def write_error(self, status: HTTPStatus, message: str) -> None:
             self.write_json({"error": message}, status=status)
