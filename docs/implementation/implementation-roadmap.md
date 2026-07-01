@@ -143,7 +143,7 @@ P2 当前判断：
 
 ## P3：多 SAEU 并发与任务队列
 
-状态：`in_progress`
+状态：`done`
 
 目标：
 
@@ -160,7 +160,7 @@ P2 当前判断：
 | per-worker capacity | `done` | `RUN_MANAGER_WORKER_CAPACITY` / `--worker-capacity` 生效，超容量 run 保持 queued |
 | per-run workspace | `done` | 每个 run 默认分配 `artifact_root/workspaces/<run_id>`；local git source 优先使用 detached worktree |
 | resource limits | `done` | Run Manager 解析并审计 resource policy；timeout watchdog 生效；Docker/systemd 对执行单元施加 CPU/memory/pids cgroup 限制 |
-| cleanup policy | `not_started` | workspace/artifact 按保留策略清理 |
+| cleanup policy | `done` | terminal run 的 workspace/artifact 可按保留策略清理；SQLite 审计事件保留 |
 | 双 VPS worker 模式 | `deferred` | control plane 与 sandbox worker 分离 |
 
 P3 当前实现：
@@ -173,6 +173,7 @@ P3 当前实现：
 - 浏览器控制台增加 Queue 面板，显示 queued/running/capacity/active 和 worker heartbeat。
 - 单进程 Run Manager 现在可以用 capacity=1 验证排队，用 capacity=2 在单 VPS 上跑 1-2 个 SAEU。
 - Docker Compose 和 systemd 部署默认把整个执行单元限制在 1 CPU / 1G memory / 512 tasks/pids。
+- cleanup policy 默认启用：workspace 保留 7 天，artifact 保留 30 天，后台每小时扫描；`POST /cleanup` 可手动触发一次清理。
 
 P3 剩余风险：
 

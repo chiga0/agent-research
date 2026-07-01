@@ -9,6 +9,7 @@ from typing import Any
 from uuid import uuid4
 
 from .adapters import FakeAdapter, QwenServeAdapter, RuntimeAdapter
+from .cleanup import CleanupManager, CleanupPolicy
 from .events import RuntimeEvent, TERMINAL_RUN_EVENTS
 from .models import RunSpec, RunState
 from .resources import ResourceLimitConfig, ResourcePolicyResolver
@@ -27,11 +28,13 @@ class RunManager:
         worker_capacity: int | None = None,
         lease_ttl_seconds: int | None = None,
         resource_config: ResourceLimitConfig | None = None,
+        cleanup_policy: CleanupPolicy | None = None,
         heartbeat_enabled: bool = False,
     ):
         self.store = RunStore(artifact_root)
         self.workspace_allocator = WorkspaceAllocator(artifact_root)
         self.resource_resolver = ResourcePolicyResolver(resource_config)
+        self.cleanup_manager = CleanupManager(self.store, cleanup_policy)
         self.adapters = adapters or {
             "fake": FakeAdapter(),
             "qwen": QwenServeAdapter(base_url=qwen_base_url, token=qwen_token),
@@ -62,6 +65,7 @@ class RunManager:
         )
         self.store.recover_expired_leases()
         self._heartbeat_thread: threading.Thread | None = None
+        self._cleanup_thread: threading.Thread | None = None
         if heartbeat_enabled:
             self._heartbeat_thread = threading.Thread(
                 target=self._heartbeat_loop,
@@ -69,6 +73,13 @@ class RunManager:
                 daemon=True,
             )
             self._heartbeat_thread.start()
+        if self.cleanup_manager.policy.enabled:
+            self._cleanup_thread = threading.Thread(
+                target=self._cleanup_loop,
+                name=f"runtime-cleanup-{self.worker_id}",
+                daemon=True,
+            )
+            self._cleanup_thread.start()
         self._drain_queue()
 
     def capabilities(self) -> dict[str, Any]:
@@ -93,8 +104,10 @@ class RunManager:
                 "per_run_workspace",
                 "resource_policy",
                 "run_timeout_watchdog",
+                "cleanup_policy",
             ],
             "resource_limits": self.resource_resolver.config.to_dict(),
+            "cleanup_policy": self.cleanup_manager.policy.to_dict(),
             "queue": self.queue_status(),
             "adapters": {
                 name: adapter.capabilities() for name, adapter in sorted(self.adapters.items())
@@ -154,6 +167,9 @@ class RunManager:
     def queue_status(self) -> dict[str, Any]:
         return self.store.queue_snapshot()
 
+    def cleanup_once(self) -> dict[str, Any]:
+        return self.cleanup_manager.run_once().to_dict()
+
     def shutdown(self) -> None:
         if self._closed:
             return
@@ -161,6 +177,8 @@ class RunManager:
         self._stop.set()
         if self._heartbeat_thread:
             self._heartbeat_thread.join(timeout=2)
+        if self._cleanup_thread:
+            self._cleanup_thread.join(timeout=2)
         with self._run_threads_lock:
             run_threads = list(self._run_threads)
         for thread in run_threads:
@@ -261,6 +279,15 @@ class RunManager:
                 self.store.recover_expired_leases()
                 self._drain_queue()
             except Exception:
+                return
+
+    def _cleanup_loop(self) -> None:
+        while not self._stop.is_set():
+            try:
+                self.cleanup_once()
+            except Exception:
+                pass
+            if self._stop.wait(self.cleanup_manager.policy.interval_seconds):
                 return
 
     def _on_event(self, event: RuntimeEvent) -> None:

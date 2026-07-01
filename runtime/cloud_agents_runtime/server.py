@@ -86,6 +86,9 @@ def make_handler(
             parts = split_path(path)
             try:
                 payload = self.read_json()
+                if len(parts) == 1 and parts[0] == "cleanup":
+                    self.write_json({"cleanup": manager.cleanup_once()})
+                    return
                 if len(parts) == 1 and parts[0] == "runs":
                     spec = RunSpec.from_payload(payload)
                     run = manager.create_run(spec)
@@ -367,6 +370,7 @@ def main(argv: list[str] | None = None) -> int:
         print(f"qwen serve: {args.qwen_url}")
     print(f"worker capacity: {server.manager.worker_capacity}")
     print(f"resource limits: {server.manager.resource_resolver.config.to_dict()}")
+    print(f"cleanup policy: {server.manager.cleanup_manager.policy.to_dict()}")
     try:
         server.serve_forever()
     except KeyboardInterrupt:

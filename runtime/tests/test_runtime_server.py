@@ -32,6 +32,7 @@ class RuntimeServerTest(unittest.TestCase):
             )
             self.assertIn("fake", capabilities["adapters"])
             self.assertIn("default_cpus", capabilities["resource_limits"])
+            self.assertIn("workspace_retention_seconds", capabilities["cleanup_policy"])
             queue = request_json(
                 f"{base_url}/queue",
                 headers={"authorization": "Bearer secret"},
@@ -42,6 +43,17 @@ class RuntimeServerTest(unittest.TestCase):
                 headers={"authorization": "Bearer secret"},
             )
             self.assertGreaterEqual(workers["workers"][0]["capacity"], 1)
+
+            with self.assertRaises(urllib.error.HTTPError) as cleanup_ctx:
+                request_json(f"{base_url}/cleanup", method="POST", payload={})
+            self.assertEqual(cleanup_ctx.exception.code, HTTPStatus.UNAUTHORIZED)
+            cleanup = request_json(
+                f"{base_url}/cleanup",
+                method="POST",
+                payload={},
+                headers={"authorization": "Bearer secret"},
+            )
+            self.assertIn("cleanup", cleanup)
 
     def test_fake_run_streams_sse_and_writes_artifacts(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

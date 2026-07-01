@@ -544,7 +544,7 @@
         "message.delta", "step.completed", "run.completed", "run.failed",
         "run.cancelled", "permission.requested", "permission.resolved",
         "event.gap_detected", "run.queued", "lease.claimed", "lease.expired",
-        "stream.warning"
+        "cleanup.workspace_deleted", "cleanup.artifacts_deleted", "stream.warning"
       ].forEach((name) => source.addEventListener(name, appendEvent));
       source.onerror = () => {
         closeStream();

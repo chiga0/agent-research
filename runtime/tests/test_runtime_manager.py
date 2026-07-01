@@ -10,6 +10,7 @@ from pathlib import Path
 
 from runtime.cloud_agents_runtime.adapters.base import RuntimeAdapter
 from runtime.cloud_agents_runtime.adapters.fake import FakeAdapter
+from runtime.cloud_agents_runtime.cleanup import CleanupPolicy
 from runtime.cloud_agents_runtime.manager import RunManager, positive_int
 from runtime.cloud_agents_runtime.models import RunSpec
 from runtime.cloud_agents_runtime.resources import ResourceLimitConfig
@@ -400,6 +401,129 @@ class RunManagerTest(unittest.TestCase):
                 self.assertIn("resources.timeout", events)
                 self.assertIn("run.cancelled", events)
                 self.assertEqual(adapter.cancelled, [run.run_id])
+            finally:
+                manager.shutdown()
+
+    def test_cleanup_policy_deletes_terminal_workspace(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            manager = RunManager(
+                root,
+                cleanup_policy=CleanupPolicy(
+                    enabled=False,
+                    workspace_retention_seconds=0,
+                    artifact_retention_seconds=999999,
+                ),
+            )
+            try:
+                run = manager.create_run(RunSpec(prompt="cleanup workspace", adapter="fake"))
+                self.wait_for_status(manager, run.run_id, "completed")
+                current = manager.get_run(run.run_id)
+                self.assertIsNotNone(current)
+                workspace = Path(current.spec.workspace)
+                self.assertTrue(workspace.exists())
+
+                result = manager.cleanup_once()
+                self.assertFalse(workspace.exists())
+                self.assertTrue((root / run.run_id / "events.jsonl").exists())
+                self.assertEqual(
+                    result["workspaces_deleted"][0]["run_id"],
+                    run.run_id,
+                )
+                self.assertIn(
+                    "cleanup.workspace_deleted",
+                    [event.type for event in manager.store.events_since(run.run_id)],
+                )
+            finally:
+                manager.shutdown()
+
+    def test_cleanup_policy_deletes_artifacts_but_keeps_db_events(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            manager = RunManager(
+                root,
+                cleanup_policy=CleanupPolicy(
+                    enabled=False,
+                    workspace_retention_seconds=999999,
+                    artifact_retention_seconds=0,
+                ),
+            )
+            try:
+                run = manager.create_run(RunSpec(prompt="cleanup artifacts", adapter="fake"))
+                self.wait_for_status(manager, run.run_id, "completed")
+                run_dir = root / run.run_id
+                self.assertTrue(run_dir.exists())
+
+                result = manager.cleanup_once()
+                self.assertFalse(run_dir.exists())
+                self.assertTrue((root / "runtime.db").exists())
+                self.assertEqual(
+                    result["artifacts_deleted"][0]["run_id"],
+                    run.run_id,
+                )
+                self.assertIn(
+                    "cleanup.artifacts_deleted",
+                    [event.type for event in manager.store.events_since(run.run_id)],
+                )
+                self.assertEqual(manager.store.list_artifacts(run.run_id), [])
+            finally:
+                manager.shutdown()
+
+    def test_cleanup_policy_skips_shared_workspace(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            shared = root / "shared"
+            shared.mkdir()
+            manager = RunManager(
+                root,
+                worker_capacity=0,
+                worker_id="cleanup-worker",
+                cleanup_policy=CleanupPolicy(
+                    enabled=False,
+                    workspace_retention_seconds=0,
+                    artifact_retention_seconds=999999,
+                ),
+            )
+            try:
+                run = manager.create_run(
+                    RunSpec(
+                        prompt="shared cleanup",
+                        adapter="fake",
+                        workspace=str(shared),
+                        sandbox={"workspace_strategy": "shared"},
+                    )
+                )
+                manager.cancel(run.run_id, "finish queued shared run")
+                result = manager.cleanup_once()
+                self.assertTrue(shared.exists())
+                self.assertEqual(result["workspaces_deleted"], [])
+            finally:
+                manager.shutdown()
+
+    def test_cleanup_policy_skips_non_terminal_runs(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            manager = RunManager(
+                root,
+                worker_capacity=0,
+                worker_id="cleanup-worker",
+                cleanup_policy=CleanupPolicy(
+                    enabled=False,
+                    workspace_retention_seconds=0,
+                    artifact_retention_seconds=0,
+                ),
+            )
+            try:
+                run = manager.create_run(RunSpec(prompt="queued cleanup", adapter="fake"))
+                current = manager.get_run(run.run_id)
+                self.assertIsNotNone(current)
+                workspace = Path(current.spec.workspace)
+
+                result = manager.cleanup_once()
+                self.assertTrue(workspace.exists())
+                self.assertTrue((root / run.run_id / "events.jsonl").exists())
+                self.assertEqual(result["workspaces_deleted"], [])
+                self.assertEqual(result["artifacts_deleted"], [])
             finally:
                 manager.shutdown()
 

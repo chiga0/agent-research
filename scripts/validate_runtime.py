@@ -25,6 +25,10 @@ def main(argv: list[str] | None = None) -> int:
     print(f"health: {health}")
     capabilities = client.get("/capabilities")
     print(f"capabilities adapters: {sorted(capabilities['adapters'])}")
+    if "cleanup_policy" not in capabilities:
+        print("capabilities missing cleanup_policy", file=sys.stderr)
+        return 1
+    print(f"cleanup policy: {capabilities['cleanup_policy']}")
     queue = client.get("/queue")
     workers = queue.get("workers") or []
     print(f"queue counts: {queue.get('counts', {})}; workers: {len(workers)}")

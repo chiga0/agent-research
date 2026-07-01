@@ -1,9 +1,10 @@
 # Cloud Agents Runtime
 
-This directory contains the P1/P2 implementation slice plus the first P3 queue
+This directory contains the P1/P2 implementation slice plus the local P3 runtime
 slice from the roadmap: a single SAEU Run Manager with a pluggable runtime
 adapter boundary, durable event storage, audit artifacts, permission resolution,
-run queue leases, worker heartbeat, replay tooling, and cloud deployment assets.
+run queue leases, worker heartbeat, resource policy, cleanup policy, replay
+tooling, and cloud deployment assets.
 
 The current implementation intentionally uses only the Python standard library.
 It is small enough to audit and easy to replace once the API contract is proven.
@@ -26,6 +27,7 @@ Postgres when multiple control-plane instances are required.
 - `GET /` serves the browser management console.
 - `GET /runs/{run_id}/events.json` returns canonical events for UI replay.
 - `GET /runs/{run_id}/artifacts` lists artifact files for the run.
+- `POST /cleanup` triggers one retention-policy cleanup pass.
 - Raw run specs, inputs, canonical events, and adapter artifacts are written to
   `runtime/artifacts/`.
 - Canonical events are persisted in `runtime.db` and `events.jsonl`.
@@ -41,6 +43,9 @@ Postgres when multiple control-plane instances are required.
   `resources.resolved`. `timeout_seconds` is enforced by a Run Manager watchdog;
   CPU, memory, and pids are enforced at the Docker/systemd execution-unit layer
   in the current P3 slice.
+- Cleanup policy is enabled by default. Terminal run workspaces are retained for
+  7 days, run artifact directories are retained for 30 days, and canonical DB
+  events remain in `runtime.db` after artifact cleanup.
 - `diagnostics.json` is maintained per run.
 - `scripts/replay_run.py` can replay events, SSE frames, or rebuilt state from
   artifacts.
@@ -61,6 +66,10 @@ export RUN_MANAGER_DEFAULT_CPUS=1.0
 export RUN_MANAGER_DEFAULT_MEMORY_MB=1024
 export RUN_MANAGER_DEFAULT_PIDS=512
 export RUN_MANAGER_DEFAULT_TIMEOUT_SECONDS=3600
+export RUN_MANAGER_CLEANUP_ENABLED=1
+export RUN_MANAGER_WORKSPACE_RETENTION_SECONDS=604800
+export RUN_MANAGER_ARTIFACT_RETENTION_SECONDS=2592000
+export RUN_MANAGER_CLEANUP_INTERVAL_SECONDS=3600
 python3 -m runtime.cloud_agents_runtime \
   --host 127.0.0.1 \
   --port 8765 \
@@ -123,6 +132,15 @@ curl -s http://127.0.0.1:8765/workers \
   -H "authorization: Bearer $RUN_MANAGER_TOKEN"
 ```
 
+Trigger one cleanup pass:
+
+```bash
+curl -s -X POST http://127.0.0.1:8765/cleanup \
+  -H "authorization: Bearer $RUN_MANAGER_TOKEN" \
+  -H 'content-type: application/json' \
+  -d '{}'
+```
+
 Replay from artifacts:
 
 ```bash
@@ -167,6 +185,7 @@ Acceptance:
 - `/health` returns `{"ok": true}`.
 - `/capabilities` lists `fake` and `qwen`.
 - `/capabilities` exposes runtime resource defaults and maximums.
+- `/capabilities` exposes cleanup retention policy.
 - `/queue` returns job counts, job leases, and worker heartbeat records.
 - `/workers` returns active worker capacity and heartbeat time.
 - API routes other than `/health` require `Authorization: Bearer ...` when
@@ -246,6 +265,7 @@ The current cloud-runnable slice includes:
   `workspace.json` artifact.
 - Per-run resource policy with `resources.resolved`, `resources.json`, and a
   timeout watchdog.
+- Cleanup policy for terminal run workspaces and artifact directories.
 - Managed `qwen serve` process for one workspace when `QWEN_SERVE_COMMAND` is
   configured.
 - Persistent artifact directory on disk with `runtime.db` and JSONL artifacts.
