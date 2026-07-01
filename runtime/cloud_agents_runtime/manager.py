@@ -4,6 +4,7 @@ import os
 import socket
 import threading
 import time
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 from uuid import uuid4
@@ -28,6 +29,8 @@ class RunManager:
         worker_id: str | None = None,
         worker_capacity: int | None = None,
         lease_ttl_seconds: int | None = None,
+        permission_stall_seconds: int | None = None,
+        permission_stall_action: str | None = None,
         resource_config: ResourceLimitConfig | None = None,
         cleanup_policy: CleanupPolicy | None = None,
         heartbeat_enabled: bool = False,
@@ -53,6 +56,14 @@ class RunManager:
             lease_ttl_seconds,
             os.environ.get("RUN_MANAGER_LEASE_TTL_SECONDS"),
             default=60,
+        )
+        self.permission_stall_seconds = positive_int(
+            permission_stall_seconds,
+            os.environ.get("RUN_MANAGER_PERMISSION_STALL_SECONDS"),
+            default=300,
+        )
+        self.permission_stall_action = normalize_permission_stall_action(
+            permission_stall_action or os.environ.get("RUN_MANAGER_PERMISSION_STALL_ACTION")
         )
         self._scheduler_lock = threading.Lock()
         self._run_threads: list[threading.Thread] = []
@@ -122,6 +133,10 @@ class RunManager:
             ],
             "resource_limits": self.resource_resolver.config.to_dict(),
             "cleanup_policy": self.cleanup_manager.policy.to_dict(),
+            "permission_stall_policy": {
+                "seconds": self.permission_stall_seconds,
+                "action": self.permission_stall_action,
+            },
             "queue": self.queue_status(),
             "profiles": [profile.to_dict() for profile in self.store.list_profiles()],
             "adapters": {
@@ -184,6 +199,17 @@ class RunManager:
 
     def cleanup_once(self) -> dict[str, Any]:
         return self.cleanup_manager.run_once().to_dict()
+
+    def run_audit_bundle(self, run_id: str) -> dict[str, Any]:
+        run = self._require_run(run_id)
+        return {
+            "run": run.to_dict(),
+            "events": [event.to_dict() for event in self.store.events_since(run_id)],
+            "raw_events": self.store.raw_events(run_id),
+            "artifacts": self.store.list_artifacts(run_id),
+            "queue": self.queue_status(),
+            "generated_at": datetime.now(timezone.utc).isoformat(timespec="milliseconds"),
+        }
 
     def list_profiles(self) -> list[dict[str, Any]]:
         return [profile.to_dict() for profile in self.store.list_profiles()]
@@ -341,6 +367,8 @@ class RunManager:
 
     def _on_event(self, event: RuntimeEvent) -> None:
         self.missions.handle_run_event(event)
+        if event.type == "permission.requested":
+            self._start_permission_watchdog(event)
         if event.type in TERMINAL_RUN_EVENTS:
             self._drain_queue()
             run = self.store.get_run(event.run_id)
@@ -348,6 +376,79 @@ class RunManager:
             mission_id = metadata.get("mission_id")
             if isinstance(mission_id, str):
                 self.missions.drain_mission(mission_id)
+
+    def _start_permission_watchdog(self, event: RuntimeEvent) -> None:
+        permission_id = permission_id_from_event(event)
+        if not permission_id or self.permission_stall_seconds <= 0:
+            return
+        thread = threading.Thread(
+            target=self._permission_watchdog,
+            args=(event.run_id, event.sequence, permission_id),
+            name=f"runtime-permission-{event.run_id}-{event.sequence}",
+            daemon=True,
+        )
+        thread.start()
+
+    def _permission_watchdog(
+        self,
+        run_id: str,
+        requested_sequence: int,
+        permission_id: str,
+    ) -> None:
+        if self._stop.wait(self.permission_stall_seconds):
+            return
+        if self.store.is_terminal(run_id) or self._permission_is_resolved(
+            run_id,
+            permission_id,
+            requested_sequence,
+        ):
+            return
+        self.store.append_event(
+            run_id,
+            "permission.stalled",
+            {
+                "permission_id": permission_id,
+                "requested_sequence": requested_sequence,
+                "stall_seconds": self.permission_stall_seconds,
+                "action": self.permission_stall_action,
+            },
+        )
+        if self.permission_stall_action == "cancel":
+            self.cancel(run_id, f"permission stalled after {self.permission_stall_seconds}s")
+        elif self.permission_stall_action == "deny":
+            try:
+                self.resolve_permission(
+                    run_id,
+                    permission_id,
+                    {
+                        "decision": "deny",
+                        "option_id": "cancel",
+                        "decided_by": "permission-watchdog",
+                        "reason": (
+                            "permission stalled after "
+                            f"{self.permission_stall_seconds}s"
+                        ),
+                    },
+                )
+            except Exception as exc:  # noqa: BLE001 - audit failed recovery action
+                self.store.append_event(
+                    run_id,
+                    "permission.stall_recovery_failed",
+                    {"permission_id": permission_id, "reason": str(exc)},
+                )
+
+    def _permission_is_resolved(
+        self,
+        run_id: str,
+        permission_id: str,
+        requested_sequence: int,
+    ) -> bool:
+        for event in self.store.events_since(run_id, requested_sequence):
+            if event.type != "permission.resolved":
+                continue
+            if permission_id_from_event(event) == permission_id:
+                return True
+        return False
 
 
 def positive_int(value: int | None, env_value: str | None, default: int) -> int:
@@ -360,3 +461,25 @@ def positive_int(value: int | None, env_value: str | None, default: int) -> int:
     if candidate is None:
         candidate = default
     return max(0, candidate)
+
+
+def normalize_permission_stall_action(value: str | None) -> str:
+    action = (value or "audit").strip().lower()
+    if action not in {"audit", "deny", "cancel"}:
+        return "audit"
+    return action
+
+
+def permission_id_from_event(event: RuntimeEvent) -> str | None:
+    data = event.data or {}
+    permission_id = data.get("permission_id")
+    if isinstance(permission_id, str) and permission_id:
+        return permission_id
+    raw = data.get("raw")
+    if isinstance(raw, dict):
+        raw_data = raw.get("data")
+        if isinstance(raw_data, dict):
+            request_id = raw_data.get("requestId") or raw_data.get("permission_id")
+            if isinstance(request_id, str) and request_id:
+                return request_id
+    return None

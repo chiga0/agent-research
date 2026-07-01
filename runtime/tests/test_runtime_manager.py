@@ -147,6 +147,33 @@ class RunManagerTest(unittest.TestCase):
             finally:
                 manager.shutdown()
 
+    def test_permission_watchdog_emits_stalled_audit_event(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            manager = RunManager(
+                Path(tmp),
+                worker_capacity=0,
+                permission_stall_seconds=1,
+                permission_stall_action="audit",
+            )
+            try:
+                run = manager.create_run(RunSpec(adapter="fake"))
+                manager.store.append_event(
+                    run.run_id,
+                    "permission.requested",
+                    {"raw": {"data": {"requestId": "perm-watch"}}},
+                )
+                deadline = time.time() + 3
+                events: list[str] = []
+                while time.time() < deadline:
+                    events = [event.type for event in manager.store.events_since(run.run_id)]
+                    if "permission.stalled" in events:
+                        break
+                    time.sleep(0.05)
+                self.assertIn("permission.stalled", events)
+                self.assertEqual(manager.store.get_run(run.run_id).status, "queued")
+            finally:
+                manager.shutdown()
+
     def test_queue_respects_worker_capacity_and_releases_next_run(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             manager = RunManager(

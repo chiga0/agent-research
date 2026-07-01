@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import mimetypes
 import os
 import sys
 import time
@@ -9,7 +10,7 @@ from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import Any
-from urllib.parse import urlparse
+from urllib.parse import unquote, urlparse
 
 from . import __version__
 from .auth import AuthConfig, is_authorized
@@ -112,6 +113,18 @@ def make_handler(
                     return
                 self.write_json({"artifacts": artifacts})
                 return
+            if len(parts) == 4 and parts[0] == "missions" and parts[2] == "artifacts":
+                try:
+                    self.write_file(
+                        manager.store.mission_artifact_path(parts[1], unquote(parts[3]))
+                    )
+                except KeyError:
+                    self.write_error(HTTPStatus.NOT_FOUND, "mission not found")
+                except ValueError as exc:
+                    self.write_error(HTTPStatus.BAD_REQUEST, str(exc))
+                except FileNotFoundError:
+                    self.write_error(HTTPStatus.NOT_FOUND, "artifact not found")
+                return
             if (
                 len(parts) == 5
                 and parts[0] == "temporal"
@@ -159,6 +172,12 @@ def make_handler(
                     return
                 self.write_json({"events": [event.to_dict() for event in events]})
                 return
+            if len(parts) == 3 and parts[0] == "runs" and parts[2] == "audit.json":
+                try:
+                    self.write_json(manager.run_audit_bundle(parts[1]))
+                except KeyError:
+                    self.write_error(HTTPStatus.NOT_FOUND, "run not found")
+                return
             if len(parts) == 3 and parts[0] == "runs" and parts[2] == "artifacts":
                 try:
                     artifacts = manager.store.list_artifacts(parts[1])
@@ -166,6 +185,16 @@ def make_handler(
                     self.write_error(HTTPStatus.NOT_FOUND, "run not found")
                     return
                 self.write_json({"artifacts": artifacts})
+                return
+            if len(parts) == 4 and parts[0] == "runs" and parts[2] == "artifacts":
+                try:
+                    self.write_file(manager.store.artifact_path(parts[1], unquote(parts[3])))
+                except KeyError:
+                    self.write_error(HTTPStatus.NOT_FOUND, "run not found")
+                except ValueError as exc:
+                    self.write_error(HTTPStatus.BAD_REQUEST, str(exc))
+                except FileNotFoundError:
+                    self.write_error(HTTPStatus.NOT_FOUND, "artifact not found")
                 return
             self.write_error(HTTPStatus.NOT_FOUND, "not found")
 
@@ -338,6 +367,21 @@ def make_handler(
             self.send_header("content-type", "text/html; charset=utf-8")
             self.send_header("content-length", str(len(body)))
             self.send_header("cache-control", "no-store")
+            self.end_headers()
+            self.wfile.write(body)
+            self.wfile.flush()
+            self.close_connection = True
+
+        def write_file(self, path: Path) -> None:
+            body = path.read_bytes()
+            content_type = mimetypes.guess_type(path.name)[0] or "application/octet-stream"
+            self.send_response(HTTPStatus.OK)
+            self.send_header("content-type", content_type)
+            self.send_header("content-length", str(len(body)))
+            self.send_header(
+                "content-disposition",
+                f'attachment; filename="{path.name.replace(chr(34), "")}"',
+            )
             self.end_headers()
             self.wfile.write(body)
             self.wfile.flush()

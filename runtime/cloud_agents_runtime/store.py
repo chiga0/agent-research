@@ -522,6 +522,27 @@ class RunStore:
             )
             self._db.commit()
 
+    def raw_events(self, run_id: str) -> list[dict[str, Any]]:
+        with self._lock:
+            self._require_run(run_id)
+            rows = self._db.execute(
+                """
+                select source, payload_json, created_at
+                from raw_events
+                where run_id = ?
+                order by id
+                """,
+                (run_id,),
+            ).fetchall()
+            return [
+                {
+                    "source": row["source"],
+                    "created_at": row["created_at"],
+                    "payload": json.loads(row["payload_json"]),
+                }
+                for row in rows
+            ]
+
     def write_json(self, run_id: str, name: str, payload: Any) -> Path:
         path = self.run_dir(run_id) / name
         path.parent.mkdir(parents=True, exist_ok=True)
@@ -552,6 +573,22 @@ class RunStore:
                     }
                 )
             return artifacts
+
+    def artifact_path(self, run_id: str, name: str) -> Path:
+        with self._lock:
+            self._require_run(run_id)
+            path = safe_child_file(self.run_dir(run_id), name)
+            if not path.exists() or not path.is_file():
+                raise FileNotFoundError(name)
+            return path
+
+    def mission_artifact_path(self, mission_id: str, name: str) -> Path:
+        with self._lock:
+            self._require_mission(mission_id)
+            path = safe_child_file(self.mission_dir(mission_id), name)
+            if not path.exists() or not path.is_file():
+                raise FileNotFoundError(name)
+            return path
 
     def max_sequence(self, run_id: str) -> int:
         with self._lock:
@@ -1134,3 +1171,10 @@ def iso_before(value: str | None, moment: datetime) -> bool:
         return datetime.fromisoformat(value) <= moment
     except ValueError:
         return False
+
+
+def safe_child_file(parent: Path, name: str) -> Path:
+    candidate = Path(name)
+    if candidate.name != name or name in {"", ".", ".."}:
+        raise ValueError("artifact name must be a file name")
+    return parent / name

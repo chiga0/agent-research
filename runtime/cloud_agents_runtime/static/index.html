@@ -226,6 +226,14 @@
       flex-wrap: wrap;
       margin: 8px 0;
     }
+    .notice {
+      border: 1px solid #fde68a;
+      border-radius: 7px;
+      background: #fffbeb;
+      color: #92400e;
+      padding: 10px;
+      margin-bottom: 12px;
+    }
     .artifacts {
       display: grid;
       grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
@@ -333,7 +341,10 @@
             <button id="streamBtn">Stream Events</button>
             <button id="cancelBtn">Cancel</button>
             <button id="loadArtifactsBtn">Load Artifacts</button>
+            <button id="downloadEventsBtn">Download Events</button>
+            <button id="downloadAuditBtn">Download Audit</button>
           </div>
+          <div id="permissionBanner"></div>
           <h3 style="margin-bottom: 8px;">Prompt</h3>
           <pre id="dPrompt"></pre>
         </div>
@@ -481,6 +492,7 @@
       document.querySelector("#dPrompt").textContent = run.spec.prompt || "";
       document.querySelector("#rawJson").textContent = JSON.stringify(run, null, 2);
       document.querySelector("#cancelBtn").disabled = terminal.has(run.status);
+      renderPermissionBanner();
       renderEvents();
       renderArtifacts();
     }
@@ -564,6 +576,7 @@
         "resources.timeout", "run.started", "input.accepted", "step.started",
         "message.delta", "step.completed", "run.completed", "run.failed",
         "run.cancelled", "permission.requested", "permission.resolved",
+        "permission.stalled", "permission.stall_recovery_failed",
         "event.gap_detected", "run.queued", "lease.claimed", "lease.expired",
         "cleanup.workspace_deleted", "cleanup.artifacts_deleted", "stream.warning",
         "adapter.not_configured", "adapter.event", "step.submitted"
@@ -610,14 +623,36 @@
       container.querySelectorAll("[data-permission-id]").forEach((button) => {
         button.addEventListener("click", () => resolvePermission(button));
       });
+      renderPermissionBanner();
       container.scrollTop = container.scrollHeight;
+    }
+
+    function renderPermissionBanner() {
+      const container = document.querySelector("#permissionBanner");
+      if (!container) return;
+      const pending = pendingPermissions();
+      if (!pending.length) {
+        container.innerHTML = "";
+        return;
+      }
+      container.innerHTML = `<div class="notice">
+        ${pending.length} permission request${pending.length > 1 ? "s" : ""} waiting.
+        Open Events and approve or reject the tool call.
+      </div>`;
+    }
+
+    function pendingPermissions() {
+      return state.events.filter((event) => {
+        if (event.type !== "permission.requested") return false;
+        const permissionId = permissionIdFromEvent(event);
+        return permissionId && !isPermissionResolved(permissionId);
+      });
     }
 
     function renderPermissionActions(event) {
       if (event.type !== "permission.requested") return "";
-      const raw = event.data?.raw || {};
-      const request = raw.data || {};
-      const permissionId = request.requestId;
+      const request = permissionRequestFromEvent(event);
+      const permissionId = permissionIdFromEvent(event);
       if (!permissionId) return "";
       if (isPermissionResolved(permissionId)) {
         return '<div class="muted" style="margin: 8px 0;">Permission resolved.</div>';
@@ -637,10 +672,23 @@
       </div>`;
     }
 
+    function permissionRequestFromEvent(event) {
+      const raw = event.data?.raw || {};
+      return raw.data || {};
+    }
+
+    function permissionIdFromEvent(event) {
+      const dataId = event.data?.permission_id;
+      if (dataId) return dataId;
+      const request = permissionRequestFromEvent(event);
+      return request.requestId || request.permission_id || null;
+    }
+
     function isPermissionResolved(permissionId) {
       return state.events.some((event) => {
         if (event.type !== "permission.resolved") return false;
-        return event.data?.raw?.data?.requestId === permissionId;
+        return event.data?.permission_id === permissionId ||
+          event.data?.raw?.data?.requestId === permissionId;
       });
     }
 
@@ -677,8 +725,37 @@
           <strong class="mono">${escapeHtml(artifact.name)}</strong>
           <div class="muted">${artifact.size_bytes} bytes</div>
           <div class="muted">${fmt(artifact.updated_at)}</div>
+          <div style="margin-top: 8px;">
+            <a href="runs/${state.selected}/artifacts/${encodeURIComponent(artifact.name)}"
+              download="${escapeHtml(artifact.name)}">Download</a>
+          </div>
         </div>
       `).join("");
+    }
+
+    async function downloadEvents() {
+      if (!state.selected) return;
+      await downloadJson(`runs/${state.selected}/events.json`, `${state.selected}-events.json`);
+    }
+
+    async function downloadAudit() {
+      if (!state.selected) return;
+      await downloadJson(`runs/${state.selected}/audit.json`, `${state.selected}-audit.json`);
+    }
+
+    async function downloadJson(path, filename) {
+      const payload = await api(path);
+      const blob = new Blob([JSON.stringify(payload, null, 2)], {
+        type: "application/json"
+      });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
     }
 
     function escapeHtml(value) {
@@ -694,6 +771,8 @@
     document.querySelector("#streamBtn").addEventListener("click", () => streamEvents());
     document.querySelector("#cancelBtn").addEventListener("click", () => cancelRun());
     document.querySelector("#loadArtifactsBtn").addEventListener("click", () => loadArtifacts());
+    document.querySelector("#downloadEventsBtn").addEventListener("click", () => downloadEvents());
+    document.querySelector("#downloadAuditBtn").addEventListener("click", () => downloadAudit());
     document.querySelectorAll(".tab").forEach((button) => {
       button.addEventListener("click", () => {
         document.querySelectorAll(".tab").forEach((item) => item.classList.remove("active"));

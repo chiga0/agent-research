@@ -86,6 +86,20 @@ class RuntimeServerTest(unittest.TestCase):
                 self.assertIn("diagnostics.json", artifact_names)
                 self.assertIn("workspace.json", artifact_names)
                 self.assertIn("resources.json", artifact_names)
+                final_artifact = request_text(
+                    f"{base_url}/runs/{run['run_id']}/artifacts/final_1.json"
+                )
+                self.assertIn("hello integration runtime", final_artifact)
+                audit = request_json(f"{base_url}/runs/{run['run_id']}/audit.json")
+                self.assertEqual(audit["run"]["run_id"], run["run_id"])
+                self.assertIn("events", audit)
+                self.assertIn("raw_events", audit)
+                self.assertIn("artifacts", audit)
+                with self.assertRaises(urllib.error.HTTPError) as bad_artifact:
+                    request_text(
+                        f"{base_url}/runs/{run['run_id']}/artifacts/%2E%2E%2Fruntime.db"
+                    )
+                self.assertEqual(bad_artifact.exception.code, HTTPStatus.BAD_REQUEST)
 
     def test_profiles_and_missions_http_api(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

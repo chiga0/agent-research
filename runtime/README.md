@@ -28,6 +28,9 @@ Postgres when multiple control-plane instances are required.
 - `GET /` serves the browser management console.
 - `GET /runs/{run_id}/events.json` returns canonical events for UI replay.
 - `GET /runs/{run_id}/artifacts` lists artifact files for the run.
+- `GET /runs/{run_id}/artifacts/{name}` downloads a single run artifact.
+- `GET /runs/{run_id}/audit.json` downloads a complete run audit bundle with
+  run state, canonical events, raw adapter events, artifacts, and queue state.
 - `POST /cleanup` triggers one retention-policy cleanup pass.
 - `GET /profiles` and `GET /profiles/{profile_id}` expose built-in and custom
   agent profiles.
@@ -82,6 +85,10 @@ Postgres when multiple control-plane instances are required.
   7 days, run artifact directories are retained for 30 days, and canonical DB
   events remain in `runtime.db` after artifact cleanup.
 - `diagnostics.json` is maintained per run.
+- Permission requests that remain unresolved beyond
+  `RUN_MANAGER_PERMISSION_STALL_SECONDS` emit `permission.stalled`. The default
+  action is `audit`; operators may set `RUN_MANAGER_PERMISSION_STALL_ACTION` to
+  `deny` or `cancel` for stricter recovery policy.
 - `scripts/replay_run.py` can replay events, SSE frames, or rebuilt state from
   artifacts, and falls back to `runtime.db` after artifact JSONL cleanup.
 
@@ -105,6 +112,8 @@ export RUN_MANAGER_CLEANUP_ENABLED=1
 export RUN_MANAGER_WORKSPACE_RETENTION_SECONDS=604800
 export RUN_MANAGER_ARTIFACT_RETENTION_SECONDS=2592000
 export RUN_MANAGER_CLEANUP_INTERVAL_SECONDS=3600
+export RUN_MANAGER_PERMISSION_STALL_SECONDS=300
+export RUN_MANAGER_PERMISSION_STALL_ACTION=audit
 python3 -m runtime.cloud_agents_runtime \
   --host 127.0.0.1 \
   --port 8765 \
@@ -156,6 +165,17 @@ curl -s -X POST http://127.0.0.1:8765/runs/<run_id>/permissions/<permission_id> 
   -H "authorization: Bearer $RUN_MANAGER_TOKEN" \
   -H 'content-type: application/json' \
   -d '{"decision":"approve","decided_by":"operator","reason":"reviewed"}'
+```
+
+Download a run audit bundle or artifact:
+
+```bash
+curl -s http://127.0.0.1:8765/runs/<run_id>/audit.json \
+  -H "authorization: Bearer $RUN_MANAGER_TOKEN" \
+  -o run-audit.json
+curl -s http://127.0.0.1:8765/runs/<run_id>/artifacts/events.jsonl \
+  -H "authorization: Bearer $RUN_MANAGER_TOKEN" \
+  -o events.jsonl
 ```
 
 Inspect queue and workers:
@@ -339,6 +359,9 @@ Acceptance:
   what the store has, the server records and streams `event.gap_detected`.
 - `POST /runs/{run_id}/permissions/{permission_id}` records
   `permission.resolved` in the same audit trail.
+- Unresolved permission requests emit `permission.stalled` after the configured
+  stall threshold; default policy records the audit event without silently
+  approving or rejecting the tool call.
 - The run directory contains `run_spec.json`, `events.jsonl`,
   `raw_events.jsonl`, `input_1.json`, `workspace.json`, `resources.json`,
   `diagnostics.json`, and `final_1.json`.
