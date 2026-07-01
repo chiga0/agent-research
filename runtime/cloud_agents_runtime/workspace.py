@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 import shutil
 import subprocess
 from dataclasses import asdict, dataclass
@@ -31,6 +32,25 @@ class WorkspaceAllocator:
     def prepare(self, run_id: str, spec: RunSpec) -> WorkspaceAllocation:
         requested_workspace = spec.workspace
         requested_repo = spec.repo
+        qwen_bound_workspace = os.environ.get("QWEN_SERVE_CWD")
+        if (
+            spec.adapter == "qwen"
+            and not requested_workspace
+            and not requested_repo
+            and qwen_bound_workspace
+        ):
+            allocation = WorkspaceAllocation(
+                run_id=run_id,
+                strategy="qwen_serve_shared",
+                path=str(Path(qwen_bound_workspace).expanduser().resolve()),
+                requested_workspace=qwen_bound_workspace,
+                requested_repo=requested_repo,
+                source_path=str(Path(qwen_bound_workspace).expanduser().resolve()),
+                isolated=False,
+            )
+            apply_allocation(spec, allocation)
+            return allocation
+
         source = source_path_for(spec)
 
         if source is None and requested_repo:

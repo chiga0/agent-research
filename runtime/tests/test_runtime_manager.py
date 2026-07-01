@@ -7,6 +7,7 @@ import tempfile
 import time
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 from runtime.cloud_agents_runtime.adapters.base import RuntimeAdapter
 from runtime.cloud_agents_runtime.adapters.fake import FakeAdapter
@@ -303,6 +304,24 @@ class RunManagerTest(unittest.TestCase):
                 self.assertFalse((Path(tmp) / "workspaces").exists())
             finally:
                 manager.shutdown()
+
+    def test_qwen_defaults_to_bound_daemon_workspace(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            qwen_workspace = root / "qwen-daemon-workspace"
+            qwen_workspace.mkdir()
+            with patch.dict("os.environ", {"QWEN_SERVE_CWD": str(qwen_workspace)}):
+                manager = RunManager(root / "artifacts", worker_capacity=0)
+                try:
+                    run = manager.create_run(RunSpec(adapter="qwen"))
+                    current = manager.get_run(run.run_id)
+                    self.assertEqual(Path(current.spec.workspace), qwen_workspace.resolve())
+                    allocation = current.spec.metadata["workspace_allocation"]
+                    self.assertEqual(allocation["strategy"], "qwen_serve_shared")
+                    self.assertFalse(allocation["isolated"])
+                    self.assertFalse((root / "artifacts" / "workspaces").exists())
+                finally:
+                    manager.shutdown()
 
     def test_resource_policy_is_resolved_and_audited(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
