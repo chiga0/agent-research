@@ -9,6 +9,9 @@ import time
 import urllib.request
 from typing import Any
 
+TERMINAL_RUN_STATUSES = {"completed", "failed", "cancelled"}
+TERMINAL_MISSION_STATUSES = {"completed", "failed", "cancelled", "blocked"}
+
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Validate a qwen-backed Cloud Agents mission")
@@ -34,6 +37,7 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     client = Client(args.base_url, args.token)
+    deadline = now() + args.timeout
     health = client.get("/health")
     print(f"health: {health}")
     capabilities = client.get("/capabilities")
@@ -63,33 +67,36 @@ def main(argv: list[str] | None = None) -> int:
         payload = client.get(path)
         print(f"{path}: {summary(payload)}")
 
-    if args.validate_single_run and not validate_single_run(client, args):
+    if args.validate_single_run and not validate_single_run(client, args, deadline):
         return 1
 
+    mission_timeout = remaining_timeout_seconds(deadline)
+    if mission_timeout <= 0:
+        print("acceptance timeout expired before mission validation", file=sys.stderr)
+        return 1
     mission = client.post(
         "/missions",
         {
             "goal": args.goal,
             "adapter": "qwen",
             "strategy": "sequential",
-            "timeout_seconds": int(args.timeout),
+            "timeout_seconds": mission_timeout,
         },
     )
     mission_id = mission["mission_id"]
     print(f"mission: {mission_id}")
 
-    deadline = time.monotonic() + args.timeout
     state: dict[str, Any] = mission
-    while time.monotonic() < deadline:
+    while now() < deadline:
         state = client.get(f"/missions/{mission_id}")
         print(
             "state:",
             state.get("status"),
             f"{state.get('completed_task_count')}/{state.get('task_count')}",
         )
-        if state.get("status") in {"completed", "failed", "cancelled", "blocked"}:
+        if state.get("status") in TERMINAL_MISSION_STATUSES:
             break
-        time.sleep(5)
+        sleep_for(5)
 
     events = client.get(f"/missions/{mission_id}/events.json").get("events", [])
     names = [event.get("type") for event in events]
@@ -99,6 +106,9 @@ def main(argv: list[str] | None = None) -> int:
     print(f"mission artifacts: {sorted(artifact_names)}")
 
     if state.get("status") != "completed":
+        if state.get("status") not in TERMINAL_MISSION_STATUSES:
+            cancel_mission(client, mission_id, "qwen acceptance timeout")
+        print_debug_snapshot(client, mission_id=mission_id)
         print(f"mission did not complete: {state.get('status')}", file=sys.stderr)
         return 1
     if "mission.completed" not in names:
@@ -110,26 +120,36 @@ def main(argv: list[str] | None = None) -> int:
     return 0
 
 
-def validate_single_run(client: "Client", args: argparse.Namespace) -> bool:
+def validate_single_run(
+    client: "Client",
+    args: argparse.Namespace,
+    deadline: float,
+) -> bool:
+    run_timeout = remaining_timeout_seconds(deadline)
+    if run_timeout <= 0:
+        print("acceptance timeout expired before single-run validation", file=sys.stderr)
+        return False
     run = client.post(
         "/runs",
         {
             "prompt": "Run a concise qwen single-run acceptance check.",
             "adapter": "qwen",
-            "timeout_seconds": int(args.timeout),
+            "timeout_seconds": run_timeout,
         },
     )
     run_id = run["run_id"]
     print(f"single run: {run_id}")
-    deadline = time.monotonic() + args.timeout
     state: dict[str, Any] = run
-    while time.monotonic() < deadline:
+    while now() < deadline:
         state = client.get(f"/runs/{run_id}")
         print("single run state:", state.get("status"))
-        if state.get("status") in {"completed", "failed", "cancelled"}:
+        if state.get("status") in TERMINAL_RUN_STATUSES:
             break
-        time.sleep(3)
+        sleep_for(3)
     if state.get("status") != "completed":
+        if state.get("status") not in TERMINAL_RUN_STATUSES:
+            cancel_run(client, run_id, "qwen acceptance timeout")
+        print_debug_snapshot(client, run_id=run_id)
         print(f"single run did not complete: {state.get('status')}", file=sys.stderr)
         return False
     events = client.get(f"/runs/{run_id}/events.json").get("events", [])
@@ -150,6 +170,70 @@ def validate_single_run(client: "Client", args: argparse.Namespace) -> bool:
             print("single run executor strategy mismatch", file=sys.stderr)
             return False
     return True
+
+
+def remaining_timeout_seconds(deadline: float) -> int:
+    remaining = deadline - now()
+    if remaining <= 0:
+        return 0
+    return max(1, int(remaining))
+
+
+def now() -> float:
+    return time.monotonic()
+
+
+def sleep_for(seconds: float) -> None:
+    time.sleep(seconds)
+
+
+def cancel_run(client: "Client", run_id: str, reason: str) -> None:
+    try:
+        client.post(f"/runs/{run_id}/cancel", {"reason": reason})
+        print(f"cancelled timed-out run: {run_id}")
+    except Exception as exc:  # pragma: no cover - best-effort diagnostics path
+        print(f"failed to cancel timed-out run {run_id}: {exc}", file=sys.stderr)
+
+
+def cancel_mission(client: "Client", mission_id: str, reason: str) -> None:
+    try:
+        client.post(f"/missions/{mission_id}/cancel", {"reason": reason})
+        print(f"cancelled timed-out mission: {mission_id}")
+    except Exception as exc:  # pragma: no cover - best-effort diagnostics path
+        print(f"failed to cancel timed-out mission {mission_id}: {exc}", file=sys.stderr)
+
+
+def print_debug_snapshot(
+    client: "Client",
+    *,
+    run_id: str | None = None,
+    mission_id: str | None = None,
+) -> None:
+    print_payload_summary(client, "queue", "/queue")
+    print_payload_summary(client, "executors", "/executors")
+    if run_id:
+        print_event_tail(client, "single run", f"/runs/{run_id}/events.json")
+        print_payload_summary(client, "single run executor", f"/runs/{run_id}/executor")
+    if mission_id:
+        print_event_tail(client, "mission", f"/missions/{mission_id}/events.json")
+
+
+def print_payload_summary(client: "Client", label: str, path: str) -> None:
+    try:
+        payload = client.get(path)
+        print(f"{label}: {json.dumps(payload, sort_keys=True)[:2000]}")
+    except Exception as exc:  # pragma: no cover - best-effort diagnostics path
+        print(f"{label} unavailable: {exc}", file=sys.stderr)
+
+
+def print_event_tail(client: "Client", label: str, path: str) -> None:
+    try:
+        events = client.get(path).get("events", [])
+        tail = events[-12:]
+        names = [event.get("type") for event in tail]
+        print(f"{label} event tail: {names}")
+    except Exception as exc:  # pragma: no cover - best-effort diagnostics path
+        print(f"{label} event tail unavailable: {exc}", file=sys.stderr)
 
 
 def summary(payload: dict[str, Any]) -> str:

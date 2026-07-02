@@ -302,6 +302,11 @@ jobs:
             EXPECT="$QWEN_DEPLOY_EXECUTOR_STRATEGY"
           fi
           cd "$APP_DIR"
+          if ! [[ "$QWEN_ACCEPTANCE_TIMEOUT" =~ ^[0-9]+$ ]]; then
+            echo "invalid qwen acceptance timeout: $QWEN_ACCEPTANCE_TIMEOUT"
+            exit 1
+          fi
+          hard_timeout="$((QWEN_ACCEPTANCE_TIMEOUT + 120))"
           args=(
             --base-url http://127.0.0.1:8765
             --token "$RUN_MANAGER_TOKEN"
@@ -312,7 +317,8 @@ jobs:
             args+=(--expect-executor-strategy "$EXPECT")
           fi
           echo "starting qwen deep acceptance with timeout=${QWEN_ACCEPTANCE_TIMEOUT}s"
-          python3 scripts/validate_qwen_mission.py "${args[@]}" &
+          timeout --kill-after=30s "${hard_timeout}s" \
+            python3 scripts/validate_qwen_mission.py "${args[@]}" &
           acceptance_pid="$!"
           (
             while kill -0 "$acceptance_pid" 2>/dev/null; do
@@ -334,6 +340,18 @@ jobs:
           set -e
           kill "$heartbeat_pid" 2>/dev/null || true
           wait "$heartbeat_pid" 2>/dev/null || true
+          if [[ "$acceptance_status" -ne 0 ]]; then
+            echo "qwen deep acceptance failed with status $acceptance_status"
+            auth_header="Authorization: Bearer $RUN_MANAGER_TOKEN"
+            echo "queue snapshot:"
+            curl -fsS --max-time 10 -H "$auth_header" \
+              http://127.0.0.1:8765/queue || true
+            echo
+            echo "executor snapshot:"
+            curl -fsS --max-time 10 -H "$auth_header" \
+              http://127.0.0.1:8765/executors || true
+            echo
+          fi
           exit "$acceptance_status"
           REMOTE
 
