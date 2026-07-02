@@ -1242,6 +1242,37 @@ POST /permissions/{permission_id}/resolve</code></pre>
 <li>任何失败都有 <code>failure_kind</code> 和 diagnostics。</li>
 <li>没有真实模型 key 或宿主机敏感路径进入 Agent 容器。</li>
 </ol>
+<h2 id="p7">P7 执行单元增强<a class="headerlink" href="#p7" title="Permanent link">&para;</a></h2>
+<p>当前实现已把 qwen 单 Agent 云端部署推进到“可编排执行单元”：</p>
+<ul>
+<li><code>shared</code>：连接已有 <code>QWEN_SERVE_URL</code>，成本最低，适合单租户 beta。</li>
+<li><code>per_run_process</code>：每个 qwen run 独立启动 <code>qwen serve</code>，独立端口、workspace、stdout/stderr、<code>executor.json</code> 和 lifecycle event。</li>
+<li><code>container</code>：支持 <code>QWEN_CONTAINER_COMMAND</code> 自定义模板；也支持配置 <code>QWEN_CONTAINER_IMAGE</code> 后自动生成 Docker foreground worker 命令，并注入 CPU、memory、pids、端口映射、workspace mount 和 token。</li>
+</ul>
+<p>关键环境变量：</p>
+<pre class="highlight"><code class="language-bash">QWEN_EXECUTOR_STRATEGY=per_run_process
+QWEN_EXECUTOR_COMMAND='qwen serve --hostname {host} --port {port}'
+QWEN_EXECUTOR_PORT_START=4210
+QWEN_EXECUTOR_PORT_END=4310
+
+QWEN_EXECUTOR_STRATEGY=container
+QWEN_CONTAINER_IMAGE='your-qwen-code-image:latest'
+QWEN_CONTAINER_CPUS=1
+QWEN_CONTAINER_MEMORY_MB=1024
+QWEN_CONTAINER_PIDS=256</code></pre>
+<p>验收入口：</p>
+<pre class="highlight"><code class="language-bash">python3 scripts/validate_qwen_mission.py \
+  --base-url http://127.0.0.1:8765 \
+  --token "$RUN_MANAGER_TOKEN" \
+  --validate-single-run \
+  --expect-executor-strategy per_run_process</code></pre>
+<p>排障入口：</p>
+<ul>
+<li><code>/executors</code>：查看 executor registry、lease、pid、port、workspace、失败原因。</li>
+<li><code>/runs/&lt;run_id&gt;/executor</code>：查看某个 run 的 executor lease。</li>
+<li>run artifact：<code>executor.json</code>、<code>executor.stdout.log</code>、<code>executor.stderr.log</code>、<code>diagnostics.json</code>、<code>cost.json</code>。</li>
+<li>ACP：<code>executor.list</code>、<code>run.permissions</code>、<code>cost.status</code>、<code>access.policy</code>。</li>
+</ul>
 <h2 id="_15">暂不做<a class="headerlink" href="#_15" title="Permanent link">&para;</a></h2>
 <p>第一版不要做：</p>
 <ul>
@@ -1630,6 +1661,14 @@ POST /permissions/{permission_id}/resolve</code></pre>
             class="text-muted-foreground hover:text-foreground data-[active=true]:text-foreground text-[0.8rem] no-underline transition-colors data-[depth=3]:pl-4 data-[depth=4]:pl-6"
             data-active="false" data-depth="2" onClick="deferSetActiveTocLink('#_14');">
             最小验收
+        </a>
+        
+
+        
+        <a href="#p7"
+            class="text-muted-foreground hover:text-foreground data-[active=true]:text-foreground text-[0.8rem] no-underline transition-colors data-[depth=3]:pl-4 data-[depth=4]:pl-6"
+            data-active="false" data-depth="2" onClick="deferSetActiveTocLink('#p7');">
+            P7 执行单元增强
         </a>
         
 

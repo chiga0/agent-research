@@ -1365,8 +1365,8 @@
 </tr>
 <tr>
 <td>成本预算</td>
-<td><code>deferred</code></td>
-<td>需要 model proxy 或 provider billing API；当前只通过 profile/resource timeout 间接约束</td>
+<td><code>foundation_done</code></td>
+<td><code>/cost/status</code> 和 <code>cost.quoted</code> 提供估算预算、月度阈值、run artifact；真实 provider billing/API 仍是后续替换点</td>
 </tr>
 <tr>
 <td>安全检查</td>
@@ -1487,13 +1487,28 @@
 </tr>
 <tr>
 <td>多 SAEU executor isolation</td>
-<td><code>in_progress</code></td>
-<td>backend Executor Registry 与 per-run qwen serve process 已落地；container worker command-template 已预留，仍需实机 Docker/资源隔离验收</td>
+<td><code>foundation_done</code></td>
+<td>backend Executor Registry、per-run qwen serve process、默认 Docker container command builder、executor artifacts/events/API/UI 已落地；仍需 VPS Docker 实机验收</td>
+</tr>
+<tr>
+<td>Executor 管理台</td>
+<td><code>done</code></td>
+<td><code>/executors</code> 页面展示 strategy、active/failed、container config、lease、pid/port/workspace/run 关联</td>
 </tr>
 <tr>
 <td>团队/项目/IAM</td>
-<td><code>not_started</code></td>
-<td>接入真实用户登录、org/project、role assignment、审批人身份和 API token 管理</td>
+<td><code>foundation_done</code></td>
+<td>SQLite project registry、API token hash 存储、token revoke、token bearer 鉴权、Access 页面管理基础可用；真实 SSO/org/role assignment 后续替换</td>
+</tr>
+<tr>
+<td>成本治理</td>
+<td><code>foundation_done</code></td>
+<td>run 创建时执行 budget quote，写入 <code>cost.json</code>/<code>cost.quoted</code>，<code>/cost/status</code> 和 Operations 成本卡展示预算状态</td>
+</tr>
+<tr>
+<td>ACP/A2A 正式化接口</td>
+<td><code>compat_done</code></td>
+<td>ACP JSON-RPC 增加 capabilities/executor/permission/access/cost 方法；A2A card 增加 protocolVersion/endpoints/security/capabilities</td>
 </tr>
 </tbody>
 </table></div>
@@ -1507,8 +1522,48 @@
 <li><code>resource_policy</code>: CPU/memory/pids/timeout/concurrency。</li>
 <li>已支持 <code>QWEN_EXECUTOR_STRATEGY=per_run_process</code>，每个 qwen run 独立启动
   <code>qwen serve</code>、分配端口、写入 <code>executor.json</code> 和 executor lifecycle 事件。</li>
-<li><code>container</code> 作为 command-template strategy 预留；下一步应在 VPS 上接 Docker
-  cgroup/memory/pids/network 限制并补 E2E 验收。</li>
+<li><code>container</code> 已支持两种启动方式：</li>
+<li><code>QWEN_CONTAINER_COMMAND</code> 自定义命令模板。</li>
+<li><code>QWEN_CONTAINER_IMAGE</code> 默认 Docker foreground worker，自动注入 <code>--cpus</code>、<code>--memory</code>、<code>--pids-limit</code>、端口映射、workspace mount 和 qwen token。</li>
+<li>下一步仍必须在 VPS 上做真实 Docker/cgroup/network 验收；当前 CI 只覆盖命令生成和 runtime registry 行为，不拉取镜像。</li>
+</ul>
+<p>P7 当前判断：</p>
+<ul>
+<li>
+<ol>
+<li>CI 状态：本地已提供 runtime/web/docs 门禁；GitHub Actions API 当前受 403 rate limit 影响，CI 结果需从仓库 Actions 页面确认。</li>
+</ol>
+</li>
+<li>
+<ol>
+<li>真实 VPS/qwen 验收：<code>scripts/validate_qwen_mission.py</code> 已支持 <code>--validate-single-run</code> 和 <code>--expect-executor-strategy</code>。</li>
+</ol>
+</li>
+<li>
+<ol>
+<li>Container worker：默认 Docker 命令生成和审计 metadata 已落地；实机部署需要 <code>QWEN_CONTAINER_IMAGE</code>。</li>
+</ol>
+</li>
+<li>
+<ol>
+<li>Executor UI：<code>/executors</code> 页面可排查 lease、pid、port、workspace、strategy、失败原因。</li>
+</ol>
+</li>
+<li>
+<ol>
+<li>IAM/API token：当前是单租户 foundation，可管理 project 和 API token，token 只保存 hash。</li>
+</ol>
+</li>
+<li>
+<ol>
+<li>Cost governance：当前是估算预算 foundation，后续可替换为 model proxy/provider billing ledger。</li>
+</ol>
+</li>
+<li>
+<ol>
+<li>ACP/A2A：当前是兼容 facade，不声明完全实现某一官方 SDK；已覆盖管理、通信、状态、权限、executor、成本查询。</li>
+</ol>
+</li>
 </ul>
   </div>
   
