@@ -14,10 +14,15 @@ from pathlib import Path
 from typing import Any
 
 from runtime.cloud_agents_runtime.auth import AuthConfig
-from runtime.cloud_agents_runtime.server import build_server
+from runtime.cloud_agents_runtime.server import build_server, main as server_main
 
 
 class RuntimeServerTest(unittest.TestCase):
+    def test_runtime_main_help_builds_parser_defaults(self) -> None:
+        with self.assertRaises(SystemExit) as ctx:
+            server_main(["--help"])
+        self.assertEqual(ctx.exception.code, 0)
+
     def test_auth_protects_run_routes_and_allows_health(self) -> None:
         with running_runtime(token="secret") as base_url:
             health = request_json(f"{base_url}/health")
