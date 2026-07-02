@@ -1,5 +1,5 @@
-site_name: Agent Research
-site_description: Agent framework, multi-agent orchestration, and runtime harness research notes.
+site_name: AgentFlow
+site_description: AgentFlow is an Agent orchestration system for long-running cloud execution, governance, auditability, and recovery.
 site_url: https://chiga0.github.io/agent-research/
 repo_url: https://github.com/chiga0/agent-research
 repo_name: chiga0/agent-research
@@ -26,9 +26,9 @@ nav:
       - 外部方案对比与多方向审计: implementation/alternative-solutions-comparative-audit.md
       - 方案审计与 Review 记录: implementation/review-and-audit-record.md
       - 实施 Roadmap: implementation/implementation-roadmap.md
-      - Cloud Agents 操作手册: implementation/operation-manual.md
-  - Cloud Agents:
-      - 企业级 Cloud Agents 框架与运行时技术调研报告: cloud-agents/index.md
+      - AgentFlow 操作手册: implementation/operation-manual.md
+  - AgentFlow:
+      - AgentFlow 与企业级 Cloud Agents 技术调研报告: cloud-agents/index.md
   - 多 Agent:
       - 生产级多 Agent 系统编排与运行屏障工程: multi-agent/research-on-multi-agent-orchestration-frameworks.md
   - 其他 Agent:

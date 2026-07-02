@@ -11,14 +11,14 @@ from scripts.monitor_runtime import PublicRuntimeMonitor, normalize_base_url
 
 
 class MonitorRuntimeTest(unittest.TestCase):
-    def test_normalize_base_url_defaults_cloud_agents_path(self) -> None:
+    def test_normalize_base_url_defaults_agentflow_path(self) -> None:
         self.assertEqual(
             normalize_base_url("example.com"),
-            "https://example.com/cloud-agents",
+            "https://example.com/agentflow",
         )
         self.assertEqual(
-            normalize_base_url("https://example.com/cloud-agents/"),
-            "https://example.com/cloud-agents",
+            normalize_base_url("https://example.com/agentflow/"),
+            "https://example.com/agentflow",
         )
 
     def test_public_monitor_checks_console_api_and_deep_run(self) -> None:
@@ -54,14 +54,14 @@ class MonitorHandler(BaseHTTPRequestHandler):
     session_cookie = "cloud_agents_session=test-session"
 
     def do_GET(self) -> None:
-        if self.path == "/cloud-agents/":
+        if self.path == "/agentflow/":
             self.send_text(
                 '<html><div id="root"></div>'
                 '<script type="module" src="./assets/index.js"></script></html>'
             )
-        elif self.path == "/cloud-agents/assets/index.js":
-            self.send_text("console.log('Cloud Agents Runtime')")
-        elif self.path == "/cloud-agents/auth/session":
+        elif self.path == "/agentflow/assets/index.js":
+            self.send_text("console.log('AgentFlow')")
+        elif self.path == "/agentflow/auth/session":
             self.send_json(
                 {
                     "authenticated": self.is_authorized(),
@@ -72,11 +72,11 @@ class MonitorHandler(BaseHTTPRequestHandler):
                     ),
                 }
             )
-        elif self.path == "/cloud-agents/health":
+        elif self.path == "/agentflow/health":
             if not self.require_session():
                 return
             self.send_json({"ok": True, "version": "test"})
-        elif self.path == "/cloud-agents/capabilities":
+        elif self.path == "/agentflow/capabilities":
             if not self.require_session():
                 return
             self.send_json(
@@ -85,11 +85,11 @@ class MonitorHandler(BaseHTTPRequestHandler):
                     "features": ["reviewer_gate_override"],
                 }
             )
-        elif self.path == "/cloud-agents/queue":
+        elif self.path == "/agentflow/queue":
             if not self.require_session():
                 return
             self.send_json({"workers": [{"id": "worker-1"}], "counts": {"completed": 1}})
-        elif self.path == "/cloud-agents/executors":
+        elif self.path == "/agentflow/executors":
             if not self.require_session():
                 return
             self.send_json(
@@ -101,7 +101,7 @@ class MonitorHandler(BaseHTTPRequestHandler):
                     "executors": [],
                 }
             )
-        elif self.path == "/cloud-agents/access/policy":
+        elif self.path == "/agentflow/access/policy":
             if not self.require_session():
                 return
             self.send_json(
@@ -110,7 +110,7 @@ class MonitorHandler(BaseHTTPRequestHandler):
                     "roles": [{"id": "owner"}],
                 }
             )
-        elif self.path == "/cloud-agents/runs/run_1/events":
+        elif self.path == "/agentflow/runs/run_1/events":
             if not self.require_session():
                 return
             self.send_sse(
@@ -119,7 +119,7 @@ class MonitorHandler(BaseHTTPRequestHandler):
                     ("run.completed", {"run_id": "run_1"}),
                 ]
             )
-        elif self.path == "/cloud-agents/runs/run_1":
+        elif self.path == "/agentflow/runs/run_1":
             if not self.require_session():
                 return
             self.send_json({"run_id": "run_1", "status": "completed"})
@@ -127,7 +127,7 @@ class MonitorHandler(BaseHTTPRequestHandler):
             self.send_error(HTTPStatus.NOT_FOUND)
 
     def do_POST(self) -> None:
-        if self.path == "/cloud-agents/auth/login":
+        if self.path == "/agentflow/auth/login":
             payload = json.loads(self.read_body().decode("utf-8"))
             if payload == {"username": "cloudagents", "password": "secret"}:
                 self.send_json(
@@ -135,11 +135,11 @@ class MonitorHandler(BaseHTTPRequestHandler):
                         "authenticated": True,
                         "principal": {"id": "cloudagents", "roles": ["owner"]},
                     },
-                    headers={"Set-Cookie": f"{self.session_cookie}; Path=/cloud-agents"},
+                    headers={"Set-Cookie": f"{self.session_cookie}; Path=/agentflow"},
                 )
                 return
             self.send_json({"error": "invalid credentials"}, HTTPStatus.UNAUTHORIZED)
-        elif self.path == "/cloud-agents/runs":
+        elif self.path == "/agentflow/runs":
             if not self.require_session():
                 return
             self.send_json({"run_id": "run_1"}, HTTPStatus.CREATED)
@@ -217,7 +217,7 @@ class running_monitor_server:
         self.thread = threading.Thread(target=self.server.serve_forever, daemon=True)
         self.thread.start()
         host, port = self.server.server_address
-        return f"http://{host}:{port}/cloud-agents"
+        return f"http://{host}:{port}/agentflow"
 
     def __exit__(self, *exc: object) -> None:
         assert self.server is not None

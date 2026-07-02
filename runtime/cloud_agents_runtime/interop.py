@@ -153,8 +153,8 @@ def a2a_agent_card(manager: Any, base_url: str) -> dict[str, Any]:
     return {
         "protocol": "a2a-poc",
         "protocolVersion": A2A_PROTOCOL_VERSION,
-        "name": "Cloud Agents Runtime",
-        "description": "Mission/task gateway over durable SAEU runs.",
+        "name": "AgentFlow",
+        "description": "Agent orchestration gateway over durable SAEU runs.",
         "url": base,
         "capabilities": {
             "streaming": True,

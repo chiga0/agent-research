@@ -1,6 +1,7 @@
-# Agent Research
+# AgentFlow
 
-Agent framework, multi-agent orchestration, and runtime harness research notes.
+AgentFlow is an Agent orchestration system for long-running cloud execution,
+multi-agent task management, runtime governance, auditability, and recovery.
 
 Online site: https://chiga0.github.io/agent-research/
 
@@ -27,11 +28,11 @@ python3 -m pip install -r requirements.txt
 mkdocs serve
 ```
 
-## Runtime POC
+## AgentFlow Runtime
 
-The first P1 runtime slice lives in [runtime](runtime/). It provides a stdlib
-Run Manager with `/runs`, `/runs/{id}/input`, `/runs/{id}/events`, and
-`/runs/{id}/cancel` over a pluggable SAEU adapter boundary.
+The runtime lives in [runtime](runtime/). It provides a stdlib Run Manager with
+`/runs`, `/runs/{id}/input`, `/runs/{id}/events`, and `/runs/{id}/cancel` over a
+pluggable SAEU adapter boundary.
 
 ```bash
 python3 -m runtime.cloud_agents_runtime --host 127.0.0.1 --port 8765

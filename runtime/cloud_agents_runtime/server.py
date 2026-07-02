@@ -35,7 +35,7 @@ def make_handler(
 
     class RuntimeHandler(BaseHTTPRequestHandler):
         protocol_version = "HTTP/1.1"
-        server_version = f"cloud-agents-runtime/{__version__}"
+        server_version = f"agentflow-runtime/{__version__}"
         current_identity: dict[str, Any] | None = None
 
         def do_GET(self) -> None:
@@ -815,7 +815,7 @@ def parse_optional_int(value: str | None) -> int | None:
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description="Cloud Agents Runtime POC")
+    parser = argparse.ArgumentParser(description="AgentFlow Runtime POC")
     parser.add_argument("--host", default="127.0.0.1")
     parser.add_argument("--port", type=int, default=8765)
     parser.add_argument(

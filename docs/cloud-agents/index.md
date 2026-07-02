@@ -1,8 +1,8 @@
-# 企业级 Cloud Agents 框架与运行时技术调研报告
+# AgentFlow 与企业级 Cloud Agents 框架/运行时技术调研报告
 
 > 调研时间：2026-06-30  
 > 调研对象：云端部署的企业 Agent 框架、托管 Agent 运行时、通信协议、可观测与治理基础设施  
-> 核心问题：Cloud Agents 是否只是把 Agent 部署到云上？如果不是，企业级 Cloud Agents 的标准形态、成熟方案和建设路径是什么？
+> 核心问题：AgentFlow 作为 Agent 编排系统，应如何吸收企业级 Cloud Agents 的成熟形态？Cloud Agents 是否只是把 Agent 部署到云上？如果不是，企业级 Cloud Agents 的标准形态、成熟方案和建设路径是什么？
 
 ## 执行摘要
 

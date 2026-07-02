@@ -3278,6 +3278,9 @@ function money(value?: number | null) {
 }
 
 function defaultWorkerControlUrl() {
+  if (window.location.pathname.startsWith("/agentflow")) {
+    return `${window.location.origin}/agentflow-worker`;
+  }
   if (window.location.pathname.startsWith("/cloud-agents")) {
     return `${window.location.origin}/cloud-agents-worker`;
   }

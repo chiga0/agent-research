@@ -79,7 +79,7 @@ LIGHTWEIGHT_MISSION_TASKS: list[dict[str, Any]] = [
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description="Validate a qwen-backed Cloud Agents mission")
+    parser = argparse.ArgumentParser(description="Validate a qwen-backed AgentFlow mission")
     parser.add_argument("--base-url", default="http://127.0.0.1:8765")
     parser.add_argument("--token", default=os.environ.get("RUN_MANAGER_TOKEN"))
     parser.add_argument("--timeout", type=float, default=300.0)
@@ -117,7 +117,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--goal",
         default=(
-            "Run a concise cloud-agents product smoke review. Inspect runtime health, "
+            "Run a concise AgentFlow product smoke review. Inspect runtime health, "
             "summarize risks, and produce a final mission report."
         ),
     )

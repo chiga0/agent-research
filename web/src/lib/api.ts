@@ -505,6 +505,9 @@ export function resolvedPermissionIds(events: RuntimeEvent[]) {
 
 function getApiBase() {
   const path = window.location.pathname;
+  if (path === "/agentflow" || path.startsWith("/agentflow/")) {
+    return "/agentflow/";
+  }
   if (path === "/cloud-agents" || path.startsWith("/cloud-agents/")) {
     return "/cloud-agents/";
   }

@@ -1,5 +1,5 @@
 [Unit]
-Description=Cloud Agents Remote Worker
+Description=AgentFlow Remote Worker
 After=network-online.target
 Wants=network-online.target
 

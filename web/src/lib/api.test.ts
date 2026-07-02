@@ -186,6 +186,13 @@ describe("api helpers", () => {
       "/cloud-agents/missions/mission_1/artifacts/final%20report.md",
     );
 
+    window.history.pushState({}, "", "/agentflow/");
+    vi.resetModules();
+    const agentflowBase = await import("./api");
+    expect(agentflowBase.artifactHref("run_1", "a b.json")).toBe(
+      "/agentflow/runs/run_1/artifacts/a%20b.json",
+    );
+
     window.history.pushState({}, "", "/");
     expect(artifactHref("run_1", "events.jsonl")).toBe(
       "/runs/run_1/artifacts/events.jsonl",

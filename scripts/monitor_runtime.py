@@ -16,12 +16,12 @@ from typing import Any
 
 
 ASSET_RE = re.compile(r'(?:src|href)="\.(/assets/[^"]+)"')
-USER_AGENT = "cloud-agents-runtime-monitor/0.1 (+https://github.com/chiga0/agent-research)"
+USER_AGENT = "agentflow-runtime-monitor/0.1 (+https://github.com/chiga0/agent-research)"
 TERMINAL_RUN_EVENTS = {"run.completed", "run.failed", "run.cancelled"}
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description="Monitor public Cloud Agents Runtime")
+    parser = argparse.ArgumentParser(description="Monitor public AgentFlow Runtime")
     parser.add_argument("--base-url", default=default_base_url())
     parser.add_argument("--basic-user", default=os.environ.get("RUNTIME_BASIC_AUTH_USER"))
     parser.add_argument("--basic-password", default=os.environ.get("RUNTIME_BASIC_AUTH_PASSWORD"))
@@ -51,7 +51,7 @@ def main(argv: list[str] | None = None) -> int:
     failures = [result for result in results if not result.ok]
     if failures:
         message = "; ".join(f"{result.name}: {result.detail}" for result in failures)
-        print(f"::error title=Cloud Agents monitor::{message}")
+        print(f"::error title=AgentFlow monitor::{message}")
         return 1
     return 0
 
@@ -62,9 +62,9 @@ def default_base_url() -> str | None:
         return explicit
     domain = os.environ.get("RUNTIME_PUBLIC_DOMAIN")
     if domain:
-        return f"https://{domain}/cloud-agents"
+        return f"https://{domain}/agentflow"
     host = os.environ.get("RUNTIME_PUBLIC_HOST")
-    return f"http://{host}/cloud-agents" if host else None
+    return f"http://{host}/agentflow" if host else None
 
 
 def normalize_base_url(value: str) -> str:
@@ -72,7 +72,7 @@ def normalize_base_url(value: str) -> str:
     if "://" not in value:
         value = f"https://{value}"
     parsed = urllib.parse.urlparse(value)
-    path = parsed.path.rstrip("/") or "/cloud-agents"
+    path = parsed.path.rstrip("/") or "/agentflow"
     normalized = parsed._replace(path=path, params="", query="", fragment="")
     return urllib.parse.urlunparse(normalized).rstrip("/")
 

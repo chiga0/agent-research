@@ -9,7 +9,7 @@ import {
 
 export type Locale = "zh" | "en";
 
-const localeStorageKey = "cloud-agents-locale";
+const localeStorageKey = "agentflow-locale";
 
 const zh = {
   "access.apiTokens": "API 令牌",
@@ -145,9 +145,9 @@ const zh = {
   "nav.profiles": "角色模板",
   "nav.runs": "运行",
   "nav.signOut": "退出登录",
-  "nav.subtitle": "SAEU 控制面",
+  "nav.subtitle": "Agent 编排系统",
   "nav.theme": "切换主题",
-  "nav.title": "Cloud Agents Runtime",
+  "nav.title": "AgentFlow",
   "nav.units": "执行单元",
   navLabel: "导航",
   "operations.backups": "备份",
@@ -368,9 +368,9 @@ const en: Record<keyof typeof zh, string> = {
   "nav.profiles": "Profiles",
   "nav.runs": "Runs",
   "nav.signOut": "Sign out",
-  "nav.subtitle": "SAEU Control Plane",
+  "nav.subtitle": "Agent Orchestration System",
   "nav.theme": "Toggle theme",
-  "nav.title": "Cloud Agents Runtime",
+  "nav.title": "AgentFlow",
   "nav.units": "Units",
   navLabel: "Navigation",
   "operations.backups": "Backups",

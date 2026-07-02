@@ -1,6 +1,6 @@
-# Agent Research
+# AgentFlow
 
-这是一个关于 Agent 框架、多 Agent 编排、运行屏障工程与自主循环系统的研究笔记库。
+AgentFlow 是一个面向长周期云端执行、多 Agent 编排、运行时治理、审计与恢复的 Agent 编排系统。
 
 ## 文档入口
 
@@ -17,7 +17,7 @@
 - [外部方案对比与多方向审计](implementation/alternative-solutions-comparative-audit.md)
 - [方案审计与 Review 记录](implementation/review-and-audit-record.md)
 - [实施 Roadmap](implementation/implementation-roadmap.md)
-- [企业级 Cloud Agents 框架与运行时技术调研报告](cloud-agents/index.md)
+- [AgentFlow 与企业级 Cloud Agents 技术调研报告](cloud-agents/index.md)
 - [生产级多 Agent 系统编排与运行屏障工程](multi-agent/research-on-multi-agent-orchestration-frameworks.md)
 - [Qwen Code Core 与 SDK Agent 架构分析](other-agents/qwen-code-core-sdk-agent-architecture.md)
 

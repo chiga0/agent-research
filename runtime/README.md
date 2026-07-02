@@ -1,11 +1,10 @@
-# Cloud Agents Runtime
+# AgentFlow Runtime
 
-This directory contains the P1/P2 implementation slice plus the local P3/P4
-runtime slice from the roadmap: a single SAEU Run Manager with a pluggable
-runtime adapter boundary, durable event storage, audit artifacts, permission
-resolution, run queue leases, worker heartbeat, resource policy, cleanup policy,
-profile registry, mission/task orchestration, replay tooling, and cloud
-deployment assets.
+This directory contains the AgentFlow runtime implementation: a single SAEU Run
+Manager with a pluggable runtime adapter boundary, durable event storage, audit
+artifacts, permission resolution, run queue leases, worker heartbeat, resource
+policy, cleanup policy, profile registry, mission/task orchestration, replay
+tooling, and cloud deployment assets.
 
 The current implementation intentionally uses only the Python standard library.
 It is small enough to audit and easy to replace once the API contract is proven.

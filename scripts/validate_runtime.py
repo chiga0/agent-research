@@ -11,7 +11,7 @@ from typing import Any
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description="Validate Cloud Agents Runtime")
+    parser = argparse.ArgumentParser(description="Validate AgentFlow Runtime")
     parser.add_argument("--base-url", default="http://127.0.0.1:8765")
     parser.add_argument("--token", default=None)
     parser.add_argument("--adapter", default="fake", choices=["fake", "qwen"])

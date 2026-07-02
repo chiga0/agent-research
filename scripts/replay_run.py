@@ -13,7 +13,7 @@ TERMINAL_EVENTS = {"run.completed", "run.failed", "run.cancelled"}
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description="Replay a Cloud Agents Runtime run")
+    parser = argparse.ArgumentParser(description="Replay an AgentFlow Runtime run")
     parser.add_argument(
         "--artifact-root",
         type=pathlib.Path,

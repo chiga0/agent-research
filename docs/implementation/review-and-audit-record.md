@@ -222,7 +222,7 @@ qwen serve 已有：
 
 ### 审计范围
 
-本轮审计覆盖当前 `main` 上的 Cloud Agents Runtime、Web 管理台、远程 worker 控制面、部署脚本、操作手册、CI 测试链路和 ECS 实机部署。
+本轮审计覆盖当前 `main` 上的 AgentFlow Runtime、Web 管理台、远程 worker 控制面、部署脚本、操作手册、CI 测试链路和 ECS 实机部署。
 
 重点检查：
 
@@ -237,7 +237,7 @@ qwen serve 已有：
 
 当前系统可以作为单租户 beta 的长期运行基线：
 
-- 主控 ECS 使用 Nginx + app login session + Cloud Agents Runtime + qwen shared executor。
+- 主控 ECS 使用 Nginx + app login session + AgentFlow Runtime + qwen shared executor。
 - 远程 worker 通过 `/cloud-agents-worker/` 使用 scoped `workers:*` bearer token 接入。
 - Units 页面可生成注册命令，并支持 Drain、Resume、Retry。
 - 远程 run 的 cancel 和 permission resolution 通过事件下发，由 worker 拉取控制面执行。

@@ -146,7 +146,7 @@ class RuntimeServerTest(unittest.TestCase):
             session = request_json(f"{base_url}/auth/session")
             self.assertFalse(session["authenticated"])
             html = request_text(f"{base_url}/")
-            self.assertIn("Cloud Agents Console", html)
+            self.assertIn("AgentFlow Console", html)
             with self.assertRaises(urllib.error.HTTPError) as unauthorized:
                 request_json(f"{base_url}/capabilities")
             self.assertEqual(unauthorized.exception.code, HTTPStatus.UNAUTHORIZED)
@@ -392,13 +392,13 @@ class RuntimeServerTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             with running_runtime(artifact_root=Path(tmp)) as base_url:
                 html = request_text(f"{base_url}/")
-                self.assertIn("Cloud Agents Console", html)
+                self.assertIn("AgentFlow Console", html)
                 self.assertIn('id="root"', html)
                 self.assertIn("./assets/", html)
                 asset_match = re.search(r'src="\.(/assets/[^"]+)"', html)
                 self.assertIsNotNone(asset_match)
                 asset_body = request_text(f"{base_url}{asset_match.group(1)}")
-                self.assertIn("Cloud Agents Runtime", asset_body)
+                self.assertIn("AgentFlow", asset_body)
                 run = request_json(
                     f"{base_url}/runs",
                     method="POST",

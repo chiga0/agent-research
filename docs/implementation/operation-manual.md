@@ -1,6 +1,6 @@
-# Cloud Agents 操作手册
+# AgentFlow 操作手册
 
-> 适用范围：当前单租户 beta 版 Cloud Agents Runtime。它适合单控制面、1 台主 VPS、1-2 个本地或远程 worker、fake/qwen run、轻量 mission 和人工审计闭环。
+> 适用范围：当前单租户 beta 版 AgentFlow Runtime。它适合单控制面、1 台主 VPS、1-2 个本地或远程 worker、fake/qwen run、轻量 mission 和人工审计闭环。
 
 ## 1. 访问入口
 
@@ -679,7 +679,7 @@ journalctl -u cloud-agents-worker -n 120 --no-pager
 
 ```text
 主 VPS:
-  Nginx + Cloud Agents Runtime + local worker
+  Nginx + AgentFlow Runtime + local worker
 
 执行策略:
   fake smoke

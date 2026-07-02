@@ -372,7 +372,7 @@ const fixtures: Record<string, unknown> = {
   },
 };
 
-describe("Cloud Agents console", () => {
+describe("AgentFlow console", () => {
   beforeEach(async () => {
     queryClient.clear();
     authSessionAuthenticated = true;
@@ -406,7 +406,7 @@ describe("Cloud Agents console", () => {
     expect(
       await screen.findByRole("heading", { name: "Overview" }),
     ).toBeInTheDocument();
-    expect(localStorage.getItem("cloud-agents-locale")).toBe("en");
+    expect(localStorage.getItem("agentflow-locale")).toBe("en");
   });
 
   it("shows login page and signs in with session credentials", async () => {
@@ -907,6 +907,10 @@ describe("Cloud Agents console", () => {
     window.history.pushState({}, "", "/cloud-agents/");
     expect(__testUtils.defaultWorkerControlUrl()).toContain(
       "/cloud-agents-worker",
+    );
+    window.history.pushState({}, "", "/agentflow/");
+    expect(__testUtils.defaultWorkerControlUrl()).toContain(
+      "/agentflow-worker",
     );
     window.history.pushState({}, "", "/");
     expect(
