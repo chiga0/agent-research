@@ -166,6 +166,7 @@ jobs:
           fi
 
       - name: Deploy runtime to VPS
+        timeout-minutes: 25
         env:
           RUNTIME_SSH_TARGET: ${{ secrets.RUNTIME_SSH_TARGET }}
           PUBLIC_HOST: ${{ secrets.RUNTIME_PUBLIC_HOST }}

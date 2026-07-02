@@ -570,11 +570,13 @@ qwen serve 已有：
 - keepalive 参数可通过 `DEPLOY_SSH_SERVER_ALIVE_INTERVAL` 和 `DEPLOY_SSH_SERVER_ALIVE_COUNT_MAX` 覆盖。
 - 远端 deploy 脚本增加 `[deploy] ...` 阶段日志，并为 apt/npm/git/docker build/pull 增加命令级 timeout。
 - 普通命令 timeout 默认 `900s`，Docker build/pull 默认 `1800s`，可通过 `DEPLOY_COMMAND_TIMEOUT_SECONDS` 和 `DEPLOY_DOCKER_BUILD_TIMEOUT_SECONDS` 覆盖。
+- run `28595774630` 进一步定位到尚未进入远端脚本前，qwen settings `scp` 阶段发生 `kex_exchange_identification: read: Connection reset by peer`；已为 scp 增加 `ConnectTimeout=30`、单次连接尝试、多轮重试和 workflow deploy step 外层 timeout。
 
 ### 审计结论
 
 - 第三轮没有触达 qwen runtime 层，当前下一步应先重跑默认 stable deploy 确认 VPS 状态恢复，再重跑 container workflow。
 - Container executor 的 qwen single-run 验收状态仍为 `pending`，不是 failed by qwen。
+- 当前默认 stable deploy 的最新失败点是 SSH/scp 传输层，不是 runtime service、qwen adapter 或 worker registry 功能失败。
 - 后续若 Docker build 仍超过命令 timeout，应改为远端 `systemd-run`/后台 build job + poll 日志，或预构建/发布 executor image，减少小 VPS 在线构建压力。
 
 ## 2026-07-02 Remote Worker Registry Foundation 审计

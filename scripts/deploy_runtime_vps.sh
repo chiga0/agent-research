@@ -71,6 +71,9 @@ RUNTIME_MEMORY_MAX="${RUNTIME_MEMORY_MAX:-1G}"
 RUNTIME_TASKS_MAX="${RUNTIME_TASKS_MAX:-512}"
 DEPLOY_SSH_SERVER_ALIVE_INTERVAL="${DEPLOY_SSH_SERVER_ALIVE_INTERVAL:-30}"
 DEPLOY_SSH_SERVER_ALIVE_COUNT_MAX="${DEPLOY_SSH_SERVER_ALIVE_COUNT_MAX:-60}"
+DEPLOY_SSH_CONNECT_TIMEOUT_SECONDS="${DEPLOY_SSH_CONNECT_TIMEOUT_SECONDS:-30}"
+DEPLOY_SCP_ATTEMPTS="${DEPLOY_SCP_ATTEMPTS:-4}"
+DEPLOY_SCP_RETRY_DELAY_SECONDS="${DEPLOY_SCP_RETRY_DELAY_SECONDS:-10}"
 DEPLOY_COMMAND_TIMEOUT_SECONDS="${DEPLOY_COMMAND_TIMEOUT_SECONDS:-900}"
 DEPLOY_DOCKER_BUILD_TIMEOUT_SECONDS="${DEPLOY_DOCKER_BUILD_TIMEOUT_SECONDS:-1800}"
 DEPLOY_RUNTIME_PRINT_SECRETS="${DEPLOY_RUNTIME_PRINT_SECRETS:-1}"
@@ -107,6 +110,8 @@ append_remote_env() {
 SSH_OPTIONS=(
   -i "$SSH_KEY"
   -o StrictHostKeyChecking=accept-new
+  -o ConnectTimeout="$DEPLOY_SSH_CONNECT_TIMEOUT_SECONDS"
+  -o ConnectionAttempts=1
   -o ServerAliveInterval="$DEPLOY_SSH_SERVER_ALIVE_INTERVAL"
   -o ServerAliveCountMax="$DEPLOY_SSH_SERVER_ALIVE_COUNT_MAX"
   -o TCPKeepAlive=yes
@@ -116,10 +121,33 @@ ssh_cmd() {
   ssh "${SSH_OPTIONS[@]}" "$SSH_TARGET" "$@"
 }
 
+scp_qwen_settings() {
+  local attempt=1
+  local exit_code=0
+  if [[ ! -f "$QWEN_SETTINGS_FILE" ]]; then
+    echo "QWEN_SETTINGS_FILE does not exist: $QWEN_SETTINGS_FILE" >&2
+    exit 2
+  fi
+  while (( attempt <= DEPLOY_SCP_ATTEMPTS )); do
+    printf '[deploy-local] upload qwen settings attempt %s/%s\n' \
+      "$attempt" \
+      "$DEPLOY_SCP_ATTEMPTS"
+    if scp "${SSH_OPTIONS[@]}" \
+      "$QWEN_SETTINGS_FILE" \
+      "$SSH_TARGET:/tmp/qwen-settings.json"; then
+      return 0
+    fi
+    exit_code=$?
+    if (( attempt == DEPLOY_SCP_ATTEMPTS )); then
+      return "$exit_code"
+    fi
+    sleep "$DEPLOY_SCP_RETRY_DELAY_SECONDS"
+    attempt=$((attempt + 1))
+  done
+}
+
 if [[ -n "$QWEN_SETTINGS_FILE" ]]; then
-  scp "${SSH_OPTIONS[@]}" \
-    "$QWEN_SETTINGS_FILE" \
-    "$SSH_TARGET:/tmp/qwen-settings.json"
+  scp_qwen_settings
 fi
 
 REMOTE_ENV=(

@@ -349,7 +349,7 @@ Executor isolation 决策：
   - `QWEN_CONTAINER_COMMAND` 自定义命令模板。
   - `QWEN_CONTAINER_IMAGE` 默认 Docker foreground worker，自动注入 `--cpus`、`--memory`、`--pids-limit`、端口映射、workspace mount、qwen token env 名称，并在 VPS deploy 时把宿主 `.qwen/settings.json` 凭据只读挂进容器。
 - `Deploy Runtime` workflow_dispatch 已支持选择 executor strategy、container image/local build、container resource limit，并可打开真实 qwen single-run + bounded mission acceptance。
-- Container 第一轮实机验收 run `28592133076` 已证明部署脚本、Docker build、service reload 和 fake smoke 可用，并暴露诊断不足和 token argv 风险；第二轮实机验收 run `28593133445` 通过新增 artifact 证明容器内 `qwen serve` 已启动监听，失败点收敛为 runtime readiness probe 对瞬时 TCP reset 的误判；第三轮 run `28593787794` 阻塞在远端 deploy SSH broken pipe，尚未进入 qwen acceptance；当前已补 health auth、reset retry、deploy SSH keepalive、远端 deploy 阶段日志/timeout 和回归测试，下一步恢复 stable deploy 后重跑真实 Docker image 验收。
+- Container 第一轮实机验收 run `28592133076` 已证明部署脚本、Docker build、service reload 和 fake smoke 可用，并暴露诊断不足和 token argv 风险；第二轮实机验收 run `28593133445` 通过新增 artifact 证明容器内 `qwen serve` 已启动监听，失败点收敛为 runtime readiness probe 对瞬时 TCP reset 的误判；第三轮 run `28593787794` 阻塞在远端 deploy SSH broken pipe，尚未进入 qwen acceptance；默认 deploy run `28595774630` 进一步定位到 qwen settings `scp` 阶段 SSH reset；当前已补 health auth、reset retry、deploy SSH keepalive、scp retry/connect timeout、远端 deploy 阶段日志/timeout 和回归测试，下一步恢复 stable deploy 后重跑真实 Docker image 验收。
 - 下一步仍必须在 VPS 上用真实镜像或 `qwen_container_build=true` 做到 Docker/cgroup/network qwen acceptance 验收通过；当前自动 push 部署仍保持 shared strategy 以降低生产风险。
 
 P7 当前判断：
