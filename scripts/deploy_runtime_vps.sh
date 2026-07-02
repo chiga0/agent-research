@@ -532,6 +532,21 @@ server {
         proxy_pass http://127.0.0.1:8765;
     }
 
+    location /cloud-agents-worker/ {
+        proxy_http_version 1.1;
+        proxy_set_header Connection "";
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+        proxy_buffering off;
+        proxy_cache off;
+        proxy_read_timeout 3600s;
+        proxy_send_timeout 3600s;
+        rewrite ^/cloud-agents-worker/(.*)\$ /\$1 break;
+        proxy_pass http://127.0.0.1:8765;
+    }
+
     location / {
         return 302 /cloud-agents/;
     }

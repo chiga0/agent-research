@@ -281,6 +281,12 @@ curl -s http://127.0.0.1:8765/workers/vps-a/runs/<run_id>/artifacts \
 JSON artifacts are write-only, while text uploads accept `mode: "write"` or
 `mode: "append"`, optional `chunk_index`, and optional `final`.
 
+When the runtime is behind the provided Nginx config, browser users should use
+`/cloud-agents/`; remote workers should use `/cloud-agents-worker/`. The browser
+route keeps Basic Auth and injects the internal master token at the proxy. The
+worker route forwards the worker's own Bearer token so scoped runtime API tokens
+can be revoked without rotating the master token.
+
 Trigger one cleanup pass:
 
 ```bash
@@ -657,6 +663,34 @@ QWEN_SETTINGS_FILE=/path/to/settings.json \
   bash scripts/deploy_runtime_vps.sh root@<host> /path/to/key.pem
 ```
 
+### Remote worker VPS
+
+Create a scoped worker token on the control plane:
+
+```bash
+curl -s https://example.com/cloud-agents/access/tokens \
+  -u cloudagents:<basic-password> \
+  -H 'content-type: application/json' \
+  -d '{"name":"worker-vps-a","scopes":["workers:*"]}'
+```
+
+Deploy a worker VPS with the returned one-time `token`:
+
+```bash
+RUN_WORKER_CONTROL_URL=https://example.com/cloud-agents-worker \
+RUN_WORKER_TOKEN=cat_... \
+RUN_WORKER_ID=vps-a \
+RUN_WORKER_METADATA_JSON='{"region":"hk","labels":{"tier":"sandbox"}}' \
+QWEN_SETTINGS_FILE=/path/to/settings.json \
+  bash scripts/deploy_worker_vps.sh root@<worker-host> /path/to/key.pem
+```
+
+The script installs host packages, installs the qwen CLI package, syncs the
+repository, writes `/etc/cloud-agents-worker.env`, installs
+`cloud-agents-worker.service`, and starts the daemon. Revoke the worker token
+from `/access/tokens/{token_id}/revoke` to cut off that worker without changing
+the Run Manager master token.
+
 ### Browser access through Nginx
 
 The runtime should remain bound to `127.0.0.1`. For browser access, put Nginx in
@@ -683,6 +717,11 @@ prefix, for example `/cloud-agents/health` -> `http://127.0.0.1:8765/health`.
 The same route serves the React management console from the runtime root. The
 console uses hash routing so browser refreshes under `/cloud-agents/` do not
 collide with API paths such as `/runs` and `/missions`.
+
+The worker-only route is `/cloud-agents-worker/`. It does not use Basic Auth and
+does not inject the master token; it forwards the request Authorization header
+to the runtime. Use it only with scoped API tokens such as `workers:*`, plus
+normal TLS and any edge IP allowlist/VPN controls you require.
 
 ### Public availability monitoring
 

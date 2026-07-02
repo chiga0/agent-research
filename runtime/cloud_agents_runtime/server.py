@@ -470,10 +470,23 @@ def make_handler(
         def require_auth(self, path: str) -> bool:
             if is_authorized(auth_config, path, self.headers.get("authorization")):
                 return True
-            if auth_config.enabled and manager.access.authenticate_bearer(
-                self.headers.get("authorization")
-            ):
-                return True
+            identity = None
+            if auth_config.enabled:
+                identity = manager.access.authenticate_bearer(
+                    self.headers.get("authorization")
+                )
+            if identity:
+                required_scope = required_scope_for(self.command, path)
+                if required_scope is None or scopes_allow(identity["scopes"], required_scope):
+                    return True
+                self.write_json(
+                    {
+                        "error": "forbidden",
+                        "required_scope": required_scope,
+                    },
+                    status=HTTPStatus.FORBIDDEN,
+                )
+                return False
             self.write_json(
                 {"error": "unauthorized"},
                 status=HTTPStatus.UNAUTHORIZED,
@@ -582,6 +595,58 @@ def parse_last_event_id(value: str | None) -> int:
         return max(0, int(value))
     except ValueError:
         return 0
+
+
+def required_scope_for(method: str, path: str) -> str | None:
+    parts = split_path(path)
+    method = method.upper()
+    if path in {"/", "/ui", "/capabilities", "/acp", "/.well-known/agent-card.json"}:
+        return None
+    if parts and parts[0] == "assets":
+        return None
+    if not parts:
+        return None
+    if parts[0] == "workers":
+        return "workers:read" if method == "GET" else "workers:write"
+    if parts[0] == "access":
+        return "access:read" if method == "GET" else "access:write"
+    if parts[0] in {"ops", "cleanup"}:
+        return "ops:read" if method == "GET" else "ops:write"
+    if parts[0] == "cost":
+        return "cost:read"
+    if parts[0] == "executors":
+        return "executors:read"
+    if parts[0] == "profiles":
+        return "profiles:read" if method == "GET" else "profiles:write"
+    if parts[0] in {"missions", "a2a", "temporal"}:
+        return "missions:read" if method == "GET" else "missions:write"
+    if parts[0] == "runs":
+        if method == "GET":
+            if len(parts) >= 3 and parts[2] == "artifacts":
+                return "artifacts:read"
+            if len(parts) >= 3 and parts[2] in {"events", "events.json", "audit.json"}:
+                return "events:read"
+            return "runs:read"
+        if len(parts) >= 3 and parts[2] == "cancel":
+            return "runs:cancel"
+        if len(parts) >= 3 and parts[2] == "permissions":
+            return "permissions:resolve"
+        return "runs:create"
+    if parts[0] == "p5":
+        return "ops:read"
+    return None
+
+
+def scopes_allow(scopes: Any, required_scope: str) -> bool:
+    if not isinstance(scopes, list):
+        return False
+    required_domain = required_scope.split(":", 1)[0]
+    for scope in scopes:
+        if not isinstance(scope, str):
+            continue
+        if scope in {"*", "*:*", required_scope, f"{required_domain}:*"}:
+            return True
+    return False
 
 
 def load_index_html() -> str:

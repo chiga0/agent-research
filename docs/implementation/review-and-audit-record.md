@@ -604,18 +604,24 @@ qwen serve 已有：
   - `resources` 中数值型要求按 `worker >= required` 判断。
   - `executor` / `sandbox` 按 key-value 精确匹配。
 - 远程 artifact 上传支持 text `mode=append`、`chunk_index`、`final`；JSON artifact 保持 write-only。
+- API token registry 已接入 runtime 鉴权，master `RUN_MANAGER_TOKEN` 保持全权限；scoped token 需要匹配路由 scope 才能访问。
+- 远程 worker HTTP API 要求 `workers:write` 或 `workers:*`；worker token revoke 后立即失效。
+- Nginx 增加 `/cloud-agents-worker/` 专用入口，透传 worker 的 Bearer token；浏览器 `/cloud-agents/` 仍保持 Basic Auth 并由 Nginx 注入内部 master token。
 - 新增 `python -m cloud_agents_runtime.worker` 远程 worker daemon foundation：
   - 使用 stdlib HTTP client 连接 control-plane。
   - 周期 heartbeat，`/claim` 成功后在本机执行 fake/qwen adapter。
   - 通过 HTTP-backed store 把 canonical events、raw event artifact 和 JSON artifact 回传中心。
   - `raw_events.jsonl` 使用 append chunk 上传，worker 本地 artifact mirror 也写入同名 JSONL。
   - 支持 `--once` 验收模式和长期 poll 模式。
+- 新增 `deploy/systemd/cloud-agents-worker.service`、`cloud-agents-worker.env.example` 和 `scripts/deploy_worker_vps.sh`，用于第二台 VPS 上安装依赖、同步 repo、写入 worker env、启动 worker daemon。
 
 ### 测试覆盖
 
 - `test_remote_worker_registry_claims_events_and_artifacts` 覆盖 manager 级 heartbeat、claim、metadata 合并、event 回传、artifact 写入/append、跨 worker 越权拒绝和 terminal 后 capacity 释放。
 - `test_remote_worker_claim_respects_requirements` 覆盖 adapter、feature、label、resource 能力匹配调度。
 - `test_remote_worker_http_registry_claims_and_reports_run` 覆盖 HTTP API 级注册、worker 查询、claim、event、artifact append 和 run completion。
+- `test_auth_protects_run_routes_and_allows_health` 覆盖 scoped token forbidden 和 revoked token unauthorized。
+- `test_remote_worker_http_registry_claims_and_reports_run` 同时覆盖 `workers:*` scoped token 可执行 worker 闭环、但不能访问 access 管理接口。
 - `test_remote_worker_daemon_once_executes_fake_run` 覆盖真实 HTTP control-plane 下远程 worker daemon claim、heartbeat、执行 fake adapter、分片上传 raw events、中心 run completion 和 worker metadata。
 
 ### 审计结论
@@ -624,6 +630,8 @@ qwen serve 已有：
 - qwen worker 目前要求 worker 本机已有 `QWEN_SERVE_URL` 或等价 qwen serve endpoint；per-run/container qwen executor 与 remote daemon 的深度结合仍是后续项。
 - 能力匹配已覆盖 adapters/features/labels/resources/executor/sandbox 的 foundation；更复杂的优先级、亲和性、反亲和性和队列公平性仍未实现。
 - Artifact API 当前支持轻量 JSON/text 和 text append；二进制产物、大文件压缩、断点续传和对象存储 multipart 仍未实现。
+- 多 VPS deploy 已有手动脚本和 systemd worker unit；尚未接 GitHub Actions workflow_dispatch 自动部署 worker VPS。
+- Worker route 当前依赖 TLS + scoped bearer token；mTLS、Nginx IP allowlist、WireGuard/Tailscale 仍属于外部部署配置。
 - 远程取消和 permission resolution 仍需补 worker pull-loop 对 control-plane state 的反向订阅/轮询。
 
 ## Go / No-Go 决策

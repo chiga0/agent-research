@@ -93,6 +93,14 @@ class RuntimeServerTest(unittest.TestCase):
                 headers={"authorization": f"Bearer {token['token']}"},
             )
             self.assertIn("fake", token_capabilities["adapters"])
+            with self.assertRaises(urllib.error.HTTPError) as scoped_ctx:
+                request_json(
+                    f"{base_url}/cleanup",
+                    method="POST",
+                    payload={},
+                    headers={"authorization": f"Bearer {token['token']}"},
+                )
+            self.assertEqual(scoped_ctx.exception.code, HTTPStatus.FORBIDDEN)
             tokens = request_json(
                 f"{base_url}/access/tokens",
                 headers={"authorization": "Bearer secret"},
@@ -142,6 +150,16 @@ class RuntimeServerTest(unittest.TestCase):
                     payload={"prompt": "remote http", "adapter": "fake"},
                     headers=headers,
                 )
+                token = request_json(
+                    f"{base_url}/access/tokens",
+                    method="POST",
+                    payload={"name": "worker", "scopes": ["workers:*"]},
+                    headers=headers,
+                )
+                worker_headers = {"authorization": f"Bearer {token['token']}"}
+                with self.assertRaises(urllib.error.HTTPError) as access_ctx:
+                    request_json(f"{base_url}/access/tokens", headers=worker_headers)
+                self.assertEqual(access_ctx.exception.code, HTTPStatus.FORBIDDEN)
                 heartbeat = request_json(
                     f"{base_url}/workers/vps-a/heartbeat",
                     method="POST",
@@ -151,12 +169,12 @@ class RuntimeServerTest(unittest.TestCase):
                         "endpoint": "https://worker-a.example",
                         "capabilities": {"adapters": ["fake"], "container": True},
                     },
-                    headers=headers,
+                    headers=worker_headers,
                 )
                 self.assertEqual(heartbeat["worker"]["metadata"]["kind"], "remote")
                 worker = request_json(
                     f"{base_url}/workers/vps-a",
-                    headers=headers,
+                    headers=worker_headers,
                 )
                 self.assertEqual(
                     worker["worker"]["metadata"]["endpoint"],
@@ -167,7 +185,7 @@ class RuntimeServerTest(unittest.TestCase):
                     f"{base_url}/workers/vps-a/claim",
                     method="POST",
                     payload={"capacity": 1, "lease_ttl_seconds": 30},
-                    headers=headers,
+                    headers=worker_headers,
                 )
                 self.assertEqual(claim["run"]["run_id"], run["run_id"])
                 self.assertEqual(claim["job"]["worker_id"], "vps-a")
@@ -175,13 +193,13 @@ class RuntimeServerTest(unittest.TestCase):
                     f"{base_url}/workers/vps-a/runs/{run['run_id']}/events",
                     method="POST",
                     payload={"type": "run.started", "data": {"adapter": "remote"}},
-                    headers=headers,
+                    headers=worker_headers,
                 )
                 request_json(
                     f"{base_url}/workers/vps-a/runs/{run['run_id']}/artifacts",
                     method="POST",
                     payload={"name": "remote_result.json", "json": {"ok": True}},
-                    headers=headers,
+                    headers=worker_headers,
                 )
                 request_json(
                     f"{base_url}/workers/vps-a/runs/{run['run_id']}/artifacts",
@@ -192,7 +210,7 @@ class RuntimeServerTest(unittest.TestCase):
                         "mode": "append",
                         "chunk_index": 1,
                     },
-                    headers=headers,
+                    headers=worker_headers,
                 )
                 request_json(
                     f"{base_url}/workers/vps-a/runs/{run['run_id']}/artifacts",
@@ -204,13 +222,13 @@ class RuntimeServerTest(unittest.TestCase):
                         "chunk_index": 2,
                         "final": True,
                     },
-                    headers=headers,
+                    headers=worker_headers,
                 )
                 request_json(
                     f"{base_url}/workers/vps-a/runs/{run['run_id']}/events",
                     method="POST",
                     payload={"type": "run.completed", "data": {"summary": "done"}},
-                    headers=headers,
+                    headers=worker_headers,
                 )
                 completed = request_json(f"{base_url}/runs/{run['run_id']}", headers=headers)
                 self.assertEqual(completed["status"], "completed")

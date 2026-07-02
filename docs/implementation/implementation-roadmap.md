@@ -381,8 +381,8 @@ P7 当前判断：
 | Worker Daemon CLI | `foundation_done` | `python -m cloud_agents_runtime.worker --control-url ... --token ...` 可长期 poll claim，并已覆盖 HTTP control-plane 下 fake run 完整执行/回传测试；qwen 依赖 worker 本地 `QWEN_SERVE_URL` |
 | 能力匹配调度 | `foundation_done` | run metadata 可指定 required adapters/features/labels/resources/executor/sandbox；claim 只返回匹配 worker 的任务 |
 | Artifact streaming | `foundation_done` | worker 端 text artifact 支持 append/chunk metadata；raw_events.jsonl 已按分片追加上传，中心 artifacts 完整可审计 |
-| 多 VPS deploy | `next` | 新增 `deploy_worker_vps.sh` 或 workflow_dispatch，第二台 VPS 可注册到主控制面 |
-| 安全边界 | `next` | worker token scope、per-worker revoke、mTLS/Basic Auth/Nginx allowlist 策略明确 |
+| 多 VPS deploy | `foundation_done` | `deploy_worker_vps.sh`、worker systemd unit/env example 已可把第二台 VPS 注册到主控制面 |
+| 安全边界 | `foundation_done` | API token 已接入 runtime 鉴权；worker route 使用 scoped bearer token，支持 per-worker revoke |
 
 当前实现：
 
@@ -394,3 +394,12 @@ P7 当前判断：
 - 当 worker 显式声明 `capabilities.adapters` 时，即使 run 未声明 `worker_requirements.adapters`，也必须包含 run adapter。
 - 远程 artifact 上传支持 text `mode=append`、`chunk_index`、`final`，并限制单次上传大小；JSON artifact 保持 write-only，避免半截 JSON 进入审计包。
 - Worker daemon 的 `raw_events.jsonl` 使用 append chunk 上传，worker 本地 artifact mirror 也写入同名 JSONL。
+- API token registry 已接入请求鉴权，master `RUN_MANAGER_TOKEN` 保持全权限；scoped API token 需要匹配路由 scope 才能访问。
+- 远程 worker HTTP API 要求 `workers:write` 或 `workers:*`；worker token revoke 后立即失效。
+- Nginx 增加 `/cloud-agents-worker/` 专用入口，透传 worker 的 Bearer token；浏览器 `/cloud-agents/` 仍保持 Basic Auth 并由 Nginx 注入内部 master token。
+- 新增 `deploy/systemd/cloud-agents-worker.service`、`cloud-agents-worker.env.example` 和 `scripts/deploy_worker_vps.sh`，用于第二台 VPS 上安装依赖、同步 repo、写入 worker env、启动 worker daemon。
+
+剩余限制：
+
+- 多 VPS deploy 尚未接 GitHub `workflow_dispatch` 自动化；当前是脚本化手动部署。
+- Worker route 目前依赖 TLS + scoped bearer token；mTLS、Nginx IP allowlist、WireGuard/Tailscale 策略仍是外部部署配置，不由 runtime 自动生成。
