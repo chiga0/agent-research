@@ -1359,6 +1359,11 @@
 <td><code>/metrics.json</code> 覆盖 run/mission count、failure kind、latency、permission pending/stalled、worker stale</td>
 </tr>
 <tr>
+<td>公网可用性监控</td>
+<td><code>done</code></td>
+<td><code>scripts/monitor_runtime.py</code> + <code>Runtime Monitor</code> workflow；部署完成后自动检测，且每 15 分钟巡检 Basic Auth、console、health、capabilities、queue、access policy</td>
+</tr>
+<tr>
 <td>成本预算</td>
 <td><code>deferred</code></td>
 <td>需要 model proxy 或 provider billing API；当前只通过 profile/resource timeout 间接约束</td>
@@ -1474,6 +1479,11 @@
 <td>Access/RBAC foundation</td>
 <td><code>done</code></td>
 <td><code>/access/policy</code> 和 Access 页面展示当前 principal、role matrix、scope、审计边界</td>
+</tr>
+<tr>
+<td>部署后可用性验收</td>
+<td><code>done</code></td>
+<td><code>Runtime Monitor</code> 在 <code>Deploy Runtime</code> 成功后自动运行；手动 dispatch 可加 <code>deep_run</code> 创建 fake run 并校验 SSE completion</td>
 </tr>
 <tr>
 <td>多 SAEU executor isolation</td>

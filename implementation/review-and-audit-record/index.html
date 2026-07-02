@@ -1173,12 +1173,17 @@ qwen 第一实现: qwen serve HTTP/SSE + ACP bridge，后续优先 `/acp` Stream
 <li>Profile Editor：复制系统 profile、新增/编辑用户 profile JSON policy、保存为版本化 profile。</li>
 <li>Access 页面与 <code>/access/policy</code>：展示单租户到企业 RBAC 的迁移基线。</li>
 <li>qwen mission 验收脚本：<code>scripts/validate_qwen_mission.py</code>。</li>
+<li>公网可用性监控：<code>scripts/monitor_runtime.py</code> 检测 Basic Auth、console HTML/assets、
+  <code>/health</code>、<code>/capabilities</code>、<code>/queue</code>、<code>/access/policy</code>；<code>Runtime Monitor</code>
+  workflow 在部署完成后自动运行，并每 15 分钟定时巡检。</li>
 </ul>
 <h3 id="_42">剩余风险<a class="headerlink" href="#_42" title="Permanent link">&para;</a></h3>
 <ul>
 <li>Access/RBAC foundation 还不是完整用户系统；没有 org/project、role assignment、session login 和多人审批。</li>
 <li>Executor isolation 仍处于设计 ready；当前部署继续使用共享 qwen serve，适合 beta，但不是强隔离并发的最终形态。</li>
 <li>Mission DAG 当前是产品可视化，不是图数据库或专业 workflow engine；复杂 DAG 后续仍可接 Temporal/LangGraph/Airflow 外层调度。</li>
+<li>默认巡检不创建真实任务，避免监控污染任务队列；需要完整 runner 验证时通过
+  workflow_dispatch 的 <code>deep_run</code> 或本地 <code>--deep-run</code> 手动触发。</li>
 </ul>
 <h2 id="go-no-go">Go / No-Go 决策<a class="headerlink" href="#go-no-go" title="Permanent link">&para;</a></h2>
 <h3 id="go">Go<a class="headerlink" href="#go" title="Permanent link">&para;</a></h3>
