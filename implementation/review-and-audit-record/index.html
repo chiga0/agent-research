@@ -1312,11 +1312,13 @@ qwen 第一实现: qwen serve HTTP/SSE + ACP bridge，后续优先 `/acp` Stream
 <li>keepalive 参数可通过 <code>DEPLOY_SSH_SERVER_ALIVE_INTERVAL</code> 和 <code>DEPLOY_SSH_SERVER_ALIVE_COUNT_MAX</code> 覆盖。</li>
 <li>远端 deploy 脚本增加 <code>[deploy] ...</code> 阶段日志，并为 apt/npm/git/docker build/pull 增加命令级 timeout。</li>
 <li>普通命令 timeout 默认 <code>900s</code>，Docker build/pull 默认 <code>1800s</code>，可通过 <code>DEPLOY_COMMAND_TIMEOUT_SECONDS</code> 和 <code>DEPLOY_DOCKER_BUILD_TIMEOUT_SECONDS</code> 覆盖。</li>
+<li>run <code>28595774630</code> 进一步定位到尚未进入远端脚本前，qwen settings <code>scp</code> 阶段发生 <code>kex_exchange_identification: read: Connection reset by peer</code>；已为 scp 增加 <code>ConnectTimeout=30</code>、单次连接尝试、多轮重试和 workflow deploy step 外层 timeout。</li>
 </ul>
 <h3 id="_59">审计结论<a class="headerlink" href="#_59" title="Permanent link">&para;</a></h3>
 <ul>
 <li>第三轮没有触达 qwen runtime 层，当前下一步应先重跑默认 stable deploy 确认 VPS 状态恢复，再重跑 container workflow。</li>
 <li>Container executor 的 qwen single-run 验收状态仍为 <code>pending</code>，不是 failed by qwen。</li>
+<li>当前默认 stable deploy 的最新失败点是 SSH/scp 传输层，不是 runtime service、qwen adapter 或 worker registry 功能失败。</li>
 <li>后续若 Docker build 仍超过命令 timeout，应改为远端 <code>systemd-run</code>/后台 build job + poll 日志，或预构建/发布 executor image，减少小 VPS 在线构建压力。</li>
 </ul>
 <h2 id="2026-07-02-remote-worker-registry-foundation">2026-07-02 Remote Worker Registry Foundation 审计<a class="headerlink" href="#2026-07-02-remote-worker-registry-foundation" title="Permanent link">&para;</a></h2>
