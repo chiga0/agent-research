@@ -1578,7 +1578,7 @@
 </li>
 <li>
 <ol>
-<li>Remote worker：控制面 API foundation 已落地，下一步需要实现独立 worker daemon CLI，在第二台 VPS 上以 token 注册、poll claim、启动本地 qwen/container SAEU、回传 events/artifacts。</li>
+<li>Remote worker：控制面 API 和 worker daemon CLI foundation 已落地；第二台 VPS 或同机独立进程可用 token 注册、poll claim、启动本地 fake/qwen adapter、回传 events/artifacts。</li>
 </ol>
 </li>
 </ul>
@@ -1607,8 +1607,8 @@
 </tr>
 <tr>
 <td>Worker Daemon CLI</td>
-<td><code>next</code></td>
-<td><code>python -m cloud_agents_runtime.worker --control-url ... --token ...</code> 可长期 poll claim 并执行 fake/qwen adapter</td>
+<td><code>foundation_done</code></td>
+<td><code>python -m cloud_agents_runtime.worker --control-url ... --token ...</code> 可长期 poll claim，并已覆盖 HTTP control-plane 下 fake run 完整执行/回传测试；qwen 依赖 worker 本地 <code>QWEN_SERVE_URL</code></td>
 </tr>
 <tr>
 <td>能力匹配调度</td>

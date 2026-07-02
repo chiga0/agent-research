@@ -598,18 +598,25 @@ qwen serve 已有：
   - `GET /workers/{worker_id}`
 - `claim` 复用现有 `run_jobs` lease；中心 `worker_capacity=0` 时不会本地抢占任务，适合纯 control-plane 模式。
 - 远程 worker 回传 event/artifact 前会校验 run lease 属于该 worker，防止跨 worker 写入。
+- 新增 `python -m cloud_agents_runtime.worker` 远程 worker daemon foundation：
+  - 使用 stdlib HTTP client 连接 control-plane。
+  - 周期 heartbeat，`/claim` 成功后在本机执行 fake/qwen adapter。
+  - 通过 HTTP-backed store 把 canonical events、raw event artifact 和 JSON artifact 回传中心。
+  - 支持 `--once` 验收模式和长期 poll 模式。
 
 ### 测试覆盖
 
 - `test_remote_worker_registry_claims_events_and_artifacts` 覆盖 manager 级 heartbeat、claim、metadata 合并、event 回传、artifact 写入、跨 worker 越权拒绝和 terminal 后 capacity 释放。
 - `test_remote_worker_http_registry_claims_and_reports_run` 覆盖 HTTP API 级注册、worker 查询、claim、event、artifact 和 run completion。
+- `test_remote_worker_daemon_once_executes_fake_run` 覆盖真实 HTTP control-plane 下远程 worker daemon claim、heartbeat、执行 fake adapter、上传 artifacts、中心 run completion 和 worker metadata。
 
 ### 审计结论
 
-- 当前实现已经具备多 VPS worker registry 的控制面基础，但还不是完整 worker daemon。
-- 下一步必须实现独立 worker pull-loop：携带 worker token 调 `/claim`，在本机执行 fake/qwen/container adapter，再把 events/artifacts 上传回控制面。
+- 当前实现已经具备多 VPS worker registry + worker daemon 的基础闭环；单台控制面 + 第二台 worker VPS 的最小拓扑可以从代码层跑通。
+- qwen worker 目前要求 worker 本机已有 `QWEN_SERVE_URL` 或等价 qwen serve endpoint；per-run/container qwen executor 与 remote daemon 的深度结合仍是后续项。
 - 能力匹配目前仍是声明与可视化基础；调度尚未按 labels/adapters/resources 过滤任务，不能把异构 worker 池视为已完成。
 - Artifact API 当前适合轻量 JSON/text；executor stdout/stderr 大文件和二进制产物需要分片/压缩上传协议。
+- 远程取消和 permission resolution 仍需补 worker pull-loop 对 control-plane state 的反向订阅/轮询。
 
 ## Go / No-Go 决策
 

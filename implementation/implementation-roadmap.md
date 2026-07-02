@@ -361,7 +361,7 @@ P7 当前判断：
 - 5. IAM/API token：当前是单租户 foundation，可管理 project 和 API token，token 只保存 hash。
 - 6. Cost governance：当前是估算预算 foundation，后续可替换为 model proxy/provider billing ledger。
 - 7. ACP/A2A：当前是兼容 facade，不声明完全实现某一官方 SDK；已覆盖管理、通信、状态、权限、executor、成本查询。
-- 8. Remote worker：控制面 API foundation 已落地，下一步需要实现独立 worker daemon CLI，在第二台 VPS 上以 token 注册、poll claim、启动本地 qwen/container SAEU、回传 events/artifacts。
+- 8. Remote worker：控制面 API 和 worker daemon CLI foundation 已落地；第二台 VPS 或同机独立进程可用 token 注册、poll claim、启动本地 fake/qwen adapter、回传 events/artifacts。
 
 ## P8：远程 Worker 与多 VPS 调度
 
@@ -378,7 +378,7 @@ P7 当前判断：
 | 任务 | 状态 | 验收 |
 | --- | --- | --- |
 | Worker Registry API | `foundation_done` | 远程 worker 可 heartbeat、claim run、回传 run events、上传轻量 artifact；worker metadata 可在 `/workers` 查询 |
-| Worker Daemon CLI | `next` | `python -m cloud_agents_runtime.worker --control-url ... --token ...` 可长期 poll claim 并执行 fake/qwen adapter |
+| Worker Daemon CLI | `foundation_done` | `python -m cloud_agents_runtime.worker --control-url ... --token ...` 可长期 poll claim，并已覆盖 HTTP control-plane 下 fake run 完整执行/回传测试；qwen 依赖 worker 本地 `QWEN_SERVE_URL` |
 | 能力匹配调度 | `next` | run metadata 可指定 required adapters/labels/resources；claim 只返回匹配 worker 的任务 |
 | Artifact streaming | `next` | worker 端 executor stdout/stderr/events 可分片上传，中心 artifacts 完整可审计 |
 | 多 VPS deploy | `next` | 新增 `deploy_worker_vps.sh` 或 workflow_dispatch，第二台 VPS 可注册到主控制面 |
