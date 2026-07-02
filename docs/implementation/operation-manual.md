@@ -20,18 +20,18 @@ http://47.243.94.91/cloud-agents/
 
 浏览器入口经过 Nginx：
 
-- `/cloud-agents/`：给人使用的 Web 管理台，默认 Basic Auth。
+- `/cloud-agents/`：给人使用的 Web 管理台，默认应用登录页和签名 session cookie。
 - `/cloud-agents-worker/`：给远程 worker 使用的 API 入口，透传 worker Bearer token，不给人直接操作。
 
 ### 登录信息
 
-默认 Basic Auth 用户名通常是：
+默认登录用户名通常是：
 
 ```text
 cloudagents
 ```
 
-密码来自部署脚本输出、GitHub Actions secret，或服务器上的 Nginx htpasswd 文件。不要把密码写入仓库或聊天记录。
+密码来自部署脚本输出、GitHub Actions secret，或服务器上的 `/etc/cloud-agents-runtime.env`。不要把密码写入仓库或聊天记录。
 
 ### 服务器常用路径
 
@@ -72,6 +72,25 @@ cloudagents
 | --- | --- |
 | `fake` | 低成本 smoke test、验证平台链路 |
 | `qwen` | 真实 qwen-code 执行 |
+
+### Units
+
+用于管理长期运行的稳定执行单元，也就是本地或远程 worker。
+
+可以做：
+
+- 查看 worker 心跳、容量、状态、资源标签和 adapter 能力。
+- 生成远程 worker 注册 token 和部署命令。
+- Drain 单元，让它不再认领新任务。
+- Resume 单元，让它重新接收任务。
+- Retry 单元上的 running run，把租约重排回队列。
+
+对 2C2G VPS 的建议：
+
+- 每台先设置 `capacity=1`。
+- 标签建议设置 `region=hk`、`tier=2c2g`。
+- 资源建议声明 `cpus=2`、`memory_gb=2`。
+- 真实 qwen 任务先用 1 台主控 + 2 台 remote worker 的形态跑 smoke，再逐步提高并发。
 
 ### Run Detail
 
@@ -222,11 +241,17 @@ Profile 是“执行模板”，不是 Agent 实例。
 
 ### API 操作
 
-通过公网 Nginx 管理入口时，使用 Basic Auth 即可：
+通过公网 Nginx 管理入口时，先登录保存 cookie，再调用 API：
 
 ```bash
+cookie_jar=/tmp/cloud-agents.cookies
+curl -s -c "$cookie_jar" \
+  -H 'content-type: application/json' \
+  -d '{"username":"cloudagents","password":"<password>"}' \
+  https://doubaofans.site/cloud-agents/auth/login
+
 curl -s https://doubaofans.site/cloud-agents/runs \
-  -u cloudagents:<basic-password> \
+  -b "$cookie_jar" \
   -H 'content-type: application/json' \
   -d '{"prompt":"hello runtime","adapter":"fake"}'
 ```
@@ -261,7 +286,7 @@ curl -s http://127.0.0.1:8765/runs \
 
 ```bash
 curl -s https://doubaofans.site/cloud-agents/missions \
-  -u cloudagents:<basic-password> \
+  -b "$cookie_jar" \
   -H 'content-type: application/json' \
   -d '{
     "goal": "验证一个两阶段任务",
@@ -320,7 +345,7 @@ API 下载示例：
 
 ```bash
 curl -s https://doubaofans.site/cloud-agents/runs/<run_id>/audit.json \
-  -u cloudagents:<basic-password> \
+  -b "$cookie_jar" \
   -o run-audit.json
 ```
 
@@ -384,7 +409,7 @@ API：
 
 ```bash
 curl -s -X POST https://doubaofans.site/cloud-agents/ops/backups \
-  -u cloudagents:<basic-password> \
+  -b "$cookie_jar" \
   -H 'content-type: application/json' \
   -d '{}'
 ```
@@ -393,7 +418,7 @@ curl -s -X POST https://doubaofans.site/cloud-agents/ops/backups \
 
 ```bash
 curl -s -X POST https://doubaofans.site/cloud-agents/ops/drills \
-  -u cloudagents:<basic-password> \
+  -b "$cookie_jar" \
   -H 'content-type: application/json' \
   -d '{}'
 ```
@@ -406,7 +431,7 @@ curl -s -X POST https://doubaofans.site/cloud-agents/ops/drills \
 QWEN_SETTINGS_FILE=/Users/chigao/Documents/works/settings.json \
 PUBLIC_DOMAIN=doubaofans.site \
 BASIC_AUTH_USER=cloudagents \
-BASIC_AUTH_PASSWORD=<basic-password> \
+BASIC_AUTH_PASSWORD=<password> \
   bash scripts/deploy_runtime_vps.sh \
   root@47.243.94.91 \
   /Users/chigao/Documents/works/ecs/aliyun-hongkong.pem
@@ -424,11 +449,22 @@ BASIC_AUTH_PASSWORD=<basic-password> \
 
 ### 远程 Worker VPS 部署
 
-先在 Access 页面或 API 创建 worker token：
+推荐从 Web 管理台生成注册命令：
+
+1. 打开 Units。
+2. 填写 Unit ID，例如 `hk-2c2g-a`。
+3. Worker control URL 使用 `https://doubaofans.site/cloud-agents-worker`。
+4. Capacity 填 `1`。
+5. CPUs 填 `2`，Memory GB 填 `2`。
+6. Region label 填 `hk`。
+7. 点击 Generate。
+8. 复制生成的部署命令，把 `root@<worker-ip>` 和 `/path/to/key.pem` 替换成目标 VPS。
+
+也可以在 Access 页面或 API 创建 worker token：
 
 ```bash
 curl -s https://doubaofans.site/cloud-agents/access/tokens \
-  -u cloudagents:<basic-password> \
+  -b "$cookie_jar" \
   -H 'content-type: application/json' \
   -d '{"name":"worker-vps-a","scopes":["workers:*"]}'
 ```
@@ -453,6 +489,15 @@ systemctl status cloud-agents-worker --no-pager --full
 journalctl -u cloud-agents-worker -n 120 --no-pager
 ```
 
+远程 worker 控制说明：
+
+- `POST /workers/<worker_id>/drain`：进入排空状态，不再认领新任务。
+- `POST /workers/<worker_id>/resume`：恢复认领任务。
+- `POST /workers/<worker_id>/retry`：将该 worker 上的 running lease 重新放回队列。
+- `GET /workers/<worker_id>/control`：worker 下行控制面，包含 cancel 和 permission resolution。
+- `POST /runs/<run_id>/cancel`：远程 run 会记录 `run.cancel_requested`，由 worker 拉取后执行。
+- `POST /runs/<run_id>/permissions/<permission_id>`：远程 run 会记录 `permission.resolve_requested`，由 worker 拉取后转发给 adapter。
+
 ## 9. 验收流程
 
 ### 快速 smoke
@@ -460,8 +505,8 @@ journalctl -u cloud-agents-worker -n 120 --no-pager
 ```bash
 python3 scripts/monitor_runtime.py \
   --base-url https://doubaofans.site/cloud-agents \
-  --basic-auth-user cloudagents \
-  --basic-auth-password <basic-password> \
+  --basic-user cloudagents \
+  --basic-password <password> \
   --json
 ```
 
@@ -469,9 +514,8 @@ python3 scripts/monitor_runtime.py \
 
 ```bash
 python3 scripts/validate_runtime.py \
-  --base-url https://doubaofans.site/cloud-agents \
-  --basic-auth-user cloudagents \
-  --basic-auth-password <basic-password> \
+  --base-url http://127.0.0.1:8765 \
+  --token "$RUN_MANAGER_TOKEN" \
   --adapter fake
 ```
 
@@ -479,9 +523,8 @@ python3 scripts/validate_runtime.py \
 
 ```bash
 python3 scripts/validate_qwen_mission.py \
-  --base-url https://doubaofans.site/cloud-agents \
-  --basic-auth-user cloudagents \
-  --basic-auth-password <basic-password> \
+  --base-url http://127.0.0.1:8765 \
+  --token "$RUN_MANAGER_TOKEN" \
   --validate-single-run \
   --expect-executor-strategy per_run_process \
   --timeout 600
@@ -491,11 +534,10 @@ python3 scripts/validate_qwen_mission.py \
 
 ```bash
 python3 scripts/validate_qwen_mission.py \
-  --base-url https://doubaofans.site/cloud-agents \
-  --basic-auth-user cloudagents \
-  --basic-auth-password <basic-password> \
+  --base-url http://127.0.0.1:8765 \
+  --token "$RUN_MANAGER_TOKEN" \
   --validate-single-run \
-  --qwen-validate-mission \
+  --validate-mission \
   --mission-task-count 1 \
   --expect-executor-strategy per_run_process \
   --timeout 900
@@ -533,7 +575,7 @@ journalctl -u cloud-agents-runtime -n 120 --no-pager
 
 ```bash
 curl -s https://doubaofans.site/cloud-agents/runs/<run_id>/events.json \
-  -u cloudagents:<basic-password>
+  -b "$cookie_jar"
 ```
 
 ### qwen run failed
@@ -600,7 +642,7 @@ journalctl -u cloud-agents-worker -n 120 --no-pager
 
 ```text
 多租户公开服务
-无 Basic Auth 直接暴露 runtime
+无登录保护直接暴露 runtime
 未验收的 qwen container strategy
 高并发多控制面
 大文件/二进制 artifact 密集任务

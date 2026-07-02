@@ -55,12 +55,30 @@ export interface WorkerInfo {
   active_count: number;
   heartbeat_at: string;
   lease_ttl_seconds: number;
+  metadata?: Record<string, unknown>;
 }
 
 export interface QueueStatus {
   counts: Record<string, number>;
   jobs: Array<Record<string, unknown>>;
   workers: WorkerInfo[];
+}
+
+export interface WorkerControl {
+  worker_id: string;
+  draining: boolean;
+  desired_state: string;
+  runs: Array<Record<string, unknown>>;
+  generated_at: string;
+}
+
+export interface WorkerRegistration {
+  worker_id: string;
+  capacity: number;
+  control_url: string;
+  token: ApiToken;
+  metadata: Record<string, unknown>;
+  deploy_command: string;
 }
 
 export interface ExecutorLease {
@@ -235,9 +253,20 @@ export interface P5Evaluation {
   required_env?: string;
 }
 
+export interface AuthSession {
+  authenticated: boolean;
+  login_required: boolean;
+  principal?: {
+    id: string;
+    display_name: string;
+    roles: string[];
+  } | null;
+}
+
 export async function api<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(`${API_BASE}${path}`, {
     ...init,
+    credentials: "same-origin",
     headers: {
       "content-type": "application/json",
       ...(init?.headers ?? {}),
@@ -250,11 +279,54 @@ export async function api<T>(path: string, init?: RequestInit): Promise<T> {
 }
 
 export const runtimeApi = {
+  session: () => api<AuthSession>("auth/session"),
+  login: (payload: { username: string; password: string }) =>
+    api<AuthSession>("auth/login", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+  logout: () =>
+    api<{ authenticated: boolean }>("auth/logout", {
+      method: "POST",
+      body: JSON.stringify({}),
+    }),
   health: () => api<{ ok: boolean; version: string }>("health"),
   capabilities: () => api<Capabilities>("capabilities"),
   metrics: () => api<Metrics>("metrics.json"),
   costStatus: () => api<CostStatus>("cost/status"),
   queue: () => api<QueueStatus>("queue"),
+  workers: () => api<{ workers: WorkerInfo[] }>("workers"),
+  createWorkerRegistration: (payload: Record<string, unknown>) =>
+    api<WorkerRegistration>("workers/registrations", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+  workerControl: (workerId: string) =>
+    api<WorkerControl>(`workers/${encodeURIComponent(workerId)}/control`),
+  drainWorker: (workerId: string, reason = "drain from console") =>
+    api<{ worker: WorkerInfo; control: WorkerControl }>(
+      `workers/${encodeURIComponent(workerId)}/drain`,
+      {
+        method: "POST",
+        body: JSON.stringify({ reason }),
+      },
+    ),
+  resumeWorker: (workerId: string) =>
+    api<{ worker: WorkerInfo; control: WorkerControl }>(
+      `workers/${encodeURIComponent(workerId)}/resume`,
+      {
+        method: "POST",
+        body: JSON.stringify({}),
+      },
+    ),
+  retryWorkerRuns: (workerId: string) =>
+    api<{ worker_id: string; requeued_run_ids: string[]; control: WorkerControl }>(
+      `workers/${encodeURIComponent(workerId)}/retry`,
+      {
+        method: "POST",
+        body: JSON.stringify({ reason: "retry from console" }),
+      },
+    ),
   executors: () =>
     api<{
       executor_registry: Record<string, unknown>;

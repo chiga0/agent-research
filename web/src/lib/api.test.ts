@@ -74,6 +74,13 @@ describe("api helpers", () => {
       }),
     );
 
+    await runtimeApi.session();
+    await runtimeApi.login({ username: "cloudagents", password: "secret" });
+    await runtimeApi.logout();
+    await runtimeApi.workerControl("worker 1");
+    await runtimeApi.drainWorker("worker 1");
+    await runtimeApi.resumeWorker("worker 1");
+    await runtimeApi.retryWorkerRuns("worker 1");
     await runtimeApi.queue();
     await runtimeApi.executors();
     await runtimeApi.costStatus();
@@ -98,6 +105,13 @@ describe("api helpers", () => {
     await runtimeApi.createMission({ goal: "ship", strategy: "sequential" });
 
     expect(calls.map(([path]) => path)).toEqual([
+      "/auth/session",
+      "/auth/login",
+      "/auth/logout",
+      "/workers/worker%201/control",
+      "/workers/worker%201/drain",
+      "/workers/worker%201/resume",
+      "/workers/worker%201/retry",
       "/queue",
       "/executors",
       "/cost/status",
@@ -118,14 +132,19 @@ describe("api helpers", () => {
       "/access/tokens/token_1/revoke",
       "/missions",
     ]);
+    expect(calls[1][1]?.method).toBe("POST");
+    expect(calls[2][1]?.method).toBe("POST");
     expect(calls[4][1]?.method).toBe("POST");
-    expect(calls[8][1]?.method).toBe("POST");
-    expect(calls[9][1]?.method).toBe("POST");
+    expect(calls[5][1]?.method).toBe("POST");
+    expect(calls[6][1]?.method).toBe("POST");
     expect(calls[11][1]?.method).toBe("POST");
-    expect(calls[14][1]?.method).toBe("POST");
+    expect(calls[15][1]?.method).toBe("POST");
     expect(calls[16][1]?.method).toBe("POST");
-    expect(calls[17][1]?.method).toBe("POST");
     expect(calls[18][1]?.method).toBe("POST");
+    expect(calls[21][1]?.method).toBe("POST");
+    expect(calls[23][1]?.method).toBe("POST");
+    expect(calls[24][1]?.method).toBe("POST");
+    expect(calls[25][1]?.method).toBe("POST");
   });
 
   it("surfaces API errors", async () => {

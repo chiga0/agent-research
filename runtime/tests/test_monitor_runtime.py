@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import base64
 import json
 import threading
 import unittest
@@ -41,23 +40,20 @@ class MonitorRuntimeTest(unittest.TestCase):
             ],
         )
 
-    def test_public_monitor_fails_when_edge_auth_is_missing(self) -> None:
+    def test_public_monitor_fails_when_api_is_public_without_session(self) -> None:
         with running_monitor_server(require_auth=False) as base_url:
             monitor = PublicRuntimeMonitor(base_url, "cloudagents", "secret", 5.0)
             results = monitor.run()
         edge_auth = results[0]
         self.assertFalse(edge_auth.ok)
-        self.assertIn("expected 401", edge_auth.detail)
+        self.assertIn("expected unauthenticated API 401", edge_auth.detail)
 
 
 class MonitorHandler(BaseHTTPRequestHandler):
     require_auth = True
-    basic_token = base64.b64encode(b"cloudagents:secret").decode("ascii")
+    session_cookie = "cloud_agents_session=test-session"
 
     def do_GET(self) -> None:
-        if self.require_auth and not self.is_authorized():
-            self.send_basic_challenge()
-            return
         if self.path == "/cloud-agents/":
             self.send_text(
                 '<html><div id="root"></div>'
@@ -65,9 +61,24 @@ class MonitorHandler(BaseHTTPRequestHandler):
             )
         elif self.path == "/cloud-agents/assets/index.js":
             self.send_text("console.log('Cloud Agents Runtime')")
+        elif self.path == "/cloud-agents/auth/session":
+            self.send_json(
+                {
+                    "authenticated": self.is_authorized(),
+                    "principal": (
+                        {"id": "cloudagents", "roles": ["owner"]}
+                        if self.is_authorized()
+                        else None
+                    ),
+                }
+            )
         elif self.path == "/cloud-agents/health":
+            if not self.require_session():
+                return
             self.send_json({"ok": True, "version": "test"})
         elif self.path == "/cloud-agents/capabilities":
+            if not self.require_session():
+                return
             self.send_json(
                 {
                     "adapters": ["fake", "qwen"],
@@ -75,8 +86,12 @@ class MonitorHandler(BaseHTTPRequestHandler):
                 }
             )
         elif self.path == "/cloud-agents/queue":
+            if not self.require_session():
+                return
             self.send_json({"workers": [{"id": "worker-1"}], "counts": {"completed": 1}})
         elif self.path == "/cloud-agents/executors":
+            if not self.require_session():
+                return
             self.send_json(
                 {
                     "executor_registry": {
@@ -87,6 +102,8 @@ class MonitorHandler(BaseHTTPRequestHandler):
                 }
             )
         elif self.path == "/cloud-agents/access/policy":
+            if not self.require_session():
+                return
             self.send_json(
                 {
                     "current_principal": {"id": "test-user"},
@@ -94,6 +111,8 @@ class MonitorHandler(BaseHTTPRequestHandler):
                 }
             )
         elif self.path == "/cloud-agents/runs/run_1/events":
+            if not self.require_session():
+                return
             self.send_sse(
                 [
                     ("run.created", {"run_id": "run_1"}),
@@ -101,41 +120,68 @@ class MonitorHandler(BaseHTTPRequestHandler):
                 ]
             )
         elif self.path == "/cloud-agents/runs/run_1":
+            if not self.require_session():
+                return
             self.send_json({"run_id": "run_1", "status": "completed"})
         else:
             self.send_error(HTTPStatus.NOT_FOUND)
 
     def do_POST(self) -> None:
-        if self.require_auth and not self.is_authorized():
-            self.send_basic_challenge()
-            return
-        if self.path == "/cloud-agents/runs":
+        if self.path == "/cloud-agents/auth/login":
+            payload = json.loads(self.read_body().decode("utf-8"))
+            if payload == {"username": "cloudagents", "password": "secret"}:
+                self.send_json(
+                    {
+                        "authenticated": True,
+                        "principal": {"id": "cloudagents", "roles": ["owner"]},
+                    },
+                    headers={"Set-Cookie": f"{self.session_cookie}; Path=/cloud-agents"},
+                )
+                return
+            self.send_json({"error": "invalid credentials"}, HTTPStatus.UNAUTHORIZED)
+        elif self.path == "/cloud-agents/runs":
+            if not self.require_session():
+                return
             self.send_json({"run_id": "run_1"}, HTTPStatus.CREATED)
         else:
             self.send_error(HTTPStatus.NOT_FOUND)
 
     def is_authorized(self) -> bool:
-        return self.headers.get("authorization") == f"Basic {self.basic_token}"
+        return self.session_cookie in (self.headers.get("cookie") or "")
 
-    def send_basic_challenge(self) -> None:
-        self.send_response(HTTPStatus.UNAUTHORIZED)
-        self.send_header("WWW-Authenticate", 'Basic realm="Cloud Agents Runtime"')
-        self.end_headers()
+    def require_session(self) -> bool:
+        if not self.require_auth or self.is_authorized():
+            return True
+        self.send_json({"error": "unauthorized"}, HTTPStatus.UNAUTHORIZED)
+        return False
 
-    def send_text(self, body: str) -> None:
+    def read_body(self) -> bytes:
+        length = int(self.headers.get("content-length", "0") or "0")
+        return self.rfile.read(length) if length else b""
+
+    def send_text(self, body: str, headers: dict[str, str] | None = None) -> None:
         encoded = body.encode("utf-8")
         self.send_response(HTTPStatus.OK)
         self.send_header("Content-Type", "text/html; charset=utf-8")
         self.send_header("Content-Length", str(len(encoded)))
+        for name, value in (headers or {}).items():
+            self.send_header(name, value)
         self.end_headers()
         self.wfile.write(encoded)
         self.close_connection = True
 
-    def send_json(self, payload: dict[str, Any], status: HTTPStatus = HTTPStatus.OK) -> None:
+    def send_json(
+        self,
+        payload: dict[str, Any],
+        status: HTTPStatus = HTTPStatus.OK,
+        headers: dict[str, str] | None = None,
+    ) -> None:
         encoded = json.dumps(payload).encode("utf-8")
         self.send_response(status)
         self.send_header("Content-Type", "application/json")
         self.send_header("Content-Length", str(len(encoded)))
+        for name, value in (headers or {}).items():
+            self.send_header(name, value)
         self.end_headers()
         self.wfile.write(encoded)
         self.close_connection = True

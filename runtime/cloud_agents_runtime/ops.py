@@ -112,7 +112,7 @@ class OperationsManager:
     def security_posture(self) -> dict[str, Any]:
         return {
             "run_manager_bind": "127.0.0.1 expected in production",
-            "public_runtime_api": "blocked by nginx bearer injection and basic auth",
+            "public_runtime_api": "blocked by signed runtime session cookies",
             "docker_socket": Path("/var/run/docker.sock").exists(),
             "secrets_policy": "runtime tokens stay in /etc/cloud-agents-runtime.env",
             "qwen_public": False,

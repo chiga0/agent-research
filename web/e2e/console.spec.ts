@@ -4,6 +4,18 @@ test.beforeEach(async ({ page }) => {
   await mockRuntime(page);
 });
 
+test("signs in from the responsive login page", async ({ page, isMobile }) => {
+  test.skip(!isMobile, "mobile project only");
+  await mockRuntime(page, { authenticated: false });
+  await page.goto("/");
+
+  await expect(page.getByRole("heading", { name: "Sign In" })).toBeVisible();
+  await page.getByLabel("Username").fill("cloudagents");
+  await page.getByLabel("Password").fill("secret");
+  await page.getByRole("button", { name: "Sign In" }).click();
+  await expect(page.getByRole("heading", { name: "Overview" })).toBeVisible();
+});
+
 test("manages runs, permissions, profiles, and operations", async ({
   page,
 }) => {
@@ -30,7 +42,7 @@ test("manages runs, permissions, profiles, and operations", async ({
   await navigate(page, /Missions/);
   await page.getByRole("link", { name: /Open detail/ }).click();
   await expect(page.getByText("Task DAG")).toBeVisible();
-  await expect(page.getByText("Mission Events")).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Mission Events" })).toBeVisible();
 
   await navigate(page, /Profiles/);
   await expect(page.getByRole("heading", { name: "Planner" })).toBeVisible();
@@ -42,6 +54,18 @@ test("manages runs, permissions, profiles, and operations", async ({
   await navigate(page, /Access/);
   await expect(page.getByText("Role Matrix")).toBeVisible();
   await expect(page.getByText("runs:*").first()).toBeVisible();
+
+  await navigate(page, /Units/);
+  await expect(page.getByRole("heading", { name: "Execution Units" })).toBeVisible();
+  await page.getByLabel("Unit ID").fill("hk-2c2g-b");
+  await page.getByLabel("Worker control URL").fill("https://doubaofans.site/cloud-agents-worker");
+  await page.getByRole("button", { name: "Generate" }).click();
+  await expect(page.getByRole("heading", { name: "Deployment Command" })).toBeVisible();
+  await page.getByRole("button", { name: "Copy" }).click();
+  await page.getByRole("button", { name: "Refresh" }).click();
+  await page.getByRole("button", { name: "Drain" }).first().click();
+  await page.getByRole("button", { name: "Resume" }).first().click();
+  await page.getByRole("button", { name: "Retry" }).first().click();
 
   await navigate(page, /Operations/);
   await page.getByRole("button", { name: "Create" }).click();
@@ -56,8 +80,12 @@ test("keeps navigation usable on mobile", async ({ page, isMobile }) => {
   await expect(page.getByRole("heading", { name: "Missions" })).toBeVisible();
 });
 
-async function mockRuntime(page: Page) {
+async function mockRuntime(
+  page: Page,
+  options: { authenticated?: boolean } = {},
+) {
   const now = new Date().toISOString();
+  let authenticated = options.authenticated ?? true;
   const run = {
     run_id: "run_1",
     status: "running",
@@ -100,6 +128,23 @@ async function mockRuntime(page: Page) {
     },
   ];
   const runs = [run];
+  const workers = [
+    {
+      worker_id: "hk-2c2g-a",
+      status: "active",
+      capacity: 1,
+      active_count: 1,
+      lease_ttl_seconds: 60,
+      heartbeat_at: now,
+      created_at: now,
+      updated_at: now,
+      metadata: {
+        labels: { region: "hk" },
+        resources: { cpus: 2, memory_gb: 2 },
+        capabilities: { adapters: ["qwen"] },
+      },
+    },
+  ];
   const profiles = [
     {
       id: "planner",
@@ -116,6 +161,13 @@ async function mockRuntime(page: Page) {
     },
   ];
   const fixtures: Record<string, unknown> = {
+    "auth/session": {
+      authenticated,
+      login_enabled: true,
+      principal: authenticated
+        ? { id: "cloudagents", display_name: "cloudagents", roles: ["owner"] }
+        : null,
+    },
     health: { ok: true, version: "0.1-e2e" },
     capabilities: {
       mode: "saeu-runtime",
@@ -124,7 +176,7 @@ async function mockRuntime(page: Page) {
         fake: { name: "Fake", status: "available" },
         qwen: { name: "Qwen", status: "available" },
       },
-      queue: { counts: {}, jobs: [], workers: [] },
+      queue: { counts: {}, jobs: [], workers },
       profiles: [],
     },
     "metrics.json": {
@@ -193,6 +245,7 @@ async function mockRuntime(page: Page) {
       ],
     },
     profiles: { profiles },
+    workers: { workers },
     "access/policy": {
       mode: "single-tenant-rbac-foundation",
       current_principal: {
@@ -208,7 +261,9 @@ async function mockRuntime(page: Page) {
         },
       ],
       scopes: ["runs:*", "missions:*", "profiles:*"],
-      audit: { auth_boundary: "basic auth plus bearer" },
+      audit: {
+        auth_boundary: "runtime session cookie plus bearer token or API token",
+      },
     },
     "ops/status": { database: { exists: true } },
     "ops/drills": {
@@ -247,6 +302,26 @@ async function mockRuntime(page: Page) {
     const request = route.request();
     const url = new URL(request.url());
     const path = url.pathname.replace(/^\//, "");
+    if (request.method() === "POST" && path === "auth/login") {
+      authenticated = true;
+      fixtures["auth/session"] = {
+        authenticated: true,
+        login_enabled: true,
+        principal: { id: "cloudagents", display_name: "cloudagents", roles: ["owner"] },
+      };
+      await route.fulfill({ json: fixtures["auth/session"] });
+      return;
+    }
+    if (request.method() === "POST" && path === "auth/logout") {
+      authenticated = false;
+      fixtures["auth/session"] = {
+        authenticated: false,
+        login_enabled: true,
+        principal: null,
+      };
+      await route.fulfill({ json: fixtures["auth/session"] });
+      return;
+    }
     if (request.method() === "POST" && path === "runs") {
       const created = { ...run, run_id: "run_created", status: "queued" };
       runs.unshift(created);
@@ -263,6 +338,37 @@ async function mockRuntime(page: Page) {
       };
       profiles.unshift(created);
       await route.fulfill({ json: created });
+      return;
+    }
+    if (request.method() === "POST" && path === "workers/registrations") {
+      await route.fulfill({
+        json: {
+          worker_id: "hk-2c2g-b",
+          token_id: "token_worker",
+          token: "secret-token",
+          capacity: 1,
+          control_url: "https://doubaofans.site/cloud-agents-worker",
+          deploy_command:
+            "RUN_WORKER_ID=hk-2c2g-b bash scripts/deploy_worker_vps.sh root@host /path/key.pem",
+          metadata: { resources: { cpus: 2, memory_gb: 2 } },
+        },
+      });
+      return;
+    }
+    if (request.method() === "POST" && path.includes("/drain")) {
+      workers[0] = { ...workers[0], status: "draining" };
+      await route.fulfill({ json: { worker: workers[0], control: {} } });
+      return;
+    }
+    if (request.method() === "POST" && path.includes("/resume")) {
+      workers[0] = { ...workers[0], status: "active" };
+      await route.fulfill({ json: { worker: workers[0], control: {} } });
+      return;
+    }
+    if (request.method() === "POST" && path.includes("/retry")) {
+      await route.fulfill({
+        json: { worker_id: workers[0].worker_id, requeued_run_ids: ["run_1"] },
+      });
       return;
     }
     if (request.method() === "POST" && path.includes("/permissions/")) {

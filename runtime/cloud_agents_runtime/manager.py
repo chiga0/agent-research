@@ -166,6 +166,9 @@ class RunManager:
                 "container_qwen_executor",
                 "remote_worker_registry",
                 "remote_worker_claim_api",
+                "remote_worker_control_plane",
+                "remote_worker_draining",
+                "execution_unit_registration",
                 "access_project_registry",
                 "api_token_registry",
                 "cost_budget",
@@ -228,6 +231,17 @@ class RunManager:
             )
             self._drain_queue()
             return
+        job = self.store.get_job(run_id)
+        if job and job.status == "running" and job.worker_id != self.worker_id:
+            self.store.append_event(
+                run_id,
+                "run.cancel_requested",
+                {
+                    "worker_id": job.worker_id,
+                    "reason": reason or "cancelled from control plane",
+                },
+            )
+            return
         self._adapter(run.spec.adapter).cancel(run, reason, self.store)
 
     def resolve_permission(self, run_id: str, permission_id: str, payload: dict[str, Any]) -> None:
@@ -235,6 +249,18 @@ class RunManager:
         decision = payload.get("decision")
         if decision not in {"approve", "deny", "cancel"}:
             raise ValueError("decision must be approve, deny, or cancel")
+        job = self.store.get_job(run_id)
+        if job and job.status == "running" and job.worker_id != self.worker_id:
+            self.store.append_event(
+                run_id,
+                "permission.resolve_requested",
+                {
+                    "worker_id": job.worker_id,
+                    "permission_id": permission_id,
+                    "payload": payload,
+                },
+            )
+            return
         self._adapter(run.spec.adapter).resolve_permission(run, permission_id, payload, self.store)
 
     def get_run(self, run_id: str) -> RunState | None:
@@ -258,7 +284,10 @@ class RunManager:
             metadata=worker_metadata(payload, default_kind="remote"),
         )
         self.store.recover_expired_leases()
-        return worker.to_dict()
+        return {
+            **worker.to_dict(),
+            "control": self.remote_worker_control(worker_id),
+        }
 
     def claim_remote_run(self, worker_id: str, payload: dict[str, Any]) -> dict[str, Any]:
         worker_id = normalize_worker_id(worker_id)
@@ -275,8 +304,20 @@ class RunManager:
             metadata=worker_metadata(payload, default_kind="remote"),
         )
         self.store.recover_expired_leases()
+        if worker.status == "draining":
+            return {
+                "worker": worker.to_dict(),
+                "job": None,
+                "run": None,
+                "control": self.remote_worker_control(worker_id),
+            }
         if self.store.active_job_count(worker_id) >= capacity:
-            return {"worker": worker.to_dict(), "job": None, "run": None}
+            return {
+                "worker": worker.to_dict(),
+                "job": None,
+                "run": None,
+                "control": self.remote_worker_control(worker_id),
+            }
         job = self.store.claim_next_job(
             worker_id,
             lease_ttl_seconds,
@@ -292,6 +333,146 @@ class RunManager:
             ).to_dict(),
             "job": job.to_dict() if job else None,
             "run": run.to_dict() if run else None,
+            "control": self.remote_worker_control(worker_id),
+        }
+
+    def remote_worker_control(self, worker_id: str) -> dict[str, Any]:
+        worker_id = normalize_worker_id(worker_id)
+        worker = next(
+            (
+                item
+                for item in self.store.queue_snapshot()["workers"]
+                if item["worker_id"] == worker_id
+            ),
+            None,
+        )
+        running_jobs = self.store.running_jobs_for_worker(worker_id)
+        runs: list[dict[str, Any]] = []
+        for job in running_jobs:
+            run = self.store.get_run(job.run_id)
+            if run is None or run.status in {"completed", "failed", "cancelled"}:
+                continue
+            events = self.store.events_since(job.run_id)
+            cancel_event = latest_event(events, "run.cancel_requested")
+            permission_requests = [
+                event
+                for event in events
+                if event.type == "permission.resolve_requested"
+                and event.data.get("worker_id") == worker_id
+            ]
+            runs.append(
+                {
+                    "run_id": job.run_id,
+                    "cancel": cancel_event.to_dict() if cancel_event else None,
+                    "permission_resolutions": [
+                        event.to_dict()
+                        for event in permission_requests
+                        if not permission_resolution_applied(events, event)
+                    ],
+                }
+            )
+        desired_state = (
+            str((worker or {}).get("metadata", {}).get("desired_state") or "").lower()
+            if worker
+            else ""
+        )
+        draining = bool(
+            worker
+            and (
+                worker.get("status") == "draining"
+                or desired_state == "draining"
+            )
+        )
+        return {
+            "worker_id": worker_id,
+            "draining": draining,
+            "desired_state": "draining" if draining else "active",
+            "runs": runs,
+            "generated_at": datetime.now(timezone.utc).isoformat(timespec="milliseconds"),
+        }
+
+    def drain_worker(self, worker_id: str, reason: str | None = None) -> dict[str, Any]:
+        worker_id = normalize_worker_id(worker_id)
+        worker = self.store.set_worker_state(
+            worker_id,
+            "draining",
+            {
+                "desired_state": "draining",
+                "drain_reason": reason or "drain requested from control plane",
+                "drain_requested_at": datetime.now(timezone.utc).isoformat(
+                    timespec="milliseconds"
+                ),
+            },
+        )
+        return {"worker": worker.to_dict(), "control": self.remote_worker_control(worker_id)}
+
+    def resume_worker(self, worker_id: str) -> dict[str, Any]:
+        worker_id = normalize_worker_id(worker_id)
+        worker = self.store.set_worker_state(
+            worker_id,
+            "active",
+            {"desired_state": "active", "resume_requested_at": utc_timestamp()},
+        )
+        self._drain_queue()
+        return {"worker": worker.to_dict(), "control": self.remote_worker_control(worker_id)}
+
+    def retry_worker_runs(self, worker_id: str, reason: str | None = None) -> dict[str, Any]:
+        worker_id = normalize_worker_id(worker_id)
+        run_ids = self.store.requeue_running_jobs_for_worker(
+            worker_id,
+            reason or "retry requested from control plane",
+        )
+        self._drain_queue()
+        return {
+            "worker_id": worker_id,
+            "requeued_run_ids": run_ids,
+            "control": self.remote_worker_control(worker_id),
+        }
+
+    def create_worker_registration(self, payload: dict[str, Any]) -> dict[str, Any]:
+        worker_id = normalize_worker_id(str(payload.get("worker_id") or "worker-vps"))
+        control_url = str(payload.get("control_url") or "").strip()
+        if not control_url:
+            raise ValueError("control_url is required")
+        capacity = payload_positive_int(payload, "capacity", default=1)
+        labels = payload.get("labels") if isinstance(payload.get("labels"), dict) else {}
+        resources = payload.get("resources") if isinstance(payload.get("resources"), dict) else {}
+        metadata = {
+            "worker_id": worker_id,
+            "kind": "remote",
+            "labels": labels,
+            "resources": resources,
+            "desired_state": "active",
+        }
+        token = self.access.create_token(
+            {
+                "name": f"worker-{worker_id}",
+                "project_id": payload.get("project_id") or "default",
+                "scopes": ["workers:*"],
+                "metadata": metadata,
+            }
+        )
+        worker_metadata = {
+            "labels": labels,
+            "resources": resources,
+            "capabilities": {
+                "features": ["artifacts", "claim", "events", "heartbeat", "control"],
+            },
+        }
+        deploy_command = worker_deploy_command(
+            control_url=control_url,
+            token=str(token["token"]),
+            worker_id=worker_id,
+            capacity=capacity,
+            metadata=worker_metadata,
+        )
+        return {
+            "worker_id": worker_id,
+            "capacity": capacity,
+            "control_url": control_url,
+            "token": token,
+            "metadata": worker_metadata,
+            "deploy_command": deploy_command,
         }
 
     def append_remote_worker_event(
@@ -392,8 +573,12 @@ class RunManager:
     def backup_path(self, name: str) -> Path:
         return self.ops.backup_path(name)
 
-    def access_policy(self, headers: Any | None = None) -> dict[str, Any]:
-        return self.access.policy(headers)
+    def access_policy(
+        self,
+        headers: Any | None = None,
+        principal: str | None = None,
+    ) -> dict[str, Any]:
+        return self.access.policy(headers, principal=principal)
 
     def create_access_project(self, payload: dict[str, Any]) -> dict[str, Any]:
         return self.access.create_project(payload)
@@ -405,8 +590,9 @@ class RunManager:
         self,
         payload: dict[str, Any],
         headers: Any | None = None,
+        principal: str | None = None,
     ) -> dict[str, Any]:
-        return self.access.create_token(payload, headers=headers)
+        return self.access.create_token(payload, headers=headers, principal=principal)
 
     def list_api_tokens(self) -> dict[str, Any]:
         return self.access.list_tokens()
@@ -819,3 +1005,53 @@ def permission_id_from_event(event: RuntimeEvent) -> str | None:
             if isinstance(request_id, str) and request_id:
                 return request_id
     return None
+
+
+def latest_event(events: list[RuntimeEvent], event_type: str) -> RuntimeEvent | None:
+    matches = [event for event in events if event.type == event_type]
+    return matches[-1] if matches else None
+
+
+def permission_resolution_applied(
+    events: list[RuntimeEvent],
+    request_event: RuntimeEvent,
+) -> bool:
+    permission_id = request_event.data.get("permission_id")
+    requested_sequence = request_event.sequence
+    for event in events:
+        if event.sequence <= requested_sequence:
+            continue
+        if event.type not in {"permission.resolved", "permission.resolve_failed"}:
+            continue
+        if event.data.get("permission_id") == permission_id:
+            return True
+    return False
+
+
+def utc_timestamp() -> str:
+    return datetime.now(timezone.utc).isoformat(timespec="milliseconds")
+
+
+def shell_single_quote(value: str) -> str:
+    return "'" + value.replace("'", "'\"'\"'") + "'"
+
+
+def worker_deploy_command(
+    *,
+    control_url: str,
+    token: str,
+    worker_id: str,
+    capacity: int,
+    metadata: dict[str, Any],
+) -> str:
+    metadata_json = json.dumps(metadata, ensure_ascii=False, sort_keys=True)
+    return " \\\n  ".join(
+        [
+            f"RUN_WORKER_CONTROL_URL={shell_single_quote(control_url)}",
+            f"RUN_WORKER_TOKEN={shell_single_quote(token)}",
+            f"RUN_WORKER_ID={shell_single_quote(worker_id)}",
+            f"RUN_WORKER_CAPACITY={capacity}",
+            f"RUN_WORKER_METADATA_JSON={shell_single_quote(metadata_json)}",
+            "bash scripts/deploy_worker_vps.sh root@<worker-ip> /path/to/key.pem",
+        ]
+    )

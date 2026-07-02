@@ -136,6 +136,61 @@ class RuntimeServerTest(unittest.TestCase):
             )
             self.assertIn("cleanup", cleanup)
 
+    def test_console_login_session_cookie_authorizes_api(self) -> None:
+        with running_runtime(
+            token="secret",
+            login_user="cloudagents",
+            login_password="password",
+            session_secret="session-secret",
+        ) as base_url:
+            session = request_json(f"{base_url}/auth/session")
+            self.assertFalse(session["authenticated"])
+            html = request_text(f"{base_url}/")
+            self.assertIn("Cloud Agents Console", html)
+            with self.assertRaises(urllib.error.HTTPError) as unauthorized:
+                request_json(f"{base_url}/capabilities")
+            self.assertEqual(unauthorized.exception.code, HTTPStatus.UNAUTHORIZED)
+            with self.assertRaises(urllib.error.HTTPError) as bad_login:
+                request_json(
+                    f"{base_url}/auth/login",
+                    method="POST",
+                    payload={"username": "cloudagents", "password": "wrong"},
+                )
+            self.assertEqual(bad_login.exception.code, HTTPStatus.UNAUTHORIZED)
+
+            login_response = request_raw(
+                f"{base_url}/auth/login",
+                method="POST",
+                payload={"username": "cloudagents", "password": "password"},
+            )
+            cookie = login_response.headers["set-cookie"]
+            self.assertIn("HttpOnly", cookie)
+            capabilities = request_json(
+                f"{base_url}/capabilities",
+                headers={"cookie": cookie},
+            )
+            self.assertIn("fake", capabilities["adapters"])
+            access = request_json(
+                f"{base_url}/access/policy",
+                headers={"cookie": cookie},
+            )
+            self.assertEqual(access["current_principal"]["id"], "cloudagents")
+            created = request_json(
+                f"{base_url}/access/tokens",
+                method="POST",
+                payload={"name": "console", "scopes": ["runs:read"]},
+                headers={"cookie": cookie},
+            )
+            self.assertEqual(created["principal_id"], "cloudagents")
+
+            logout_response = request_raw(
+                f"{base_url}/auth/logout",
+                method="POST",
+                payload={},
+                headers={"cookie": cookie},
+            )
+            self.assertIn("Max-Age=0", logout_response.headers["set-cookie"])
+
     def test_remote_worker_http_registry_claims_and_reports_run(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             with running_runtime(
@@ -248,6 +303,90 @@ class RuntimeServerTest(unittest.TestCase):
                     (Path(tmp) / run["run_id"] / "remote.log").read_text(),
                     "hello worker",
                 )
+
+    def test_worker_registration_drain_resume_and_retry_api(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            with running_runtime(
+                artifact_root=Path(tmp),
+                token="secret",
+                worker_capacity=0,
+            ) as base_url:
+                headers = {"authorization": "Bearer secret"}
+                registration = request_json(
+                    f"{base_url}/workers/registrations",
+                    method="POST",
+                    payload={
+                        "worker_id": "hk-2c2g-a",
+                        "control_url": "https://example.com/cloud-agents-worker",
+                        "capacity": 1,
+                        "labels": {"region": "hk"},
+                        "resources": {"cpus": 2, "memory_gb": 2},
+                    },
+                    headers=headers,
+                )
+                self.assertEqual(registration["worker_id"], "hk-2c2g-a")
+                self.assertIn("RUN_WORKER_TOKEN=", registration["deploy_command"])
+                self.assertIn("scripts/deploy_worker_vps.sh", registration["deploy_command"])
+
+                token = registration["token"]["token"]
+                worker_headers = {"authorization": f"Bearer {token}"}
+                run = request_json(
+                    f"{base_url}/runs",
+                    method="POST",
+                    payload={"prompt": "remote retry", "adapter": "fake"},
+                    headers=headers,
+                )
+                request_json(
+                    f"{base_url}/workers/hk-2c2g-a/heartbeat",
+                    method="POST",
+                    payload={
+                        "capacity": 1,
+                        "lease_ttl_seconds": 30,
+                        "metadata": {"capabilities": {"adapters": ["fake"]}},
+                    },
+                    headers=worker_headers,
+                )
+                drained = request_json(
+                    f"{base_url}/workers/hk-2c2g-a/drain",
+                    method="POST",
+                    payload={"reason": "maintenance"},
+                    headers=headers,
+                )
+                self.assertEqual(drained["worker"]["status"], "draining")
+                claim_while_draining = request_json(
+                    f"{base_url}/workers/hk-2c2g-a/claim",
+                    method="POST",
+                    payload={"capacity": 1, "lease_ttl_seconds": 30},
+                    headers=worker_headers,
+                )
+                self.assertIsNone(claim_while_draining["run"])
+
+                resumed = request_json(
+                    f"{base_url}/workers/hk-2c2g-a/resume",
+                    method="POST",
+                    payload={},
+                    headers=headers,
+                )
+                self.assertEqual(resumed["worker"]["status"], "active")
+                claim = request_json(
+                    f"{base_url}/workers/hk-2c2g-a/claim",
+                    method="POST",
+                    payload={"capacity": 1, "lease_ttl_seconds": 30},
+                    headers=worker_headers,
+                )
+                self.assertEqual(claim["run"]["run_id"], run["run_id"])
+                retried = request_json(
+                    f"{base_url}/workers/hk-2c2g-a/retry",
+                    method="POST",
+                    payload={"reason": "operator retry"},
+                    headers=headers,
+                )
+                self.assertEqual(retried["requeued_run_ids"], [run["run_id"]])
+                control = request_json(
+                    f"{base_url}/workers/hk-2c2g-a/control",
+                    headers=worker_headers,
+                )
+                self.assertEqual(control["desired_state"], "active")
 
     def test_fake_run_streams_sse_and_writes_artifacts(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -623,6 +762,9 @@ class running_runtime:
         token: str | None = None,
         qwen_url: str | None = None,
         worker_capacity: int | None = None,
+        login_user: str | None = None,
+        login_password: str | None = None,
+        session_secret: str | None = None,
     ):
         self.tmp = tempfile.TemporaryDirectory() if artifact_root is None else None
         self.artifact_root = artifact_root or Path(self.tmp.name)
@@ -630,7 +772,12 @@ class running_runtime:
             "127.0.0.1",
             0,
             self.artifact_root,
-            auth_config=AuthConfig(token=token),
+            auth_config=AuthConfig(
+                token=token,
+                login_user=login_user,
+                login_password=login_password,
+                session_secret=session_secret,
+            ),
             qwen_base_url=qwen_url,
             worker_capacity=worker_capacity,
         )
@@ -781,6 +928,19 @@ def request_json(
         parsed = json.loads(response.read().decode("utf-8"))
         assert isinstance(parsed, dict)
         return parsed
+
+
+def request_raw(
+    url: str,
+    method: str = "GET",
+    payload: dict[str, Any] | None = None,
+    headers: dict[str, str] | None = None,
+) -> urllib.response.addinfourl:
+    body = json.dumps(payload).encode("utf-8") if payload is not None else None
+    request = urllib.request.Request(url, data=body, method=method, headers=headers or {})
+    if payload is not None:
+        request.add_header("content-type", "application/json")
+    return urllib.request.urlopen(request, timeout=5)
 
 
 def request_text(url: str, headers: dict[str, str] | None = None) -> str:

@@ -109,7 +109,13 @@ const events = [
   },
 ];
 
+let authSessionAuthenticated = true;
+
 const fixtures: Record<string, unknown> = {
+  "auth/session": {
+    authenticated: true,
+    principal: { id: "operator", display_name: "operator", roles: ["owner"] },
+  },
   health: { ok: true, version: "0.1-test" },
   capabilities: {
     mode: "saeu-runtime",
@@ -186,6 +192,33 @@ const fixtures: Record<string, unknown> = {
     monthly_budget_usd: 10,
     warning_threshold_usd: 8,
     runs: [{ run_id: "run_1", estimated_cost_usd: 0.1 }],
+  },
+  workers: {
+    workers: [
+      {
+        worker_id: "hk-2c2g-a",
+        status: "active",
+        capacity: 1,
+        active_count: 1,
+        heartbeat_at: new Date().toISOString(),
+        lease_ttl_seconds: 60,
+        metadata: {
+          kind: "remote",
+          labels: { region: "hk" },
+          resources: { cpus: 2, memory_gb: 2 },
+          capabilities: { adapters: ["fake", "qwen"] },
+        },
+      },
+      {
+        worker_id: "local",
+        status: "draining",
+        capacity: 1,
+        active_count: 0,
+        heartbeat_at: new Date().toISOString(),
+        lease_ttl_seconds: 60,
+        metadata: { kind: "local" },
+      },
+    ],
   },
   runs: { runs: [run] },
   "runs/run_1": run,
@@ -304,7 +337,7 @@ const fixtures: Record<string, unknown> = {
         metadata: {},
       },
     ],
-    audit: { auth_boundary: "basic auth plus bearer" },
+    audit: { auth_boundary: "runtime session cookie plus bearer" },
   },
   "access/projects": {
     projects: [
@@ -342,6 +375,7 @@ const fixtures: Record<string, unknown> = {
 describe("Cloud Agents console", () => {
   beforeEach(async () => {
     queryClient.clear();
+    authSessionAuthenticated = true;
     window.location.hash = "";
     document.documentElement.classList.remove("dark");
     vi.stubGlobal("fetch", vi.fn(fetchMock));
@@ -367,6 +401,26 @@ describe("Cloud Agents console", () => {
     expect(screen.getByText("Recent Missions")).toBeInTheDocument();
   });
 
+  it("shows login page and signs in with session credentials", async () => {
+    const user = userEvent.setup();
+    authSessionAuthenticated = false;
+    render(<App />);
+
+    expect(await screen.findByRole("heading", { name: "Sign In" })).toBeInTheDocument();
+    await user.clear(screen.getByLabelText("Username"));
+    await user.type(screen.getByLabelText("Username"), "cloudagents");
+    await user.type(screen.getByLabelText("Password"), "wrong");
+    await user.click(screen.getByRole("button", { name: "Sign in" }));
+    expect(await screen.findByText("Invalid username or password.")).toBeInTheDocument();
+    await user.clear(screen.getByLabelText("Password"));
+    await user.type(screen.getByLabelText("Password"), "secret");
+    await user.click(screen.getByRole("button", { name: "Sign in" }));
+
+    expect(
+      await screen.findByRole("heading", { name: "Overview" }),
+    ).toBeInTheDocument();
+  });
+
   it("creates a run from the Runs page", async () => {
     const user = userEvent.setup();
     await act(async () => {
@@ -374,7 +428,9 @@ describe("Cloud Agents console", () => {
     });
     render(<App />);
 
+    expect(await screen.findByRole("heading", { name: "Runs" })).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: /refresh/i }));
+    await user.selectOptions(screen.getByLabelText("Adapter"), "fake");
     await user.clear(await screen.findByLabelText("Prompt"));
     await user.type(screen.getByLabelText("Prompt"), "Run a smoke validation");
     await user.type(screen.getByLabelText("Repo"), "/tmp/repo");
@@ -465,6 +521,7 @@ describe("Cloud Agents console", () => {
       "Create a beta validation report",
     );
     await user.selectOptions(screen.getByLabelText("Strategy"), "fanout");
+    await user.selectOptions(screen.getByLabelText("Adapter"), "fake");
     await user.click(screen.getByRole("button", { name: "Start" }));
     await waitFor(() =>
       expect(fetch).toHaveBeenCalledWith(
@@ -482,8 +539,11 @@ describe("Cloud Agents console", () => {
     await screen.findByText("Planner");
     expect(screen.getByText("Runtime")).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Copy" }));
+    await user.clear(screen.getByLabelText("Profile ID"));
+    await user.type(screen.getByLabelText("Profile ID"), "planner-copy");
     await user.clear(screen.getByLabelText("Display name"));
     await user.type(screen.getByLabelText("Display name"), "Planner Copy");
+    await user.type(screen.getByLabelText("Description"), " copied");
     await user.click(screen.getByRole("button", { name: "Save Profile" }));
     await waitFor(() =>
       expect(fetch).toHaveBeenCalledWith(
@@ -526,6 +586,8 @@ describe("Cloud Agents console", () => {
     expect(click).toHaveBeenCalled();
     await user.clear(screen.getAllByLabelText("Project ID")[0]);
     await user.type(screen.getAllByLabelText("Project ID")[0], "team1");
+    await user.clear(screen.getByLabelText("Display name"));
+    await user.type(screen.getByLabelText("Display name"), "Team One");
     await user.clear(screen.getByLabelText("Token name"));
     await user.type(screen.getByLabelText("Token name"), "team-token");
     await user.click(screen.getAllByRole("button", { name: "Create" })[0]);
@@ -554,6 +616,54 @@ describe("Cloud Agents console", () => {
     await user.click(screen.getByRole("button", { name: "Refresh" }));
   });
 
+  it("registers and controls execution units", async () => {
+    const user = userEvent.setup();
+    const writeText = vi.fn();
+    Object.defineProperty(navigator, "clipboard", {
+      configurable: true,
+      value: { writeText },
+    });
+    await act(async () => {
+      await router.navigate({ to: "/units" });
+    });
+    render(<App />);
+
+    expect(await screen.findByRole("heading", { name: "Units" })).toBeInTheDocument();
+    expect(await screen.findByText("hk-2c2g-a")).toBeInTheDocument();
+    expect(screen.getByText("adapter:qwen")).toBeInTheDocument();
+    await user.clear(screen.getByLabelText("Unit ID"));
+    await user.type(screen.getByLabelText("Unit ID"), "hk-2c2g-b");
+    await user.clear(screen.getByLabelText("Worker control URL"));
+    await user.type(
+      screen.getByLabelText("Worker control URL"),
+      "https://doubaofans.site/cloud-agents-worker",
+    );
+    await user.clear(screen.getByLabelText("Capacity"));
+    await user.type(screen.getByLabelText("Capacity"), "1");
+    await user.clear(screen.getByLabelText("CPUs"));
+    await user.type(screen.getByLabelText("CPUs"), "2");
+    await user.clear(screen.getByLabelText("Memory GB"));
+    await user.type(screen.getByLabelText("Memory GB"), "2");
+    await user.clear(screen.getByLabelText("Region label"));
+    await user.type(screen.getByLabelText("Region label"), "hk");
+    await user.click(screen.getByRole("button", { name: "Generate" }));
+    expect(await screen.findByText("Deployment Command")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Copy" }));
+    expect(writeText).toHaveBeenCalledWith(
+      expect.stringContaining("deploy_worker_vps.sh"),
+    );
+    await user.click(screen.getByRole("button", { name: "Refresh" }));
+    await user.click(screen.getAllByRole("button", { name: "Drain" })[0]);
+    await user.click(screen.getAllByRole("button", { name: "Resume" })[1]);
+    await user.click(screen.getAllByRole("button", { name: "Retry" })[0]);
+    await waitFor(() =>
+      expect(fetch).toHaveBeenCalledWith(
+        "/workers/hk-2c2g-a/retry",
+        expect.objectContaining({ method: "POST" }),
+      ),
+    );
+  });
+
   it("runs operations drills and creates backups", async () => {
     const user = userEvent.setup();
     await act(async () => {
@@ -579,7 +689,7 @@ describe("Cloud Agents console", () => {
     const user = userEvent.setup();
     render(<App />);
 
-    await user.click(screen.getByLabelText("Open navigation"));
+    await user.click(await screen.findByLabelText("Open navigation"));
     expect(screen.getByText("Navigation")).toBeInTheDocument();
     await user.click(screen.getAllByRole("link", { name: /Missions/ }).at(-1)!);
     expect(
@@ -593,6 +703,8 @@ describe("Cloud Agents console", () => {
 
     await user.click(screen.getByLabelText("Toggle theme"));
     expect(document.documentElement.classList.contains("dark")).toBe(true);
+    await user.click(screen.getByLabelText("Sign out"));
+    expect(await screen.findByRole("heading", { name: "Sign In" })).toBeInTheDocument();
   });
 
   it("summarizes runner events for the live chat timeline", () => {
@@ -756,6 +868,37 @@ describe("Cloud Agents console", () => {
     expect(__testUtils.statusLine({ running: 2 })).toBe("running 2");
     expect(__testUtils.stringValue(123)).toBe("123");
     expect(__testUtils.timeAgo(undefined)).toBe("-");
+    expect(__testUtils.money(1.25)).toBe("$1.25");
+    expect(__testUtils.money(null)).toBe("$0.00");
+    expect(__testUtils.registryValue({ config: { ok: true } }, "config")).toEqual({
+      ok: true,
+    });
+    expect(__testUtils.registryValue({ config: [] }, "config")).toEqual({});
+    expect(__testUtils.objectValue({ ok: true })).toEqual({ ok: true });
+    expect(__testUtils.objectValue(null)).toEqual({});
+    expect(__testUtils.defaultWorkerControlUrl()).toContain(
+      "/cloud-agents-worker",
+    );
+    window.history.pushState({}, "", "/cloud-agents/");
+    expect(__testUtils.defaultWorkerControlUrl()).toContain(
+      "/cloud-agents-worker",
+    );
+    window.history.pushState({}, "", "/");
+    expect(
+      __testUtils.workerBadges({
+        worker_id: "worker",
+        status: "active",
+        capacity: 1,
+        active_count: 0,
+        heartbeat_at: now,
+        lease_ttl_seconds: 60,
+        metadata: {
+          labels: { region: "hk" },
+          resources: { cpus: 2 },
+          capabilities: { adapters: ["fake"] },
+        },
+      }),
+    ).toEqual(["region:hk", "cpus:2", "adapter:fake"]);
   });
 
   it("downloads a readable runner report", () => {
@@ -780,6 +923,32 @@ describe("Cloud Agents console", () => {
     expect(click).toHaveBeenCalled();
     expect(revokeObjectURL).toHaveBeenCalledWith("blob:report");
   });
+
+  it("copies text with the textarea fallback", () => {
+    const execCommand = vi.fn();
+    const select = vi.fn();
+    vi.stubGlobal("navigator", {});
+    Object.defineProperty(document, "execCommand", {
+      configurable: true,
+      value: execCommand,
+    });
+    vi.spyOn(document, "execCommand").mockImplementation(execCommand);
+    vi.spyOn(document, "createElement").mockImplementation((tagName) => {
+      const element = document.createElementNS(
+        "http://www.w3.org/1999/xhtml",
+        tagName,
+      ) as HTMLTextAreaElement;
+      if (tagName === "textarea") {
+        element.select = select;
+      }
+      return element;
+    });
+
+    __testUtils.copyText("worker token");
+
+    expect(select).toHaveBeenCalled();
+    expect(execCommand).toHaveBeenCalledWith("copy");
+  });
 });
 
 function event(
@@ -801,6 +970,30 @@ function event(
 async function fetchMock(input: RequestInfo | URL, init?: RequestInit) {
   const url = typeof input === "string" ? input : input.toString();
   const path = url.replace(/^https?:\/\/[^/]+\//, "").replace(/^\//, "");
+  if (path === "auth/session") {
+    return jsonResponse({
+      authenticated: authSessionAuthenticated,
+      login_required: true,
+      principal: authSessionAuthenticated
+        ? { id: "cloudagents", display_name: "cloudagents", roles: ["owner"] }
+        : null,
+    });
+  }
+  if (init?.method === "POST" && path === "auth/login") {
+    const body = JSON.parse(String(init.body ?? "{}")) as { password?: string };
+    if (body.password !== "secret") {
+      return jsonResponse({ error: "invalid credentials" }, 401);
+    }
+    authSessionAuthenticated = true;
+    return jsonResponse({
+      authenticated: true,
+      principal: { id: "cloudagents", display_name: "cloudagents", roles: ["owner"] },
+    });
+  }
+  if (init?.method === "POST" && path === "auth/logout") {
+    authSessionAuthenticated = false;
+    return jsonResponse({ authenticated: false });
+  }
   if (init?.method === "POST" && path === "runs") {
     return jsonResponse({ ...run, run_id: "run_created", status: "queued" });
   }
@@ -856,6 +1049,59 @@ async function fetchMock(input: RequestInfo | URL, init?: RequestInit) {
       metadata: {},
     });
   }
+  if (init?.method === "POST" && path === "auth/login") {
+    return jsonResponse(fixtures["auth/session"]);
+  }
+  if (init?.method === "POST" && path === "auth/logout") {
+    return jsonResponse({ authenticated: false });
+  }
+  if (init?.method === "POST" && path === "workers/registrations") {
+    return jsonResponse({
+      worker_id: "hk-2c2g-b",
+      capacity: 1,
+      control_url: "https://doubaofans.site/cloud-agents-worker",
+      token: {
+        token_id: "token_worker",
+        name: "worker-hk-2c2g-b",
+        principal_id: "operator",
+        scopes: ["workers:*"],
+        status: "active",
+        token_prefix: "cat_worker",
+        token: "cat_worker_secret",
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        metadata: {},
+      },
+      metadata: {},
+      deploy_command:
+        "RUN_WORKER_TOKEN='cat_worker_secret' bash scripts/deploy_worker_vps.sh root@<worker-ip> /path/to/key.pem",
+    });
+  }
+  if (init?.method === "POST" && path.endsWith("/drain")) {
+    const workerFixtures = fixtures.workers as {
+      workers: Array<Record<string, unknown>>;
+    };
+    return jsonResponse({
+      worker: { ...workerFixtures.workers[0], status: "draining" },
+      control: {},
+    });
+  }
+  if (init?.method === "POST" && path.endsWith("/resume")) {
+    const workerFixtures = fixtures.workers as {
+      workers: Array<Record<string, unknown>>;
+    };
+    return jsonResponse({
+      worker: { ...workerFixtures.workers[0], status: "active" },
+      control: {},
+    });
+  }
+  if (init?.method === "POST" && path.endsWith("/retry")) {
+    return jsonResponse({
+      worker_id: "hk-2c2g-a",
+      requeued_run_ids: ["run_1"],
+      control: {},
+    });
+  }
   if (init?.method === "POST" && path.includes("/permissions/")) {
     return jsonResponse({ accepted: true });
   }
@@ -874,10 +1120,10 @@ async function fetchMock(input: RequestInfo | URL, init?: RequestInit) {
   return jsonResponse(fixtures[path] ?? {});
 }
 
-function jsonResponse(payload: unknown) {
+function jsonResponse(payload: unknown, status = 200) {
   return Promise.resolve(
     new Response(JSON.stringify(payload), {
-      status: 200,
+      status,
       headers: { "content-type": "application/json" },
     }),
   );

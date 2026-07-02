@@ -64,8 +64,12 @@ class AccessManager:
         self.default_principal = default_principal
         self.store.ensure_access_project("default", "Default")
 
-    def policy(self, headers: Any | None = None) -> dict[str, Any]:
-        principal = self.principal_from_headers(headers)
+    def policy(
+        self,
+        headers: Any | None = None,
+        principal: str | None = None,
+    ) -> dict[str, Any]:
+        principal = principal or self.principal_from_headers(headers)
         roles = ROLE_DEFINITIONS
         scopes = sorted({permission for role in roles for permission in role["permissions"]})
         projects = [project.to_dict() for project in self.store.list_access_projects()]
@@ -82,9 +86,9 @@ class AccessManager:
             "projects": projects,
             "tokens": tokens,
             "audit": {
-                "auth_boundary": "nginx basic auth plus runtime bearer token or API token",
+                "auth_boundary": "runtime session cookie plus bearer token or API token",
                 "token_storage": "api tokens are stored as sha256 hashes and shown once",
-                "user_header": "x-remote-user or x-forwarded-user when configured",
+                "user_header": "session principal, x-remote-user, or x-forwarded-user",
                 "status": "foundation only; external IAM can replace this manager",
                 "generated_at": utc_now(),
             },
@@ -109,12 +113,13 @@ class AccessManager:
         self,
         payload: dict[str, Any],
         headers: Any | None = None,
+        principal: str | None = None,
     ) -> dict[str, Any]:
         plain_token = f"cat_{secrets.token_urlsafe(32)}"
         token = ApiToken.create(
             payload,
             plain_token=plain_token,
-            default_principal=self.principal_from_headers(headers),
+            default_principal=principal or self.principal_from_headers(headers),
         )
         created = self.store.create_api_token(token).to_dict()
         return {**created, "token": plain_token}

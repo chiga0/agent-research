@@ -169,6 +169,18 @@ class RuntimeEdgeTest(unittest.TestCase):
         self.assertTrue(is_authorized(AuthConfig(token="x"), "/health", None))
         self.assertFalse(is_authorized(AuthConfig(token="x", protect_health=True), "/health", None))
         self.assertTrue(is_authorized(AuthConfig(token="x"), "/runs", "Bearer x"))
+        auth = AuthConfig(
+            token="x",
+            login_user="operator",
+            login_password="secret",
+            session_secret="session-secret",
+        )
+        self.assertTrue(auth.login_matches("operator", "secret"))
+        self.assertFalse(auth.login_matches("operator", "wrong"))
+        cookie = auth.issue_session_cookie("operator")
+        self.assertEqual(auth.session_identity(cookie)["principal_id"], "operator")
+        self.assertTrue(auth.session_status(cookie)["authenticated"])
+        self.assertFalse(auth.session_status(None)["authenticated"])
         self.assertEqual(parse_last_event_id(None), 0)
         self.assertEqual(parse_last_event_id("bad"), 0)
         self.assertEqual(parse_last_event_id("-1"), 0)

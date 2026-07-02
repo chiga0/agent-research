@@ -379,11 +379,18 @@ fi
 
 RUN_MANAGER_TOKEN="$(openssl rand -hex 32)"
 QWEN_SERVER_TOKEN="$(openssl rand -hex 32)"
+RUN_MANAGER_SESSION_SECRET="$(openssl rand -hex 32)"
+if [[ -z "$BASIC_AUTH_PASSWORD" ]]; then
+  BASIC_AUTH_PASSWORD="$(openssl rand -base64 24 | tr -d '=+/' | cut -c1-24)"
+fi
 QWEN_COMMAND="$QWEN_BIN serve --hostname 127.0.0.1 --port 4170"
 QWEN_COMMAND="$QWEN_COMMAND --workspace $STATE_DIR/workspace --no-web --require-auth"
 
 cat > /etc/cloud-agents-runtime.env <<EOF
 RUN_MANAGER_TOKEN=$RUN_MANAGER_TOKEN
+RUN_MANAGER_LOGIN_USER=$BASIC_AUTH_USER
+RUN_MANAGER_LOGIN_PASSWORD=$BASIC_AUTH_PASSWORD
+RUN_MANAGER_SESSION_SECRET=$RUN_MANAGER_SESSION_SECRET
 RUN_MANAGER_WORKER_ID=cloud-agents-runtime
 RUN_MANAGER_WORKER_CAPACITY=1
 RUN_MANAGER_LEASE_TTL_SECONDS=60
@@ -443,7 +450,7 @@ install -d -m 755 /etc/nginx/snippets
 if [[ "$BASIC_AUTH_FORCE_ROTATE" != "1" \
   && -f /etc/cloud-agents-runtime.preserve-basic-auth \
   && -f /etc/nginx/cloud-agents.htpasswd ]]; then
-  echo "preserving existing nginx basic auth password"
+  echo "preserving existing legacy nginx basic auth password"
 elif [[ -n "$BASIC_AUTH_PASSWORD" ]]; then
   HASH="$(openssl passwd -apr1 "$BASIC_AUTH_PASSWORD")"
   printf '%s:%s\n' "$BASIC_AUTH_USER" "$HASH" > /etc/nginx/cloud-agents.htpasswd
@@ -460,7 +467,7 @@ elif [[ ! -f /etc/nginx/cloud-agents.htpasswd ]]; then
   touch /etc/cloud-agents-runtime.preserve-basic-auth
   chmod 600 /etc/cloud-agents-runtime.preserve-basic-auth
 else
-  echo "preserving existing nginx basic auth password"
+  echo "preserving existing legacy nginx basic auth password"
 fi
 cat > /etc/nginx/snippets/cloud-agents-runtime-auth.conf <<EOF
 proxy_set_header Authorization "Bearer $RUN_MANAGER_TOKEN";
@@ -513,17 +520,13 @@ server {
     }
 
     location /cloud-agents/ {
-        auth_basic "Cloud Agents Runtime";
-        auth_basic_user_file /etc/nginx/cloud-agents.htpasswd;
-
         proxy_http_version 1.1;
         proxy_set_header Connection "";
         proxy_set_header Host \$host;
         proxy_set_header X-Real-IP \$remote_addr;
-        proxy_set_header X-Remote-User \$remote_user;
+        proxy_set_header X-Forwarded-Prefix /cloud-agents;
         proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto \$scheme;
-        include /etc/nginx/snippets/cloud-agents-runtime-auth.conf;
         proxy_buffering off;
         proxy_cache off;
         proxy_read_timeout 3600s;
@@ -575,6 +578,6 @@ if [[ "$DEPLOY_RUNTIME_PRINT_SECRETS" == "1" ]]; then
   echo "BASIC_AUTH_USER=$BASIC_AUTH_USER"
   echo "BASIC_AUTH_PASSWORD=$BASIC_AUTH_PASSWORD"
 else
-  echo "credentials written to /etc/cloud-agents-runtime.env and nginx basic auth files"
+  echo "console login credentials written to /etc/cloud-agents-runtime.env"
 fi
 REMOTE

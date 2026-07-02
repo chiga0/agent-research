@@ -283,9 +283,9 @@ JSON artifacts are write-only, while text uploads accept `mode: "write"` or
 
 When the runtime is behind the provided Nginx config, browser users should use
 `/cloud-agents/`; remote workers should use `/cloud-agents-worker/`. The browser
-route keeps Basic Auth and injects the internal master token at the proxy. The
-worker route forwards the worker's own Bearer token so scoped runtime API tokens
-can be revoked without rotating the master token.
+route serves the React console and authenticates users with an app-level login
+session. The worker route forwards the worker's own Bearer token so scoped
+runtime API tokens can be revoked without rotating the master token.
 
 Trigger one cleanup pass:
 
@@ -665,11 +665,12 @@ QWEN_SETTINGS_FILE=/path/to/settings.json \
 
 ### Remote worker VPS
 
-Create a scoped worker token on the control plane:
+Create a scoped worker token on the control plane with a console session cookie
+or the local master token:
 
 ```bash
 curl -s https://example.com/cloud-agents/access/tokens \
-  -u cloudagents:<basic-password> \
+  -H "authorization: Bearer $RUN_MANAGER_TOKEN" \
   -H 'content-type: application/json' \
   -d '{"name":"worker-vps-a","scopes":["workers:*"]}'
 ```
@@ -694,23 +695,12 @@ the Run Manager master token.
 ### Browser access through Nginx
 
 The runtime should remain bound to `127.0.0.1`. For browser access, put Nginx in
-front of it, require Basic Auth at the edge, and let Nginx inject the internal
-Run Manager bearer token. Do not expose this HTTP listener directly on the
-public internet; terminate TLS at Nginx, Cloudflare, a load balancer, or keep the
-route behind a VPN such as WireGuard/Tailscale.
+front of it and let the runtime issue signed HttpOnly session cookies from the
+login page. Do not expose this HTTP listener directly on the public internet;
+terminate TLS at Nginx, Cloudflare, a load balancer, or keep the route behind a
+VPN such as WireGuard/Tailscale.
 
-Use `deploy/nginx/cloud-agents-runtime.conf.example` as the starting point and
-write the backend auth header into:
-
-```text
-/etc/nginx/snippets/cloud-agents-runtime-auth.conf
-```
-
-with content:
-
-```nginx
-proxy_set_header Authorization "Bearer <RUN_MANAGER_TOKEN>";
-```
+Use `deploy/nginx/cloud-agents-runtime.conf.example` as the starting point.
 
 The public route is `/cloud-agents/`; API paths are forwarded without that
 prefix, for example `/cloud-agents/health` -> `http://127.0.0.1:8765/health`.
@@ -718,10 +708,10 @@ The same route serves the React management console from the runtime root. The
 console uses hash routing so browser refreshes under `/cloud-agents/` do not
 collide with API paths such as `/runs` and `/missions`.
 
-The worker-only route is `/cloud-agents-worker/`. It does not use Basic Auth and
-does not inject the master token; it forwards the request Authorization header
-to the runtime. Use it only with scoped API tokens such as `workers:*`, plus
-normal TLS and any edge IP allowlist/VPN controls you require.
+The worker-only route is `/cloud-agents-worker/`. It does not use the browser
+login session and does not inject the master token; it forwards the request
+Authorization header to the runtime. Use it only with scoped API tokens such as
+`workers:*`, plus normal TLS and any edge IP allowlist/VPN controls you require.
 
 ### Public availability monitoring
 
@@ -740,7 +730,9 @@ If `RUNTIME_PUBLIC_URL` is not set, the script prefers
 
 The default monitor checks:
 
-- Public `/cloud-agents/` is protected by Basic Auth.
+- Public `/cloud-agents/` returns the login shell.
+- API routes reject unauthenticated requests and accept the signed session after
+  `/auth/login`.
 - Authenticated console HTML returns 200 and referenced static assets load.
 - `/health`, `/capabilities`, `/queue`, and `/access/policy` return valid JSON.
 - At least one runtime worker is registered.

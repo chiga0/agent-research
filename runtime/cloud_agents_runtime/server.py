@@ -36,9 +36,13 @@ def make_handler(
     class RuntimeHandler(BaseHTTPRequestHandler):
         protocol_version = "HTTP/1.1"
         server_version = f"cloud-agents-runtime/{__version__}"
+        current_identity: dict[str, Any] | None = None
 
         def do_GET(self) -> None:
             path = urlparse(self.path).path
+            if path == "/auth/session":
+                self.write_json(auth_config.session_status(self.headers.get("cookie")))
+                return
             if not self.require_auth(path):
                 return
             parts = split_path(path)
@@ -83,6 +87,9 @@ def make_handler(
                         return
                 self.write_error(HTTPStatus.NOT_FOUND, "worker not found")
                 return
+            if len(parts) == 3 and parts[0] == "workers" and parts[2] == "control":
+                self.write_json(manager.remote_worker_control(unquote(parts[1])))
+                return
             if path == "/executors":
                 self.write_json(manager.executors())
                 return
@@ -102,7 +109,12 @@ def make_handler(
                 self.write_json({"backups": manager.list_backups()})
                 return
             if path == "/access/policy":
-                self.write_json(manager.access_policy(self.headers))
+                self.write_json(
+                    manager.access_policy(
+                        self.headers,
+                        principal=self.principal_id(),
+                    )
+                )
                 return
             if path == "/access/projects":
                 self.write_json(manager.list_access_projects())
@@ -286,6 +298,20 @@ def make_handler(
 
         def do_POST(self) -> None:
             path = urlparse(self.path).path
+            if path == "/auth/login":
+                self.handle_login()
+                return
+            if path == "/auth/logout":
+                self.write_json(
+                    {"authenticated": False},
+                    headers={
+                        "set-cookie": auth_config.clear_session_cookie(
+                            cookie_path=self.cookie_path(),
+                            secure=self.is_secure_request(),
+                        )
+                    },
+                )
+                return
             if not self.require_auth(path):
                 return
             parts = split_path(path)
@@ -309,8 +335,16 @@ def make_handler(
                     self.write_json(project, status=HTTPStatus.CREATED)
                     return
                 if len(parts) == 2 and parts[0] == "access" and parts[1] == "tokens":
-                    token = manager.create_api_token(payload, headers=self.headers)
+                    token = manager.create_api_token(
+                        payload,
+                        headers=self.headers,
+                        principal=self.principal_id(),
+                    )
                     self.write_json(token, status=HTTPStatus.CREATED)
+                    return
+                if len(parts) == 2 and parts[0] == "workers" and parts[1] == "registrations":
+                    registration = manager.create_worker_registration(payload)
+                    self.write_json(registration, status=HTTPStatus.CREATED)
                     return
                 if len(parts) == 3 and parts[0] == "workers" and parts[2] == "heartbeat":
                     worker = manager.remote_worker_heartbeat(unquote(parts[1]), payload)
@@ -319,6 +353,18 @@ def make_handler(
                 if len(parts) == 3 and parts[0] == "workers" and parts[2] == "claim":
                     claim = manager.claim_remote_run(unquote(parts[1]), payload)
                     self.write_json(claim, status=HTTPStatus.ACCEPTED)
+                    return
+                if len(parts) == 3 and parts[0] == "workers" and parts[2] == "drain":
+                    result = manager.drain_worker(unquote(parts[1]), payload.get("reason"))
+                    self.write_json(result, status=HTTPStatus.ACCEPTED)
+                    return
+                if len(parts) == 3 and parts[0] == "workers" and parts[2] == "resume":
+                    result = manager.resume_worker(unquote(parts[1]))
+                    self.write_json(result, status=HTTPStatus.ACCEPTED)
+                    return
+                if len(parts) == 3 and parts[0] == "workers" and parts[2] == "retry":
+                    result = manager.retry_worker_runs(unquote(parts[1]), payload.get("reason"))
+                    self.write_json(result, status=HTTPStatus.ACCEPTED)
                     return
                 if (
                     len(parts) == 5
@@ -468,7 +514,12 @@ def make_handler(
                 return
 
         def require_auth(self, path: str) -> bool:
+            self.current_identity = None
             if is_authorized(auth_config, path, self.headers.get("authorization")):
+                return True
+            session_identity = auth_config.session_identity(self.headers.get("cookie"))
+            if session_identity:
+                self.current_identity = session_identity
                 return True
             identity = None
             if auth_config.enabled:
@@ -493,6 +544,57 @@ def make_handler(
                 headers={"www-authenticate": "Bearer"},
             )
             return False
+
+        def handle_login(self) -> None:
+            try:
+                payload = self.read_json()
+            except (json.JSONDecodeError, ValueError):
+                self.write_error(HTTPStatus.BAD_REQUEST, "invalid login payload")
+                return
+            username = payload.get("username")
+            password = payload.get("password")
+            if not auth_config.login_enabled:
+                self.write_json(auth_config.session_status(None))
+                return
+            if not auth_config.login_matches(username, password):
+                self.write_json(
+                    {"error": "invalid credentials"},
+                    status=HTTPStatus.UNAUTHORIZED,
+                )
+                return
+            principal = str(username)
+            self.write_json(
+                {
+                    "authenticated": True,
+                    "principal": {
+                        "id": principal,
+                        "display_name": principal,
+                        "roles": ["owner"],
+                    },
+                },
+                headers={
+                    "set-cookie": auth_config.issue_session_cookie(
+                        principal,
+                        cookie_path=self.cookie_path(),
+                        secure=self.is_secure_request(),
+                    )
+                },
+            )
+
+        def principal_id(self) -> str | None:
+            if self.current_identity:
+                principal = self.current_identity.get("principal_id")
+                return str(principal) if principal else None
+            return None
+
+        def cookie_path(self) -> str:
+            prefix = self.headers.get("x-forwarded-prefix", "").strip().rstrip("/")
+            if prefix.startswith("/"):
+                return prefix
+            return "/"
+
+        def is_secure_request(self) -> bool:
+            return self.headers.get("x-forwarded-proto", "").lower() == "https"
 
         def read_json(self) -> dict[str, Any]:
             length = int(self.headers.get("content-length", "0") or "0")
@@ -734,6 +836,21 @@ def main(argv: list[str] | None = None) -> int:
         help="require bearer token for /health too",
     )
     parser.add_argument(
+        "--login-user",
+        default=os.environ.get("RUN_MANAGER_LOGIN_USER"),
+        help="console login username; defaults to RUN_MANAGER_LOGIN_USER",
+    )
+    parser.add_argument(
+        "--login-password",
+        default=os.environ.get("RUN_MANAGER_LOGIN_PASSWORD"),
+        help="console login password; defaults to RUN_MANAGER_LOGIN_PASSWORD",
+    )
+    parser.add_argument(
+        "--session-secret",
+        default=os.environ.get("RUN_MANAGER_SESSION_SECRET"),
+        help="secret used to sign console session cookies",
+    )
+    parser.add_argument(
         "--qwen-url",
         default=os.environ.get("QWEN_SERVE_URL"),
         help="existing qwen serve base URL",
@@ -769,7 +886,13 @@ def main(argv: list[str] | None = None) -> int:
         args.host,
         args.port,
         args.artifact_root,
-        auth_config=AuthConfig(token=args.token, protect_health=args.protect_health),
+        auth_config=AuthConfig(
+            token=args.token,
+            protect_health=args.protect_health,
+            login_user=args.login_user,
+            login_password=args.login_password,
+            session_secret=args.session_secret,
+        ),
         qwen_base_url=args.qwen_url,
         qwen_token=args.qwen_token,
         worker_capacity=args.worker_capacity,

@@ -335,6 +335,10 @@ class RunStore:
                 lease_ttl_seconds,
                 metadata=metadata,
             )
+            desired_state = str(worker.metadata.get("desired_state") or "").strip().lower()
+            if desired_state == "draining":
+                worker.status = "draining"
+                self._persist_worker(worker)
             now = utc_now()
             lease_expires_at = utc_now_plus(lease_ttl_seconds)
             for job in self._jobs.values():
@@ -347,6 +351,75 @@ class RunStore:
                 job.updated_at = now
                 self._persist_job(job)
             return worker
+
+    def set_worker_state(
+        self,
+        worker_id: str,
+        status: str,
+        metadata: dict[str, Any] | None = None,
+    ) -> WorkerState:
+        with self._lock:
+            worker = self._workers.get(worker_id)
+            if worker is None:
+                now = utc_now()
+                worker = WorkerState(
+                    worker_id=worker_id,
+                    status=status,
+                    capacity=0,
+                    active_count=0,
+                    lease_ttl_seconds=60,
+                    heartbeat_at=now,
+                    created_at=now,
+                    updated_at=now,
+                )
+            worker.status = status
+            if metadata:
+                worker.metadata = {**worker.metadata, **metadata}
+            worker.updated_at = utc_now()
+            self._workers[worker_id] = worker
+            self._persist_worker(worker)
+            return worker
+
+    def running_jobs_for_worker(self, worker_id: str) -> list[RunJob]:
+        with self._lock:
+            return [
+                job
+                for job in self._jobs.values()
+                if job.status == "running" and job.worker_id == worker_id
+            ]
+
+    def requeue_running_jobs_for_worker(self, worker_id: str, reason: str) -> list[str]:
+        requeued: list[tuple[str, int]] = []
+        with self._lock:
+            for job in self._jobs.values():
+                if job.status != "running" or job.worker_id != worker_id:
+                    continue
+                run = self._runs[job.run_id]
+                if run.status in {"completed", "failed", "cancelled"}:
+                    self._finish_job(run.run_id, run.status)
+                    continue
+                job.status = "queued"
+                job.worker_id = None
+                job.heartbeat_at = None
+                job.lease_expires_at = None
+                job.updated_at = utc_now()
+                self._persist_job(job)
+                run.status = "queued"
+                run.updated_at = utc_now()
+                self._persist_run(run)
+                requeued.append((job.run_id, job.attempts))
+            worker = self._workers.get(worker_id)
+            if worker:
+                worker.active_count = self.active_job_count(worker_id)
+                worker.updated_at = utc_now()
+                self._persist_worker(worker)
+        for run_id, attempts in requeued:
+            self.append_event(
+                run_id,
+                "lease.retry_requested",
+                {"worker_id": worker_id, "attempts": attempts, "reason": reason},
+            )
+        return [run_id for run_id, _attempts in requeued]
 
     def active_job_count(self, worker_id: str) -> int:
         with self._lock:
@@ -371,6 +444,9 @@ class RunStore:
         predicate: Callable[[RunState], bool] | None = None,
     ) -> RunJob | None:
         with self._lock:
+            worker = self._workers.get(worker_id)
+            if worker and worker.status == "draining":
+                return None
             queued = sorted(
                 (job for job in self._jobs.values() if job.status == "queued"),
                 key=lambda job: (job.queued_at, job.run_id),
@@ -1600,6 +1676,8 @@ def worker_with_stale_status(
     worker: WorkerState,
     stale_after_seconds: int | None,
 ) -> WorkerState:
+    if worker.status == "draining":
+        return worker
     if not stale_after_seconds or stale_after_seconds <= 0:
         return worker
     try:

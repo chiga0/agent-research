@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import argparse
-import base64
+import http.cookiejar
 import json
 import os
 import re
@@ -109,6 +109,10 @@ class PublicRuntimeMonitor:
         self.basic_user = basic_user
         self.basic_password = basic_password
         self.timeout = timeout
+        self.cookie_jar = http.cookiejar.CookieJar()
+        self.opener = urllib.request.build_opener(
+            urllib.request.HTTPCookieProcessor(self.cookie_jar)
+        )
 
     def run(self, deep_run: bool = False) -> list[CheckResult]:
         results = [
@@ -136,13 +140,27 @@ class PublicRuntimeMonitor:
         return CheckResult(name, ok, detail, elapsed_ms)
 
     def edge_auth(self) -> str:
-        response = self.request("GET", "/", auth=False, allow_error=True)
-        if response.status != 401:
-            raise RuntimeError(f"expected 401 challenge, got {response.status}")
-        challenge = response.header("www-authenticate")
-        if "basic" not in challenge.lower():
-            raise RuntimeError("401 response did not include Basic challenge")
-        return "public route is protected by Basic Auth"
+        console = self.request("GET", "/", auth=False, allow_error=True)
+        if console.status != 200:
+            raise RuntimeError(f"expected login shell 200, got {console.status}")
+        unauth_api = self.request("GET", "/capabilities", auth=False, allow_error=True)
+        if unauth_api.status != 401:
+            raise RuntimeError(f"expected unauthenticated API 401, got {unauth_api.status}")
+        login = self.request(
+            "POST",
+            "/auth/login",
+            auth=True,
+            payload={
+                "username": self.basic_user,
+                "password": self.basic_password,
+            },
+        )
+        if login.status != 200:
+            raise RuntimeError(f"login returned {login.status}")
+        session = self.json_get("/auth/session")
+        if session.get("authenticated") is not True:
+            raise RuntimeError(f"session not authenticated: {session}")
+        return "login page is public and APIs require a session"
 
     def console_html(self) -> str:
         response = self.request("GET", "/", auth=True)
@@ -288,12 +306,10 @@ class PublicRuntimeMonitor:
         body = json.dumps(payload).encode("utf-8") if payload is not None else None
         request = urllib.request.Request(url, data=body, method=method)
         request.add_header("User-Agent", USER_AGENT)
-        if auth:
-            token = f"{self.basic_user}:{self.basic_password}".encode("utf-8")
-            encoded = base64.b64encode(token).decode("ascii")
-            request.add_header("Authorization", f"Basic {encoded}")
         if payload is not None:
             request.add_header("Content-Type", "application/json")
+        if auth:
+            return self.opener.open(request, timeout=self.timeout)
         return urllib.request.urlopen(request, timeout=self.timeout)
 
 

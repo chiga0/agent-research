@@ -5,7 +5,13 @@ import tseslint from "typescript-eslint";
 
 export default tseslint.config(
   {
-    ignores: ["dist", "node_modules", "../runtime/cloud_agents_runtime/static"],
+    ignores: [
+      "dist",
+      "node_modules",
+      "test-results",
+      "playwright-report",
+      "../runtime/cloud_agents_runtime/static",
+    ],
   },
   js.configs.recommended,
   ...tseslint.configs.recommended,

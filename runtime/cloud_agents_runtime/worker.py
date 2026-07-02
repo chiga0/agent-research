@@ -35,6 +35,14 @@ class RemoteWorkerConfig:
     metadata: dict[str, Any] = field(default_factory=dict)
 
 
+@dataclass
+class ActiveRunContext:
+    run: RunState
+    adapter: RuntimeAdapter
+    store: RemoteWorkerRunStore
+    applied_controls: set[str] = field(default_factory=set)
+
+
 class ControlPlaneClient:
     def __init__(
         self,
@@ -60,6 +68,9 @@ class ControlPlaneClient:
             method="POST",
             payload=payload,
         )
+
+    def control(self, worker_id: str) -> dict[str, Any]:
+        return self.request_json(f"/workers/{quote_path(worker_id)}/control")
 
     def append_event(
         self,
@@ -303,27 +314,35 @@ class RemoteWorkerDaemon:
             artifact_root=self.config.artifact_root,
         )
         heartbeat_stop = threading.Event()
+        adapter = self.adapters.get(run.spec.adapter)
+        if adapter is None:
+            store.append_event(
+                run.run_id,
+                "run.failed",
+                {"reason": f"unknown adapter: {run.spec.adapter}"},
+            )
+            return
+        context = ActiveRunContext(run=run, adapter=adapter, store=store)
         heartbeat = threading.Thread(
             target=self._heartbeat_loop,
-            args=(heartbeat_stop,),
+            args=(heartbeat_stop, context),
             name=f"remote-worker-heartbeat-{run.run_id}",
             daemon=True,
         )
         heartbeat.start()
-        adapter = self.adapters.get(run.spec.adapter)
         try:
-            if adapter is None:
-                store.append_event(
-                    run.run_id,
-                    "run.failed",
-                    {"reason": f"unknown adapter: {run.spec.adapter}"},
-                )
-                return
             adapter.start(run, store)  # type: ignore[arg-type]
             if run.spec.prompt and not store.is_terminal(run.run_id):
                 adapter.send_input(run, run.spec.prompt, store)  # type: ignore[arg-type]
             timeout = run.spec.timeout_seconds or self.config.run_wait_timeout_seconds
-            if not store.wait_terminal(timeout):
+            deadline = time.monotonic() + timeout
+            while not store.is_terminal(run.run_id):
+                self._apply_control(self._fetch_control(), context)
+                remaining = deadline - time.monotonic()
+                if remaining <= 0:
+                    break
+                store.wait_terminal(min(1.0, remaining))
+            if not store.is_terminal(run.run_id):
                 adapter.cancel(run, "remote worker timeout", store)  # type: ignore[arg-type]
                 store.wait_terminal(5)
         except Exception as exc:  # noqa: BLE001 - surface worker failures to control plane
@@ -337,10 +356,74 @@ class RemoteWorkerDaemon:
             heartbeat_stop.set()
             heartbeat.join(timeout=2)
 
-    def _heartbeat_loop(self, stop: threading.Event) -> None:
+    def _heartbeat_loop(
+        self,
+        stop: threading.Event,
+        context: ActiveRunContext | None = None,
+    ) -> None:
         while not stop.is_set() and not self._stop.is_set():
-            self.client.heartbeat(self.config.worker_id, self._worker_payload())
+            response = self.client.heartbeat(self.config.worker_id, self._worker_payload())
+            control = control_from_response(response)
+            if isinstance(control, dict) and context is not None:
+                self._apply_control(control, context)
             stop.wait(self.config.heartbeat_interval_seconds)
+
+    def _fetch_control(self) -> dict[str, Any]:
+        try:
+            return self.client.control(self.config.worker_id)
+        except Exception:
+            return {}
+
+    def _apply_control(
+        self,
+        control: dict[str, Any] | None,
+        context: ActiveRunContext,
+    ) -> None:
+        if not control or context.store.is_terminal(context.run.run_id):
+            return
+        runs = control.get("runs")
+        if not isinstance(runs, list):
+            return
+        for item in runs:
+            if not isinstance(item, dict) or item.get("run_id") != context.run.run_id:
+                continue
+            cancel_event = item.get("cancel")
+            if isinstance(cancel_event, dict):
+                control_id = str(cancel_event.get("id") or cancel_event.get("sequence"))
+                if control_id not in context.applied_controls:
+                    context.applied_controls.add(control_id)
+                    data = cancel_event.get("data")
+                    reason = None
+                    if isinstance(data, dict):
+                        reason = data.get("reason")
+                    context.adapter.cancel(
+                        context.run,
+                        str(reason or "cancelled by control plane"),
+                        context.store,  # type: ignore[arg-type]
+                    )
+            resolutions = item.get("permission_resolutions")
+            if not isinstance(resolutions, list):
+                continue
+            for event in resolutions:
+                if not isinstance(event, dict):
+                    continue
+                control_id = str(event.get("id") or event.get("sequence"))
+                if control_id in context.applied_controls:
+                    continue
+                data = event.get("data")
+                if not isinstance(data, dict):
+                    continue
+                permission_id = data.get("permission_id")
+                payload = data.get("payload")
+                if not isinstance(permission_id, str) or not isinstance(payload, dict):
+                    continue
+                context.applied_controls.add(control_id)
+                context.adapter.resolve_permission(
+                    context.run,
+                    permission_id,
+                    payload,
+                    context.store,  # type: ignore[arg-type]
+                )
 
     def _worker_payload(self) -> dict[str, Any]:
         metadata = dict(self.config.metadata)
@@ -351,7 +434,7 @@ class RemoteWorkerDaemon:
         extra_features = raw_features if isinstance(raw_features, list) else []
         capabilities["adapters"] = sorted(self.adapters)
         capabilities["features"] = sorted(
-            {*extra_features, "artifacts", "claim", "events", "heartbeat"}
+            {*extra_features, "artifacts", "claim", "control", "events", "heartbeat"}
         )
         metadata["capabilities"] = capabilities
         return {
@@ -392,6 +475,16 @@ def run_state_from_payload(payload: dict[str, Any]) -> RunState:
         event_count=int(payload.get("event_count") or 0),
         prompt_count=int(payload.get("prompt_count") or 0),
     )
+
+
+def control_from_response(response: dict[str, Any]) -> dict[str, Any] | None:
+    control = response.get("control")
+    if isinstance(control, dict):
+        return control
+    worker = response.get("worker")
+    if isinstance(worker, dict) and isinstance(worker.get("control"), dict):
+        return worker["control"]
+    return None
 
 
 def safe_child_file(parent: Path, name: str) -> Path:

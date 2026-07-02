@@ -36,7 +36,14 @@ import {
   Users,
   WalletCards,
 } from "lucide-react";
-import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type FormEvent,
+  type ReactNode,
+} from "react";
 
 import { Shell } from "./components/shell";
 import {
@@ -75,6 +82,8 @@ import {
   type MissionState,
   type RuntimeEvent,
   type RunState,
+  type WorkerInfo,
+  type WorkerRegistration,
 } from "./lib/api";
 import { downloadJson } from "./lib/utils";
 
@@ -102,6 +111,11 @@ const runDetailRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/runs/$runId",
   component: RunDetailPage,
+});
+const unitsRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/units",
+  component: UnitsPage,
 });
 const executorsRoute = createRoute({
   getParentRoute: () => rootRoute,
@@ -138,6 +152,7 @@ const routeTree = rootRoute.addChildren([
   indexRoute,
   runsRoute,
   runDetailRoute,
+  unitsRoute,
   executorsRoute,
   missionsRoute,
   missionDetailRoute,
@@ -157,8 +172,120 @@ declare module "@tanstack/react-router" {
 export function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <RouterProvider router={router} />
+      <AuthGate />
     </QueryClientProvider>
+  );
+}
+
+function AuthGate() {
+  const session = useQuery({
+    queryKey: ["auth", "session"],
+    queryFn: runtimeApi.session,
+    refetchInterval: false,
+    retry: false,
+  });
+
+  if (session.isPending) {
+    return (
+      <div className="grid min-h-screen place-items-center bg-background px-4">
+        <div className="h-10 w-10 animate-spin rounded-full border-2 border-border border-t-primary" />
+      </div>
+    );
+  }
+
+  if (!session.data?.authenticated) {
+    return <LoginPage />;
+  }
+
+  return <RouterProvider router={router} />;
+}
+
+function LoginPage() {
+  const client = useQueryClient();
+  const [username, setUsername] = useState("cloudagents");
+  const [password, setPassword] = useState("");
+  const login = useMutation({
+    mutationFn: runtimeApi.login,
+    onSuccess: async () => {
+      await client.invalidateQueries({ queryKey: ["auth", "session"] });
+    },
+  });
+
+  const submit = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    login.mutate({ username, password });
+  };
+
+  return (
+    <div className="min-h-screen bg-background px-4 py-6 text-foreground sm:px-6 lg:px-8">
+      <div className="mx-auto grid min-h-[calc(100vh-3rem)] w-full max-w-5xl items-center gap-6 lg:grid-cols-[minmax(0,1fr)_420px]">
+        <section className="grid gap-6">
+          <div className="flex items-center gap-3">
+            <div className="grid h-11 w-11 place-items-center rounded-md bg-primary text-primary-foreground">
+              <ShieldCheck className="h-5 w-5" />
+            </div>
+            <div className="min-w-0">
+              <h1 className="text-2xl font-semibold tracking-normal sm:text-3xl">
+                Cloud Agents Runtime
+              </h1>
+              <p className="mt-1 text-sm text-muted-foreground">
+                SAEU Control Plane
+              </p>
+            </div>
+          </div>
+          <div className="grid gap-3 sm:grid-cols-3">
+            <Metric label="Ingress" value="Session" detail="HttpOnly cookie" />
+            <Metric label="Scope" value="Owner" detail="single tenant" />
+            <Metric label="Workers" value="Bearer" detail="separate route" />
+          </div>
+        </section>
+
+        <Card className="w-full">
+          <CardHeader className="grid gap-1">
+            <div className="flex items-center gap-2">
+              <KeyRound className="h-4 w-4 text-primary" />
+              <CardTitle>Sign In</CardTitle>
+            </div>
+            <p className="text-sm text-muted-foreground">
+              Enter the runtime console credentials.
+            </p>
+          </CardHeader>
+          <CardBody>
+            <form className="grid gap-4" onSubmit={submit}>
+              <Field label="Username">
+                <Input
+                  autoComplete="username"
+                  value={username}
+                  onChange={(event) => setUsername(event.target.value)}
+                />
+              </Field>
+              <Field label="Password">
+                <Input
+                  autoComplete="current-password"
+                  type="password"
+                  value={password}
+                  onChange={(event) => setPassword(event.target.value)}
+                />
+              </Field>
+              {login.isError ? (
+                <div className="rounded-md border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
+                  Invalid username or password.
+                </div>
+              ) : null}
+              <Button
+                className="h-11 w-full"
+                disabled={login.isPending || !username || !password}
+                type="submit"
+                variant="primary"
+              >
+                <KeyRound className="h-4 w-4" />
+                {login.isPending ? "Signing in" : "Sign in"}
+              </Button>
+            </form>
+          </CardBody>
+        </Card>
+      </div>
+    </div>
   );
 }
 
@@ -289,6 +416,324 @@ function RunsPage() {
         </Card>
       </div>
     </Page>
+  );
+}
+
+function UnitsPage() {
+  const queryClient = useQueryClient();
+  const workers = useQuery({ queryKey: ["workers"], queryFn: runtimeApi.workers });
+  const [registration, setRegistration] = useState<WorkerRegistration | null>(null);
+  const drain = useMutation({
+    mutationFn: (workerId: string) => runtimeApi.drainWorker(workerId),
+    onSuccess: async () => queryClient.invalidateQueries({ queryKey: ["workers"] }),
+  });
+  const resume = useMutation({
+    mutationFn: runtimeApi.resumeWorker,
+    onSuccess: async () => queryClient.invalidateQueries({ queryKey: ["workers"] }),
+  });
+  const retry = useMutation({
+    mutationFn: runtimeApi.retryWorkerRuns,
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["workers"] });
+      await queryClient.invalidateQueries({ queryKey: ["runs"] });
+    },
+  });
+  const workerList = workers.data?.workers ?? [];
+  const active = workerList.filter((worker) => worker.status === "active").length;
+  const draining = workerList.filter((worker) => worker.status === "draining").length;
+  const stale = workerList.filter((worker) => worker.status === "stale").length;
+  return (
+    <Page
+      title="Units"
+      subtitle="Register, drain, and operate remote stable execution units."
+    >
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <Metric label="Units" value={workerList.length} detail="local and remote" />
+        <Metric label="Active" value={active} detail="eligible for claims" />
+        <Metric label="Draining" value={draining} detail="no new runs" />
+        <Metric label="Stale" value={stale} detail="heartbeat overdue" />
+      </div>
+
+      <div className="grid gap-4 xl:grid-cols-[420px_minmax(0,1fr)]">
+        <WorkerRegistrationForm onCreated={setRegistration} />
+        <Card>
+          <CardHeader>
+            <div className="flex items-center gap-2">
+              <Server className="h-4 w-4 text-primary" />
+              <CardTitle>Execution Units</CardTitle>
+            </div>
+            <Button size="sm" variant="ghost" onClick={() => workers.refetch()}>
+              <RefreshCw className="h-4 w-4" />
+              Refresh
+            </Button>
+          </CardHeader>
+          <CardBody>
+            <WorkerList
+              workers={workerList}
+              onDrain={(workerId) => drain.mutate(workerId)}
+              onResume={(workerId) => resume.mutate(workerId)}
+              onRetry={(workerId) => retry.mutate(workerId)}
+            />
+          </CardBody>
+        </Card>
+      </div>
+      {registration ? <WorkerRegistrationResult registration={registration} /> : null}
+    </Page>
+  );
+}
+
+function WorkerRegistrationForm({
+  onCreated,
+}: {
+  onCreated: (registration: WorkerRegistration) => void;
+}) {
+  const [error, setError] = useState<string | null>(null);
+  const createRegistration = useMutation({
+    mutationFn: runtimeApi.createWorkerRegistration,
+    onSuccess: (result) => {
+      setError(null);
+      onCreated(result);
+    },
+    onError: (err) => setError(String(err)),
+  });
+  const form = useForm({
+    defaultValues: {
+      worker_id: "hk-2c2g-a",
+      control_url: defaultWorkerControlUrl(),
+      capacity: 1,
+      region: "hk",
+      cpus: 2,
+      memory_gb: 2,
+    },
+    onSubmit: async ({ value }) => {
+      await createRegistration.mutateAsync({
+        worker_id: value.worker_id,
+        control_url: value.control_url,
+        capacity: Number(value.capacity) || 1,
+        labels: { region: value.region },
+        resources: {
+          cpus: Number(value.cpus) || 2,
+          memory_gb: Number(value.memory_gb) || 2,
+        },
+      });
+    },
+  });
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Register Unit</CardTitle>
+        <Badge tone="info">one-time token</Badge>
+      </CardHeader>
+      <CardBody>
+        <form
+          className="grid gap-4"
+          onSubmit={(event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            void form.handleSubmit();
+          }}
+        >
+          <form.Field name="worker_id">
+            {(field) => (
+              <Field label="Unit ID">
+                <Input
+                  value={field.state.value}
+                  onChange={(event) => field.handleChange(event.target.value)}
+                />
+              </Field>
+            )}
+          </form.Field>
+          <form.Field name="control_url">
+            {(field) => (
+              <Field label="Worker control URL">
+                <Input
+                  value={field.state.value}
+                  onChange={(event) => field.handleChange(event.target.value)}
+                />
+              </Field>
+            )}
+          </form.Field>
+          <div className="grid gap-3 md:grid-cols-3">
+            <form.Field name="capacity">
+              {(field) => (
+                <Field label="Capacity">
+                  <Input
+                    min={1}
+                    type="number"
+                    value={field.state.value}
+                    onChange={(event) =>
+                      field.handleChange(Number(event.target.value))
+                    }
+                  />
+                </Field>
+              )}
+            </form.Field>
+            <form.Field name="cpus">
+              {(field) => (
+                <Field label="CPUs">
+                  <Input
+                    min={1}
+                    type="number"
+                    value={field.state.value}
+                    onChange={(event) =>
+                      field.handleChange(Number(event.target.value))
+                    }
+                  />
+                </Field>
+              )}
+            </form.Field>
+            <form.Field name="memory_gb">
+              {(field) => (
+                <Field label="Memory GB">
+                  <Input
+                    min={1}
+                    type="number"
+                    value={field.state.value}
+                    onChange={(event) =>
+                      field.handleChange(Number(event.target.value))
+                    }
+                  />
+                </Field>
+              )}
+            </form.Field>
+          </div>
+          <form.Field name="region">
+            {(field) => (
+              <Field label="Region label">
+                <Input
+                  value={field.state.value}
+                  onChange={(event) => field.handleChange(event.target.value)}
+                />
+              </Field>
+            )}
+          </form.Field>
+          {error ? (
+            <div className="rounded-md border border-destructive/30 p-3 text-sm text-destructive">
+              {error}
+            </div>
+          ) : null}
+          <Button
+            disabled={createRegistration.isPending}
+            type="submit"
+            variant="primary"
+          >
+            <KeyRound className="h-4 w-4" />
+            Generate
+          </Button>
+        </form>
+      </CardBody>
+    </Card>
+  );
+}
+
+function WorkerList({
+  workers,
+  onDrain,
+  onResume,
+  onRetry,
+}: {
+  workers: WorkerInfo[];
+  onDrain: (workerId: string) => void;
+  onResume: (workerId: string) => void;
+  onRetry: (workerId: string) => void;
+}) {
+  if (!workers.length) {
+    return <EmptyState title="No units" detail="Register a VPS worker or wait for local heartbeat." />;
+  }
+  return (
+    <div className="grid gap-2">
+      {workers.map((worker) => (
+        <div
+          key={worker.worker_id}
+          className="grid gap-3 rounded-md border border-border p-3 xl:grid-cols-[minmax(0,1fr)_160px_220px]"
+        >
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="truncate font-mono text-sm">{worker.worker_id}</span>
+              <StatusBadge status={worker.status} />
+              <Badge tone="neutral">{stringValue(worker.metadata?.kind ?? "local")}</Badge>
+            </div>
+            <div className="mt-2 grid gap-1 text-xs text-muted-foreground md:grid-cols-2">
+              <span>heartbeat {timeAgo(worker.heartbeat_at)}</span>
+              <span>lease ttl {worker.lease_ttl_seconds}s</span>
+            </div>
+            <div className="mt-2 flex flex-wrap gap-1">
+              {workerBadges(worker).map((badge) => (
+                <Badge key={badge} tone="neutral">
+                  {badge}
+                </Badge>
+              ))}
+            </div>
+          </div>
+          <div className="grid content-start gap-2">
+            <Metric label="Capacity" value={`${worker.active_count}/${worker.capacity}`} />
+          </div>
+          <div className="flex flex-wrap content-start justify-start gap-2 xl:justify-end">
+            <Button
+              disabled={worker.status === "draining"}
+              size="sm"
+              onClick={() => onDrain(worker.worker_id)}
+            >
+              <PauseCircle className="h-4 w-4" />
+              Drain
+            </Button>
+            <Button
+              disabled={worker.status === "active"}
+              size="sm"
+              onClick={() => onResume(worker.worker_id)}
+            >
+              <Play className="h-4 w-4" />
+              Resume
+            </Button>
+            <Button
+              disabled={worker.active_count === 0}
+              size="sm"
+              variant="danger"
+              onClick={() => onRetry(worker.worker_id)}
+            >
+              <RefreshCw className="h-4 w-4" />
+              Retry
+            </Button>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function WorkerRegistrationResult({
+  registration,
+}: {
+  registration: WorkerRegistration;
+}) {
+  return (
+    <Card className="border-warning/40">
+      <CardHeader>
+        <div>
+          <CardTitle>Deployment Command</CardTitle>
+          <div className="mt-1 text-xs text-muted-foreground">
+            Token is shown once. Replace worker IP and key path before running.
+          </div>
+        </div>
+        <Button
+          size="sm"
+          onClick={() => copyText(registration.deploy_command)}
+        >
+          <Copy className="h-4 w-4" />
+          Copy
+        </Button>
+      </CardHeader>
+      <CardBody className="grid gap-3">
+        <div className="grid gap-3 md:grid-cols-3">
+          <Metric label="Unit" value={registration.worker_id} />
+          <Metric label="Capacity" value={registration.capacity} />
+          <Metric label="Token" value={registration.token.token_prefix} />
+        </div>
+        <pre className="max-h-[320px] overflow-auto rounded-md bg-slate-950 p-3 text-xs text-slate-100">
+          {registration.deploy_command}
+        </pre>
+      </CardBody>
+    </Card>
   );
 }
 
@@ -2688,6 +3133,50 @@ function money(value?: number | null) {
   return `$${value.toFixed(2)}`;
 }
 
+function defaultWorkerControlUrl() {
+  if (window.location.pathname.startsWith("/cloud-agents")) {
+    return `${window.location.origin}/cloud-agents-worker`;
+  }
+  return `${window.location.origin}/cloud-agents-worker`;
+}
+
+function workerBadges(worker: WorkerInfo) {
+  const metadata = worker.metadata ?? {};
+  const labels = objectValue(metadata.labels);
+  const resources = objectValue(metadata.resources);
+  const capabilities = objectValue(metadata.capabilities);
+  const adapters = Array.isArray(capabilities.adapters)
+    ? capabilities.adapters
+        .map((adapter) => stringValue(adapter))
+        .filter((adapter): adapter is string => Boolean(adapter))
+    : [];
+  return [
+    ...Object.entries(labels).map(([key, value]) => `${key}:${String(value)}`),
+    ...Object.entries(resources).map(([key, value]) => `${key}:${String(value)}`),
+    ...adapters.map((adapter) => `adapter:${adapter}`),
+  ].slice(0, 8);
+}
+
+function objectValue(value: unknown) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return {};
+  }
+  return value as Record<string, unknown>;
+}
+
+function copyText(value: string) {
+  if (navigator.clipboard?.writeText) {
+    void navigator.clipboard.writeText(value);
+    return;
+  }
+  const element = document.createElement("textarea");
+  element.value = value;
+  document.body.appendChild(element);
+  element.select();
+  document.execCommand("copy");
+  element.remove();
+}
+
 function stringValue(value: unknown) {
   if (typeof value === "string") {
     return value;
@@ -2746,7 +3235,9 @@ export const __testUtils = {
   connectionLabel,
   connectionTone,
   compactJson,
+  copyText,
   copyProfile,
+  defaultWorkerControlUrl,
   downloadText,
   emptyProfile,
   emptyToNull,
@@ -2755,14 +3246,18 @@ export const __testUtils = {
   formatBytes,
   isTerminalEvent,
   mergeEvents,
+  money,
+  objectValue,
   parseJsonObject,
   prettyJson,
+  registryValue,
   runnerReadableReport,
   runnerSignal,
   runnerTranscript,
   stringValue,
   toolEventBody,
   toolEventRole,
+  workerBadges,
   isTerminal,
   statusLine,
   timeAgo,

@@ -409,8 +409,16 @@ jobs:
           PUBLIC_HOST="${PUBLIC_HOST:-}"
           BASIC_AUTH_USER="${BASIC_AUTH_USER:-cloudagents}"
           test -n "$PUBLIC_HOST" || { echo "missing RUNTIME_PUBLIC_HOST"; exit 1; }
+          cookie_jar="$RUNNER_TEMP/runtime-deploy/public-cookies.txt"
           curl -fsS \
             --retry 5 \
             --retry-delay 2 \
-            --user "$BASIC_AUTH_USER:$BASIC_AUTH_PASSWORD" \
+            -c "$cookie_jar" \
+            -H "content-type: application/json" \
+            -d "{\"username\":\"$BASIC_AUTH_USER\",\"password\":\"$BASIC_AUTH_PASSWORD\"}" \
+            "http://$PUBLIC_HOST/cloud-agents/auth/login"
+          curl -fsS \
+            --retry 5 \
+            --retry-delay 2 \
+            -b "$cookie_jar" \
             "http://$PUBLIC_HOST/cloud-agents/health"

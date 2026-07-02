@@ -1,10 +1,13 @@
 import { Link, Outlet, useRouterState } from "@tanstack/react-router";
+import { useQueryClient } from "@tanstack/react-query";
 import {
   Activity,
   Boxes,
   ClipboardList,
+  LogOut,
   Menu,
   Moon,
+  Network,
   Server,
   ShieldCheck,
   Sun,
@@ -15,11 +18,13 @@ import {
 import { useEffect, useState } from "react";
 
 import { Button } from "./ui";
+import { runtimeApi } from "../lib/api";
 import { cn } from "../lib/utils";
 
 const navItems = [
   { to: "/", label: "Overview", icon: Activity },
   { to: "/runs", label: "Runs", icon: ClipboardList },
+  { to: "/units", label: "Units", icon: Network },
   { to: "/executors", label: "Executors", icon: Server },
   { to: "/missions", label: "Missions", icon: Boxes },
   { to: "/profiles", label: "Profiles", icon: UserCog },
@@ -52,7 +57,10 @@ export function Shell() {
               </div>
             </div>
           </div>
-          <ThemeToggle />
+          <div className="flex items-center gap-1">
+            <ThemeToggle />
+            <SignOutButton />
+          </div>
         </div>
       </header>
 
@@ -112,6 +120,29 @@ function Navigation({ onNavigate }: { onNavigate?: () => void }) {
         );
       })}
     </nav>
+  );
+}
+
+function SignOutButton() {
+  const client = useQueryClient();
+  const [pending, setPending] = useState(false);
+  return (
+    <Button
+      aria-label="Sign out"
+      disabled={pending}
+      size="icon"
+      variant="ghost"
+      onClick={async () => {
+        setPending(true);
+        try {
+          await runtimeApi.logout();
+        } finally {
+          await client.invalidateQueries({ queryKey: ["auth", "session"] });
+        }
+      }}
+    >
+      <LogOut className="h-4 w-4" />
+    </Button>
   );
 }
 
