@@ -81,6 +81,17 @@ export interface ExecutorLease {
   metadata: Record<string, unknown>;
 }
 
+export interface CostStatus {
+  generated_at: string;
+  status: string;
+  config: Record<string, unknown>;
+  month: string;
+  monthly_estimated_cost_usd: number;
+  monthly_budget_usd: number;
+  warning_threshold_usd?: number | null;
+  runs: Array<Record<string, unknown>>;
+}
+
 export interface DrillCheck {
   id: string;
   status: "pass" | "warn" | "fail" | string;
@@ -178,7 +189,35 @@ export interface AccessPolicy {
     permissions: string[];
   }>;
   scopes: string[];
+  projects?: AccessProject[];
+  tokens?: ApiToken[];
   audit: Record<string, unknown>;
+}
+
+export interface AccessProject {
+  project_id: string;
+  display_name: string;
+  description: string;
+  status: string;
+  created_at: string;
+  updated_at: string;
+  metadata: Record<string, unknown>;
+}
+
+export interface ApiToken {
+  token_id: string;
+  name: string;
+  principal_id: string;
+  project_id?: string | null;
+  scopes: string[];
+  status: string;
+  token_prefix: string;
+  created_at: string;
+  updated_at: string;
+  revoked_at?: string | null;
+  last_used_at?: string | null;
+  metadata: Record<string, unknown>;
+  token?: string;
 }
 
 export interface BackupInfo {
@@ -214,6 +253,7 @@ export const runtimeApi = {
   health: () => api<{ ok: boolean; version: string }>("health"),
   capabilities: () => api<Capabilities>("capabilities"),
   metrics: () => api<Metrics>("metrics.json"),
+  costStatus: () => api<CostStatus>("cost/status"),
   queue: () => api<QueueStatus>("queue"),
   executors: () =>
     api<{
@@ -280,6 +320,23 @@ export const runtimeApi = {
       body: JSON.stringify(payload),
     }),
   accessPolicy: () => api<AccessPolicy>("access/policy"),
+  accessProjects: () => api<{ projects: AccessProject[] }>("access/projects"),
+  createAccessProject: (payload: Partial<AccessProject>) =>
+    api<AccessProject>("access/projects", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+  apiTokens: () => api<{ tokens: ApiToken[] }>("access/tokens"),
+  createApiToken: (payload: Partial<ApiToken>) =>
+    api<ApiToken>("access/tokens", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+  revokeApiToken: (tokenId: string) =>
+    api<ApiToken>(`access/tokens/${tokenId}/revoke`, {
+      method: "POST",
+      body: JSON.stringify({}),
+    }),
   opsStatus: () => api<Record<string, unknown>>("ops/status"),
   drills: () => api<Record<string, unknown>>("ops/drills"),
   runDrills: () =>

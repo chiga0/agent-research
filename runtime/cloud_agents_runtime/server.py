@@ -3,7 +3,6 @@ from __future__ import annotations
 import argparse
 import json
 import mimetypes
-import os
 import sys
 import time
 from http import HTTPStatus
@@ -59,8 +58,10 @@ def make_handler(
                 self.write_json(
                     {
                         "protocol": "acp-poc",
+                        "protocol_version": "cloud-agents-acp-compat-2026-07",
                         "transport": "json-rpc-over-http",
                         "endpoint": "/acp",
+                        "event_stream": "/runs/{run_id}/events",
                     }
                 )
                 return
@@ -82,6 +83,9 @@ def make_handler(
             if path == "/ops/status":
                 self.write_json(manager.operations_status())
                 return
+            if path == "/cost/status":
+                self.write_json(manager.cost_status())
+                return
             if path == "/ops/drills":
                 self.write_json(manager.run_drills())
                 return
@@ -89,7 +93,13 @@ def make_handler(
                 self.write_json({"backups": manager.list_backups()})
                 return
             if path == "/access/policy":
-                self.write_json(access_policy(self.headers))
+                self.write_json(manager.access_policy(self.headers))
+                return
+            if path == "/access/projects":
+                self.write_json(manager.list_access_projects())
+                return
+            if path == "/access/tokens":
+                self.write_json(manager.list_api_tokens())
                 return
             if len(parts) == 3 and parts[0] == "ops" and parts[1] == "backups":
                 try:
@@ -285,6 +295,23 @@ def make_handler(
                 if len(parts) == 2 and parts[0] == "ops" and parts[1] == "drills":
                     self.write_json(manager.run_drills())
                     return
+                if len(parts) == 2 and parts[0] == "access" and parts[1] == "projects":
+                    project = manager.create_access_project(payload)
+                    self.write_json(project, status=HTTPStatus.CREATED)
+                    return
+                if len(parts) == 2 and parts[0] == "access" and parts[1] == "tokens":
+                    token = manager.create_api_token(payload, headers=self.headers)
+                    self.write_json(token, status=HTTPStatus.CREATED)
+                    return
+                if (
+                    len(parts) == 4
+                    and parts[0] == "access"
+                    and parts[1] == "tokens"
+                    and parts[3] == "revoke"
+                ):
+                    token = manager.revoke_api_token(parts[2])
+                    self.write_json(token, status=HTTPStatus.ACCEPTED)
+                    return
                 if len(parts) == 1 and parts[0] == "profiles":
                     profile = manager.create_profile(payload)
                     self.write_json(profile, status=HTTPStatus.CREATED)
@@ -400,6 +427,10 @@ def make_handler(
         def require_auth(self, path: str) -> bool:
             if is_authorized(auth_config, path, self.headers.get("authorization")):
                 return True
+            if auth_config.enabled and manager.access.authenticate_bearer(
+                self.headers.get("authorization")
+            ):
+                return True
             self.write_json(
                 {"error": "unauthorized"},
                 status=HTTPStatus.UNAUTHORIZED,
@@ -508,70 +539,6 @@ def parse_last_event_id(value: str | None) -> int:
         return max(0, int(value))
     except ValueError:
         return 0
-
-
-def access_policy(headers: Any) -> dict[str, Any]:
-    principal = (
-        headers.get("x-remote-user")
-        or headers.get("x-forwarded-user")
-        or os.environ.get("RUN_MANAGER_DEFAULT_PRINCIPAL")
-        or "single-tenant-operator"
-    )
-    roles = [
-        {
-            "id": "owner",
-            "description": "Can administer runtime, profiles, missions, runs, and backups.",
-            "permissions": [
-                "runs:*",
-                "missions:*",
-                "profiles:*",
-                "permissions:*",
-                "ops:*",
-                "access:read",
-            ],
-        },
-        {
-            "id": "operator",
-            "description": "Can create and operate runs, missions, and human approvals.",
-            "permissions": [
-                "runs:create",
-                "runs:read",
-                "runs:cancel",
-                "missions:create",
-                "missions:read",
-                "missions:cancel",
-                "permissions:resolve",
-                "artifacts:read",
-            ],
-        },
-        {
-            "id": "auditor",
-            "description": "Can read events, artifacts, metrics, and audit bundles.",
-            "permissions": [
-                "runs:read",
-                "missions:read",
-                "events:read",
-                "artifacts:read",
-                "ops:read",
-                "access:read",
-            ],
-        },
-    ]
-    return {
-        "mode": "single-tenant-rbac-foundation",
-        "current_principal": {
-            "id": principal,
-            "display_name": principal,
-            "roles": ["owner"],
-        },
-        "roles": roles,
-        "scopes": sorted({permission for role in roles for permission in role["permissions"]}),
-        "audit": {
-            "auth_boundary": "nginx basic auth plus runtime bearer token",
-            "user_header": "x-remote-user or x-forwarded-user when configured",
-            "status": "foundation only; external IAM is a P7/P8 replacement point",
-        },
-    }
 
 
 def load_index_html() -> str:

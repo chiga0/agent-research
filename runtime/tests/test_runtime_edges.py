@@ -29,6 +29,8 @@ from runtime.cloud_agents_runtime.executors import (
     ExecutorConfig,
     ExecutorRegistry,
     ManagedProcess,
+    container_metadata,
+    default_container_command,
     executor_env,
     normalize_strategy,
     parse_float as executor_parse_float,
@@ -36,6 +38,7 @@ from runtime.cloud_agents_runtime.executors import (
     port_available,
     render_command,
     reserve_ephemeral_port,
+    safe_container_name,
 )
 from runtime.cloud_agents_runtime.interop import (
     a2a_task_from_mission,
@@ -437,6 +440,14 @@ class RuntimeEdgeTest(unittest.TestCase):
         )
         self.assertEqual(status.value, 200)
         self.assertIn("run.create", response["result"]["methods"])
+        self.assertIn("executor.list", response["result"]["methods"])
+
+        response, status = handle_acp_jsonrpc(
+            manager,
+            {"jsonrpc": "2.0", "id": 41, "method": "capabilities.get", "params": {}},
+        )
+        self.assertEqual(status.value, 200)
+        self.assertEqual(response["result"]["features"], ["interop-test"])
 
         response, status = handle_acp_jsonrpc(
             manager,
@@ -550,6 +561,25 @@ class RuntimeEdgeTest(unittest.TestCase):
             manager,
             {
                 "jsonrpc": "2.0",
+                "id": 42,
+                "method": "run.permissions",
+                "params": {"run_id": "run_acp"},
+            },
+        )
+        self.assertEqual(status.value, 200)
+        self.assertEqual(response["result"]["permissions"], [])
+
+        response, status = handle_acp_jsonrpc(
+            manager,
+            {"jsonrpc": "2.0", "id": 43, "method": "executor.list", "params": {}},
+        )
+        self.assertEqual(status.value, 200)
+        self.assertEqual(response["result"]["executors"], [])
+
+        response, status = handle_acp_jsonrpc(
+            manager,
+            {
+                "jsonrpc": "2.0",
                 "id": 14,
                 "method": "mission.create",
                 "params": {"goal": "mission via acp", "adapter": "fake"},
@@ -605,6 +635,20 @@ class RuntimeEdgeTest(unittest.TestCase):
         )
         self.assertEqual(status.value, 200)
         self.assertEqual(response["result"]["status"], "cancelled")
+
+        response, status = handle_acp_jsonrpc(
+            manager,
+            {"jsonrpc": "2.0", "id": 44, "method": "access.policy", "params": {}},
+        )
+        self.assertEqual(status.value, 200)
+        self.assertIn("roles", response["result"])
+
+        response, status = handle_acp_jsonrpc(
+            manager,
+            {"jsonrpc": "2.0", "id": 45, "method": "cost.status", "params": {}},
+        )
+        self.assertEqual(status.value, 200)
+        self.assertEqual(response["result"]["status"], "ok")
 
         self.assertEqual(require_string({"name": " alice "}, "name"), "alice")
         with self.assertRaisesRegex(ValueError, "name is required"):
@@ -829,6 +873,36 @@ class RuntimeEdgeTest(unittest.TestCase):
         env = executor_env(lease)
         self.assertEqual(env["QWEN_SERVER_TOKEN"], "secret")
         self.assertEqual(env["QWEN_SERVE_CWD"], "/tmp/workspace")
+        container_run = RunState.create(
+            RunSpec(
+                adapter="qwen",
+                metadata={"resource_policy": {"cpus": 0.75, "memory_mb": 384, "pids": 64}},
+            ),
+            run_id="run_container",
+        )
+        container_config = ExecutorConfig(
+            strategy="container",
+            container_image="qwen-code:test",
+            container_extra_args="--read-only",
+            token="tok",
+        )
+        command = default_container_command(
+            container_config,
+            workspace=Path("/tmp/workspace"),
+            run=container_run,
+            host="127.0.0.1",
+            port=4321,
+            executor_id="exec/container",
+        )
+        self.assertEqual(command[:4], ["docker", "run", "--rm", "--name"])
+        self.assertIn("qwen-code:test", command)
+        self.assertIn("--read-only", command)
+        self.assertIn("127.0.0.1:4321:4321", command)
+        self.assertIn("QWEN_SERVER_TOKEN=tok", command)
+        self.assertIn("384m", command)
+        self.assertEqual(command[command.index("--cpus") + 1], "0.75")
+        self.assertEqual(container_metadata(container_config, container_run)["pids"], 64)
+        self.assertEqual(safe_container_name("exec/container"), "cloud-agent-exec-container")
 
     def test_qwen_cancel_and_http_error_paths(self) -> None:
         with running_fake_qwen() as qwen_url:
@@ -975,6 +1049,15 @@ class MiniInteropManager:
 
     def capabilities(self) -> dict[str, object]:
         return {"features": ["interop-test"]}
+
+    def executors(self) -> dict[str, object]:
+        return {"executor_registry": {"config": {"strategy": "shared"}}, "executors": []}
+
+    def access_policy(self, headers: object | None = None) -> dict[str, object]:
+        return {"roles": [], "headers": bool(headers)}
+
+    def cost_status(self) -> dict[str, object]:
+        return {"status": "ok"}
 
     def create_run(self, spec: RunSpec) -> RunState:
         run = RunState.create(spec, run_id="run_acp")

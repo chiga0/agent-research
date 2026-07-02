@@ -12,6 +12,7 @@ from unittest.mock import patch
 
 from runtime.cloud_agents_runtime.adapters.base import RuntimeAdapter
 from runtime.cloud_agents_runtime.adapters.fake import FakeAdapter
+from runtime.cloud_agents_runtime.budget import BudgetConfig
 from runtime.cloud_agents_runtime.cleanup import CleanupPolicy
 from runtime.cloud_agents_runtime.manager import RunManager, positive_int
 from runtime.cloud_agents_runtime.models import RunSpec
@@ -471,6 +472,53 @@ class RunManagerTest(unittest.TestCase):
                     "resources.resolved",
                     [event.type for event in manager.store.events_since(run.run_id)],
                 )
+            finally:
+                manager.shutdown()
+
+    def test_cost_budget_is_quoted_audited_and_enforced(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            manager = RunManager(
+                Path(tmp),
+                worker_capacity=0,
+                worker_id="budget-worker",
+                budget_config=BudgetConfig(
+                    monthly_budget_usd=1.0,
+                    per_run_budget_usd=0.5,
+                    estimated_cost_per_run_usd=0.25,
+                ),
+            )
+            try:
+                run = manager.create_run(RunSpec(prompt="budgeted", adapter="fake"))
+                current = manager.get_run(run.run_id)
+                self.assertIsNotNone(current)
+                self.assertEqual(
+                    current.spec.metadata["cost_quote"]["estimated_cost_usd"],
+                    0.25,
+                )
+                self.assertTrue((Path(tmp) / run.run_id / "cost.json").exists())
+                self.assertIn(
+                    "cost.quoted",
+                    [event.type for event in manager.store.events_since(run.run_id)],
+                )
+                status = manager.cost_status()
+                self.assertEqual(status["monthly_estimated_cost_usd"], 0.25)
+                self.assertEqual(status["status"], "ok")
+            finally:
+                manager.shutdown()
+
+        with tempfile.TemporaryDirectory() as tmp:
+            manager = RunManager(
+                Path(tmp),
+                worker_capacity=0,
+                worker_id="budget-worker",
+                budget_config=BudgetConfig(
+                    per_run_budget_usd=0.1,
+                    estimated_cost_per_run_usd=0.25,
+                ),
+            )
+            try:
+                with self.assertRaisesRegex(ValueError, "per-run budget"):
+                    manager.create_run(RunSpec(prompt="too expensive", adapter="fake"))
             finally:
                 manager.shutdown()
 

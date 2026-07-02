@@ -9,7 +9,9 @@ from pathlib import Path
 from typing import Any
 from uuid import uuid4
 
+from .access import AccessManager
 from .adapters import FakeAdapter, QwenServeAdapter, RuntimeAdapter
+from .budget import BudgetConfig, CostManager
 from .cleanup import CleanupManager, CleanupPolicy
 from .events import RuntimeEvent, TERMINAL_RUN_EVENTS
 from .executors import ExecutorConfig, ExecutorRegistry
@@ -34,6 +36,7 @@ class RunManager:
         permission_stall_seconds: int | None = None,
         permission_stall_action: str | None = None,
         ops_config: BetaOpsConfig | None = None,
+        budget_config: BudgetConfig | None = None,
         resource_config: ResourceLimitConfig | None = None,
         cleanup_policy: CleanupPolicy | None = None,
         heartbeat_enabled: bool = False,
@@ -44,6 +47,11 @@ class RunManager:
         self.resource_resolver = ResourcePolicyResolver(resource_config)
         self.cleanup_manager = CleanupManager(self.store, cleanup_policy)
         self.ops = OperationsManager(self.store, ops_config)
+        self.cost = CostManager(self.store, budget_config)
+        self.access = AccessManager(
+            self.store,
+            os.environ.get("RUN_MANAGER_DEFAULT_PRINCIPAL") or "single-tenant-operator",
+        )
         self.missions = MissionManager(self)
         self.adapters = adapters or {
             "fake": FakeAdapter(),
@@ -147,10 +155,15 @@ class RunManager:
                 "stale_worker_detection",
                 "executor_registry",
                 "per_run_qwen_executor",
+                "container_qwen_executor",
+                "access_project_registry",
+                "api_token_registry",
+                "cost_budget",
             ],
             "resource_limits": self.resource_resolver.config.to_dict(),
             "cleanup_policy": self.cleanup_manager.policy.to_dict(),
             "ops_policy": self.ops.config.to_dict(),
+            "cost_policy": self.cost.config.to_dict(),
             "executor_registry": self.executor_registry.capabilities(),
             "permission_stall_policy": {
                 "seconds": self.permission_stall_seconds,
@@ -167,12 +180,16 @@ class RunManager:
         self._adapter(spec.adapter)
         run_id = f"run_{uuid4().hex}"
         resource_policy = self.resource_resolver.resolve(spec)
+        cost_quote = self.cost.require_allowed(spec)
+        spec.metadata["cost_quote"] = cost_quote
         allocation = self.workspace_allocator.prepare(run_id, spec)
         run = self.store.create_run(spec, run_id=run_id)
         self.store.write_json(run.run_id, "workspace.json", allocation.to_dict())
         self.store.append_event(run.run_id, "workspace.prepared", allocation.to_dict())
         self.store.write_json(run.run_id, "resources.json", resource_policy.to_dict())
         self.store.append_event(run.run_id, "resources.resolved", resource_policy.to_dict())
+        self.store.write_json(run.run_id, "cost.json", cost_quote)
+        self.store.append_event(run.run_id, "cost.quoted", cost_quote)
         self.store.enqueue_run(run.run_id)
         self._drain_queue()
         return self.store.get_run(run.run_id) or run
@@ -223,10 +240,17 @@ class RunManager:
         return self.cleanup_manager.run_once().to_dict()
 
     def metrics(self) -> dict[str, Any]:
-        return self.ops.metrics()
+        metrics = self.ops.metrics()
+        metrics["cost"] = self.cost.summary()
+        return metrics
 
     def operations_status(self) -> dict[str, Any]:
-        return self.ops.status()
+        status = self.ops.status()
+        status["cost"] = self.cost.summary()
+        return status
+
+    def cost_status(self) -> dict[str, Any]:
+        return self.cost.status()
 
     def p5_evaluations(self) -> dict[str, Any]:
         return self.ops.p5_evaluations()
@@ -243,14 +267,39 @@ class RunManager:
     def backup_path(self, name: str) -> Path:
         return self.ops.backup_path(name)
 
+    def access_policy(self, headers: Any | None = None) -> dict[str, Any]:
+        return self.access.policy(headers)
+
+    def create_access_project(self, payload: dict[str, Any]) -> dict[str, Any]:
+        return self.access.create_project(payload)
+
+    def list_access_projects(self) -> dict[str, Any]:
+        return self.access.list_projects()
+
+    def create_api_token(
+        self,
+        payload: dict[str, Any],
+        headers: Any | None = None,
+    ) -> dict[str, Any]:
+        return self.access.create_token(payload, headers=headers)
+
+    def list_api_tokens(self) -> dict[str, Any]:
+        return self.access.list_tokens()
+
+    def revoke_api_token(self, token_id: str) -> dict[str, Any]:
+        return self.access.revoke_token(token_id)
+
     def run_audit_bundle(self, run_id: str) -> dict[str, Any]:
         run = self._require_run(run_id)
+        executor = self.store.get_executor_lease_for_run(run_id)
         return {
             "run": run.to_dict(),
             "events": [event.to_dict() for event in self.store.events_since(run_id)],
             "raw_events": self.store.raw_events(run_id),
             "artifacts": self.store.list_artifacts(run_id),
             "queue": self.queue_status(),
+            "executor": executor.to_dict() if executor else None,
+            "cost": self.cost.run_cost_entry(run),
             "generated_at": datetime.now(timezone.utc).isoformat(timespec="milliseconds"),
         }
 

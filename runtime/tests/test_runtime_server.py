@@ -59,6 +59,58 @@ class RuntimeServerTest(unittest.TestCase):
             self.assertEqual(access["current_principal"]["id"], "alice")
             self.assertIn("owner", {role["id"] for role in access["roles"]})
             self.assertIn("runs:*", access["scopes"])
+            projects = request_json(
+                f"{base_url}/access/projects",
+                headers={"authorization": "Bearer secret"},
+            )
+            self.assertIn("default", {project["project_id"] for project in projects["projects"]})
+            project = request_json(
+                f"{base_url}/access/projects",
+                method="POST",
+                payload={"project_id": "team1", "display_name": "Team 1"},
+                headers={"authorization": "Bearer secret"},
+            )
+            self.assertEqual(project["project_id"], "team1")
+            token = request_json(
+                f"{base_url}/access/tokens",
+                method="POST",
+                payload={"name": "smoke", "project_id": "team1", "scopes": ["runs:read"]},
+                headers={
+                    "authorization": "Bearer secret",
+                    "x-remote-user": "alice@example.com",
+                },
+            )
+            self.assertIn("token", token)
+            self.assertEqual(token["principal_id"], "alice@example.com")
+            self.assertNotIn("token_hash", token)
+            token_capabilities = request_json(
+                f"{base_url}/capabilities",
+                headers={"authorization": f"Bearer {token['token']}"},
+            )
+            self.assertIn("fake", token_capabilities["adapters"])
+            tokens = request_json(
+                f"{base_url}/access/tokens",
+                headers={"authorization": "Bearer secret"},
+            )
+            self.assertIn(token["token_id"], {item["token_id"] for item in tokens["tokens"]})
+            revoked = request_json(
+                f"{base_url}/access/tokens/{token['token_id']}/revoke",
+                method="POST",
+                payload={},
+                headers={"authorization": "Bearer secret"},
+            )
+            self.assertEqual(revoked["status"], "revoked")
+            with self.assertRaises(urllib.error.HTTPError) as revoked_ctx:
+                request_json(
+                    f"{base_url}/capabilities",
+                    headers={"authorization": f"Bearer {token['token']}"},
+                )
+            self.assertEqual(revoked_ctx.exception.code, HTTPStatus.UNAUTHORIZED)
+            cost = request_json(
+                f"{base_url}/cost/status",
+                headers={"authorization": "Bearer secret"},
+            )
+            self.assertIn("monthly_estimated_cost_usd", cost)
 
             with self.assertRaises(urllib.error.HTTPError) as cleanup_ctx:
                 request_json(f"{base_url}/cleanup", method="POST", payload={})
@@ -91,12 +143,14 @@ class RuntimeServerTest(unittest.TestCase):
                 event_names = [event["event"] for event in events]
                 self.assertIn("run.created", event_names)
                 self.assertIn("resources.resolved", event_names)
+                self.assertIn("cost.quoted", event_names)
                 self.assertIn("run.completed", event_names)
                 run_dir = Path(tmp) / run["run_id"]
                 self.assertTrue((run_dir / "events.jsonl").exists())
                 self.assertTrue((run_dir / "final_1.json").exists())
                 self.assertTrue((run_dir / "workspace.json").exists())
                 self.assertTrue((run_dir / "resources.json").exists())
+                self.assertTrue((run_dir / "cost.json").exists())
                 events_json = request_json(f"{base_url}/runs/{run['run_id']}/events.json")
                 self.assertIn("events", events_json)
                 artifacts = request_json(f"{base_url}/runs/{run['run_id']}/artifacts")
@@ -105,6 +159,7 @@ class RuntimeServerTest(unittest.TestCase):
                 self.assertIn("diagnostics.json", artifact_names)
                 self.assertIn("workspace.json", artifact_names)
                 self.assertIn("resources.json", artifact_names)
+                self.assertIn("cost.json", artifact_names)
                 final_artifact = request_text(
                     f"{base_url}/runs/{run['run_id']}/artifacts/final_1.json"
                 )
@@ -186,6 +241,7 @@ class RuntimeServerTest(unittest.TestCase):
                     payload={"jsonrpc": "2.0", "id": 1, "method": "initialize"},
                 )
                 self.assertEqual(acp["result"]["protocol"], "acp-poc")
+                self.assertIn("executor.list", acp["result"]["methods"])
                 run = request_json(
                     f"{base_url}/acp",
                     method="POST",
@@ -214,9 +270,40 @@ class RuntimeServerTest(unittest.TestCase):
                         break
                     time.sleep(0.05)
                 self.assertEqual(run_status["result"]["status"], "completed")
+                executor_result = request_json(
+                    f"{base_url}/acp",
+                    method="POST",
+                    payload={"jsonrpc": "2.0", "id": 31, "method": "executor.list"},
+                )
+                self.assertIn("executor_registry", executor_result["result"])
+                cost_result = request_json(
+                    f"{base_url}/acp",
+                    method="POST",
+                    payload={"jsonrpc": "2.0", "id": 32, "method": "cost.status"},
+                )
+                self.assertIn("monthly_estimated_cost_usd", cost_result["result"])
+                access_result = request_json(
+                    f"{base_url}/acp",
+                    method="POST",
+                    payload={"jsonrpc": "2.0", "id": 33, "method": "access.policy"},
+                )
+                self.assertIn("roles", access_result["result"])
+                permissions_result = request_json(
+                    f"{base_url}/acp",
+                    method="POST",
+                    payload={
+                        "jsonrpc": "2.0",
+                        "id": 34,
+                        "method": "run.permissions",
+                        "params": {"run_id": run_id},
+                    },
+                )
+                self.assertIn("permissions", permissions_result["result"])
 
                 card = request_json(f"{base_url}/.well-known/agent-card.json")
                 self.assertEqual(card["protocol"], "a2a-poc")
+                self.assertIn("protocolVersion", card)
+                self.assertIn("executors", card["endpoints"])
                 task = request_json(
                     f"{base_url}/a2a/tasks",
                     method="POST",

@@ -366,6 +366,46 @@ artifacts/run-123/
 7. 任何失败都有 `failure_kind` 和 diagnostics。
 8. 没有真实模型 key 或宿主机敏感路径进入 Agent 容器。
 
+## P7 执行单元增强
+
+当前实现已把 qwen 单 Agent 云端部署推进到“可编排执行单元”：
+
+- `shared`：连接已有 `QWEN_SERVE_URL`，成本最低，适合单租户 beta。
+- `per_run_process`：每个 qwen run 独立启动 `qwen serve`，独立端口、workspace、stdout/stderr、`executor.json` 和 lifecycle event。
+- `container`：支持 `QWEN_CONTAINER_COMMAND` 自定义模板；也支持配置 `QWEN_CONTAINER_IMAGE` 后自动生成 Docker foreground worker 命令，并注入 CPU、memory、pids、端口映射、workspace mount 和 token。
+
+关键环境变量：
+
+```bash
+QWEN_EXECUTOR_STRATEGY=per_run_process
+QWEN_EXECUTOR_COMMAND='qwen serve --hostname {host} --port {port}'
+QWEN_EXECUTOR_PORT_START=4210
+QWEN_EXECUTOR_PORT_END=4310
+
+QWEN_EXECUTOR_STRATEGY=container
+QWEN_CONTAINER_IMAGE='your-qwen-code-image:latest'
+QWEN_CONTAINER_CPUS=1
+QWEN_CONTAINER_MEMORY_MB=1024
+QWEN_CONTAINER_PIDS=256
+```
+
+验收入口：
+
+```bash
+python3 scripts/validate_qwen_mission.py \
+  --base-url http://127.0.0.1:8765 \
+  --token "$RUN_MANAGER_TOKEN" \
+  --validate-single-run \
+  --expect-executor-strategy per_run_process
+```
+
+排障入口：
+
+- `/executors`：查看 executor registry、lease、pid、port、workspace、失败原因。
+- `/runs/<run_id>/executor`：查看某个 run 的 executor lease。
+- run artifact：`executor.json`、`executor.stdout.log`、`executor.stderr.log`、`diagnostics.json`、`cost.json`。
+- ACP：`executor.list`、`run.permissions`、`cost.status`、`access.policy`。
+
 ## 暂不做
 
 第一版不要做：

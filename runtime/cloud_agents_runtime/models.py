@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import asdict, dataclass, field
+from hashlib import sha256
 from typing import Any
 from uuid import uuid4
 
@@ -266,6 +267,96 @@ class ExecutorLease:
         return data
 
 
+@dataclass
+class AccessProject:
+    project_id: str
+    display_name: str
+    description: str = ""
+    status: str = "active"
+    metadata: dict[str, Any] = field(default_factory=dict)
+    created_at: str = field(default_factory=utc_now)
+    updated_at: str = field(default_factory=utc_now)
+
+    @classmethod
+    def from_payload(cls, payload: dict[str, Any]) -> "AccessProject":
+        project_id = clean_identifier(payload.get("project_id") or payload.get("id"), "project id")
+        display_name = str(payload.get("display_name") or payload.get("name") or project_id)
+        status = str(payload.get("status") or "active")
+        if status not in {"active", "archived"}:
+            raise ValueError("project status must be active or archived")
+        return cls(
+            project_id=project_id,
+            display_name=display_name,
+            description=str(payload.get("description") or ""),
+            status=status,
+            metadata=dict(payload.get("metadata") or {}),
+            created_at=str(payload.get("created_at") or utc_now()),
+            updated_at=str(payload.get("updated_at") or utc_now()),
+        )
+
+    def to_dict(self) -> dict[str, Any]:
+        return asdict(self)
+
+
+@dataclass
+class ApiToken:
+    token_id: str
+    name: str
+    principal_id: str
+    scopes: list[str]
+    project_id: str | None = None
+    status: str = "active"
+    token_prefix: str = ""
+    token_hash: str = ""
+    created_at: str = field(default_factory=utc_now)
+    updated_at: str = field(default_factory=utc_now)
+    revoked_at: str | None = None
+    last_used_at: str | None = None
+    metadata: dict[str, Any] = field(default_factory=dict)
+
+    @classmethod
+    def create(
+        cls,
+        payload: dict[str, Any],
+        *,
+        plain_token: str,
+        default_principal: str,
+    ) -> "ApiToken":
+        token_id = clean_identifier(
+            payload.get("token_id") or payload.get("id") or f"token_{uuid4().hex[:12]}",
+            "token id",
+        )
+        name = str(payload.get("name") or token_id)
+        principal_id = clean_principal_id(
+            payload.get("principal_id") or default_principal,
+        )
+        scopes = payload.get("scopes") or ["runs:*", "missions:*", "events:read"]
+        if not isinstance(scopes, list) or not all(isinstance(scope, str) for scope in scopes):
+            raise ValueError("scopes must be a list of strings")
+        project_id = payload.get("project_id")
+        if project_id is not None:
+            project_id = clean_identifier(project_id, "project id")
+        return cls(
+            token_id=token_id,
+            name=name,
+            principal_id=principal_id,
+            project_id=project_id,
+            scopes=list(scopes),
+            token_prefix=plain_token[:12],
+            token_hash=hash_token(plain_token),
+            metadata=dict(payload.get("metadata") or {}),
+        )
+
+    def to_dict(self) -> dict[str, Any]:
+        data = asdict(self)
+        data.pop("token_hash", None)
+        return data
+
+
+def hash_token(token: str) -> str:
+    return sha256(token.encode("utf-8")).hexdigest()
+
+
 def clean_identifier(value: Any, label: str) -> str:
     if not isinstance(value, str) or not value.strip():
         raise ValueError(f"{label} is required")
@@ -274,3 +365,12 @@ def clean_identifier(value: Any, label: str) -> str:
     if any(character not in allowed for character in candidate):
         raise ValueError(f"{label} may only contain letters, numbers, underscore, or hyphen")
     return candidate
+
+
+def clean_principal_id(value: Any) -> str:
+    if not isinstance(value, str) or not value.strip():
+        raise ValueError("principal id is required")
+    principal = value.strip()
+    if len(principal) > 200 or any(character < " " for character in principal):
+        raise ValueError("principal id is invalid")
+    return principal

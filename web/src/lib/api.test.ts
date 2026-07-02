@@ -28,6 +28,10 @@ describe("api helpers", () => {
         },
       },
     });
+    const fallbackOption = event("permission.requested", {
+      permission_id: "perm_fallback",
+      options: [{}],
+    });
 
     expect(extractPermissionRequest(direct)).toMatchObject({
       permission_id: "perm_direct",
@@ -37,7 +41,12 @@ describe("api helpers", () => {
       permission_id: "perm_nested",
       tool: "shell",
     });
+    expect(extractPermissionRequest(fallbackOption)).toMatchObject({
+      permission_id: "perm_fallback",
+      options: [{ id: "approve" }],
+    });
     expect(extractPermissionRequest(event("run.running", {}))).toBeNull();
+    expect(extractPermissionRequest(event("permission.requested", {}))).toBeNull();
   });
 
   it("collects resolved permission ids", () => {
@@ -67,6 +76,7 @@ describe("api helpers", () => {
 
     await runtimeApi.queue();
     await runtimeApi.executors();
+    await runtimeApi.costStatus();
     await runtimeApi.runAudit("run_1");
     await runtimeApi.cancelRun("run_1");
     await runtimeApi.mission("mission_1");
@@ -80,11 +90,17 @@ describe("api helpers", () => {
     await runtimeApi.profile("planner");
     await runtimeApi.createProfile({ id: "planner-copy" });
     await runtimeApi.accessPolicy();
+    await runtimeApi.accessProjects();
+    await runtimeApi.createAccessProject({ project_id: "default" });
+    await runtimeApi.apiTokens();
+    await runtimeApi.createApiToken({ name: "operator" });
+    await runtimeApi.revokeApiToken("token_1");
     await runtimeApi.createMission({ goal: "ship", strategy: "sequential" });
 
     expect(calls.map(([path]) => path)).toEqual([
       "/queue",
       "/executors",
+      "/cost/status",
       "/runs/run_1/audit.json",
       "/runs/run_1/cancel",
       "/missions/mission_1",
@@ -95,13 +111,37 @@ describe("api helpers", () => {
       "/profiles/planner",
       "/profiles",
       "/access/policy",
+      "/access/projects",
+      "/access/projects",
+      "/access/tokens",
+      "/access/tokens",
+      "/access/tokens/token_1/revoke",
       "/missions",
     ]);
-    expect(calls[3][1]?.method).toBe("POST");
-    expect(calls[7][1]?.method).toBe("POST");
+    expect(calls[4][1]?.method).toBe("POST");
     expect(calls[8][1]?.method).toBe("POST");
-    expect(calls[10][1]?.method).toBe("POST");
-    expect(calls[12][1]?.method).toBe("POST");
+    expect(calls[9][1]?.method).toBe("POST");
+    expect(calls[11][1]?.method).toBe("POST");
+    expect(calls[14][1]?.method).toBe("POST");
+    expect(calls[16][1]?.method).toBe("POST");
+    expect(calls[17][1]?.method).toBe("POST");
+    expect(calls[18][1]?.method).toBe("POST");
+  });
+
+  it("surfaces API errors", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(() =>
+        Promise.resolve(
+          new Response("not allowed", {
+            status: 403,
+            statusText: "Forbidden",
+          }),
+        ),
+      ),
+    );
+
+    await expect(runtimeApi.health()).rejects.toThrow("not allowed");
   });
 
   it("builds hrefs from the current app base", async () => {

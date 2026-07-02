@@ -113,12 +113,21 @@ const fixtures: Record<string, unknown> = {
   health: { ok: true, version: "0.1-test" },
   capabilities: {
     mode: "saeu-runtime",
-    features: ["metrics", "backup"],
+    features: ["metrics", "backup", "executor_registry", "cost_budget"],
     adapters: {
       fake: { name: "Fake", status: "available" },
       qwen: { name: "Qwen", status: "available" },
     },
     queue: { counts: {}, jobs: [], workers: [] },
+    executor_registry: {
+      config: {
+        strategy: "per_run_process",
+        enabled: true,
+        container_image: "qwen-code:latest",
+        container_network: "bridge",
+      },
+      counts: { running: 1 },
+    },
     profiles: [],
   },
   "metrics.json": {
@@ -133,6 +142,50 @@ const fixtures: Record<string, unknown> = {
     },
     permissions: { pending: 1, stalled: 0 },
     latency_seconds: { count: 0, avg: null, p95: null },
+  },
+  executors: {
+    executor_registry: {
+      config: {
+        strategy: "per_run_process",
+        enabled: true,
+        container_image: "qwen-code:latest",
+        container_network: "bridge",
+      },
+      counts: { running: 1 },
+    },
+    executors: [
+      {
+        executor_id: "exec_1",
+        run_id: "run_1",
+        adapter: "qwen",
+        strategy: "per_run_process",
+        status: "running",
+        base_url: "http://127.0.0.1:4210",
+        workspace: "/tmp/workspace/run_1",
+        port: 4210,
+        pid: 1234,
+        started_at: new Date().toISOString(),
+        heartbeat_at: new Date().toISOString(),
+        released_at: null,
+        exit_code: null,
+        last_error: null,
+        metadata: {},
+      },
+    ],
+  },
+  "cost/status": {
+    generated_at: new Date().toISOString(),
+    status: "ok",
+    config: {
+      monthly_budget_usd: 10,
+      per_run_budget_usd: 1,
+      estimated_cost_per_run_usd: 0.05,
+    },
+    month: "2026-07",
+    monthly_estimated_cost_usd: 0.1,
+    monthly_budget_usd: 10,
+    warning_threshold_usd: 8,
+    runs: [{ run_id: "run_1", estimated_cost_usd: 0.1 }],
   },
   runs: { runs: [run] },
   "runs/run_1": run,
@@ -224,7 +277,65 @@ const fixtures: Record<string, unknown> = {
       },
     ],
     scopes: ["runs:*", "missions:*", "profiles:*"],
+    projects: [
+      {
+        project_id: "default",
+        display_name: "Default",
+        description: "Default project",
+        status: "active",
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        metadata: {},
+      },
+    ],
+    tokens: [
+      {
+        token_id: "token_1",
+        name: "operator-token",
+        principal_id: "operator",
+        project_id: "default",
+        scopes: ["runs:*"],
+        status: "active",
+        token_prefix: "cat_test",
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        revoked_at: null,
+        last_used_at: null,
+        metadata: {},
+      },
+    ],
     audit: { auth_boundary: "basic auth plus bearer" },
+  },
+  "access/projects": {
+    projects: [
+      {
+        project_id: "default",
+        display_name: "Default",
+        description: "Default project",
+        status: "active",
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        metadata: {},
+      },
+    ],
+  },
+  "access/tokens": {
+    tokens: [
+      {
+        token_id: "token_1",
+        name: "operator-token",
+        principal_id: "operator",
+        project_id: "default",
+        scopes: ["runs:*"],
+        status: "active",
+        token_prefix: "cat_test",
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        revoked_at: null,
+        last_used_at: null,
+        metadata: {},
+      },
+    ],
   },
 };
 
@@ -408,9 +519,39 @@ describe("Cloud Agents console", () => {
 
     expect(await screen.findByText("Current Principal")).toBeInTheDocument();
     expect(screen.getByText("Role Matrix")).toBeInTheDocument();
+    expect(screen.getByText("Projects")).toBeInTheDocument();
+    expect(screen.getByText("API Tokens")).toBeInTheDocument();
     expect((await screen.findAllByText("runs:*")).length).toBeGreaterThan(0);
     await user.click(screen.getByRole("button", { name: "Export" }));
     expect(click).toHaveBeenCalled();
+    await user.clear(screen.getAllByLabelText("Project ID")[0]);
+    await user.type(screen.getAllByLabelText("Project ID")[0], "team1");
+    await user.clear(screen.getByLabelText("Token name"));
+    await user.type(screen.getByLabelText("Token name"), "team-token");
+    await user.click(screen.getAllByRole("button", { name: "Create" })[0]);
+    await user.click(screen.getAllByRole("button", { name: "Create" })[1]);
+    expect(await screen.findByText("cat_created_secret")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Revoke" }));
+    await waitFor(() =>
+      expect(fetch).toHaveBeenCalledWith(
+        "/access/tokens",
+        expect.objectContaining({ method: "POST" }),
+      ),
+    );
+  });
+
+  it("shows executor isolation registry", async () => {
+    const user = userEvent.setup();
+    await act(async () => {
+      await router.navigate({ to: "/executors" });
+    });
+    render(<App />);
+
+    expect(await screen.findByText("Executor Leases")).toBeInTheDocument();
+    expect(screen.getByText("Registry")).toBeInTheDocument();
+    expect(await screen.findByText("exec_1")).toBeInTheDocument();
+    expect(screen.getAllByText("per_run_process").length).toBeGreaterThan(0);
+    await user.click(screen.getByRole("button", { name: "Refresh" }));
   });
 
   it("runs operations drills and creates backups", async () => {
@@ -421,6 +562,7 @@ describe("Cloud Agents console", () => {
     render(<App />);
 
     expect(await screen.findByText("Failure Drills")).toBeInTheDocument();
+    expect(await screen.findByText("Cost Budget")).toBeInTheDocument();
     expect(await screen.findByText("acp-streamable-http")).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Run" }));
     await user.click(screen.getByRole("button", { name: "Create" }));
@@ -596,6 +738,21 @@ describe("Cloud Agents console", () => {
         event("adapter.event", 32, { status: "failed" }, now),
       ),
     ).toBe("error");
+    expect(
+      __testUtils.runnerTranscript([event("run.completed", 33, {}, now)])[0]
+        .body,
+    ).toBe("The runner reached a terminal success state.");
+    expect(
+      __testUtils.runnerTranscript([event("unmapped.event", 34, {}, now)]),
+    ).toHaveLength(0);
+    expect(
+      __testUtils.toolEventBody(
+        event("adapter.event", 35, { name: "named-tool" }, now),
+      ),
+    ).toContain("named-tool");
+    expect(
+      __testUtils.toolEventBody(event("adapter.event", 36, {}, now)),
+    ).toBe("adapter event");
     expect(__testUtils.statusLine({ running: 2 })).toBe("running 2");
     expect(__testUtils.stringValue(123)).toBe("123");
     expect(__testUtils.timeAgo(undefined)).toBe("-");
@@ -657,6 +814,46 @@ async function fetchMock(input: RequestInfo | URL, init?: RequestInit) {
       display_name: "Planner Copy",
       source: "user",
       version: 2,
+    });
+  }
+  if (init?.method === "POST" && path === "access/projects") {
+    return jsonResponse({
+      project_id: "created",
+      display_name: "Created",
+      description: "",
+      status: "active",
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+      metadata: {},
+    });
+  }
+  if (init?.method === "POST" && path === "access/tokens") {
+    return jsonResponse({
+      token_id: "token_created",
+      name: "operator-token",
+      principal_id: "operator",
+      project_id: "default",
+      scopes: ["runs:*"],
+      status: "active",
+      token_prefix: "cat_created",
+      token: "cat_created_secret",
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+      metadata: {},
+    });
+  }
+  if (init?.method === "POST" && path === "access/tokens/token_1/revoke") {
+    return jsonResponse({
+      token_id: "token_1",
+      name: "operator-token",
+      principal_id: "operator",
+      scopes: ["runs:*"],
+      status: "revoked",
+      token_prefix: "cat_test",
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+      revoked_at: new Date().toISOString(),
+      metadata: {},
     });
   }
   if (init?.method === "POST" && path.includes("/permissions/")) {

@@ -5,6 +5,7 @@ import {
   ClipboardList,
   Menu,
   Moon,
+  Server,
   ShieldCheck,
   Sun,
   UserCog,
@@ -19,6 +20,7 @@ import { cn } from "../lib/utils";
 const navItems = [
   { to: "/", label: "Overview", icon: Activity },
   { to: "/runs", label: "Runs", icon: ClipboardList },
+  { to: "/executors", label: "Executors", icon: Server },
   { to: "/missions", label: "Missions", icon: Boxes },
   { to: "/profiles", label: "Profiles", icon: UserCog },
   { to: "/access", label: "Access", icon: Users },

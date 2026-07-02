@@ -123,24 +123,33 @@ class MonitorHandler(BaseHTTPRequestHandler):
         self.end_headers()
 
     def send_text(self, body: str) -> None:
+        encoded = body.encode("utf-8")
         self.send_response(HTTPStatus.OK)
         self.send_header("Content-Type", "text/html; charset=utf-8")
+        self.send_header("Content-Length", str(len(encoded)))
         self.end_headers()
-        self.wfile.write(body.encode("utf-8"))
+        self.wfile.write(encoded)
+        self.close_connection = True
 
     def send_json(self, payload: dict[str, Any], status: HTTPStatus = HTTPStatus.OK) -> None:
+        encoded = json.dumps(payload).encode("utf-8")
         self.send_response(status)
         self.send_header("Content-Type", "application/json")
+        self.send_header("Content-Length", str(len(encoded)))
         self.end_headers()
-        self.wfile.write(json.dumps(payload).encode("utf-8"))
+        self.wfile.write(encoded)
+        self.close_connection = True
 
     def send_sse(self, events: list[tuple[str, dict[str, Any]]]) -> None:
         self.send_response(HTTPStatus.OK)
         self.send_header("Content-Type", "text/event-stream")
+        self.send_header("Connection", "close")
         self.end_headers()
         for event, payload in events:
             self.wfile.write(f"event: {event}\n".encode("utf-8"))
             self.wfile.write(f"data: {json.dumps(payload)}\n\n".encode("utf-8"))
+        self.wfile.flush()
+        self.close_connection = True
 
     def log_message(self, format: str, *args: object) -> None:
         return

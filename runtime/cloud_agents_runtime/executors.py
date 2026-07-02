@@ -29,6 +29,12 @@ class ExecutorConfig:
     port_end: int = 4310
     command_template: str | None = None
     container_command_template: str | None = None
+    container_image: str | None = None
+    container_network: str = "bridge"
+    container_cpus: float = 1.0
+    container_memory_mb: int = 1024
+    container_pids: int = 256
+    container_extra_args: str | None = None
     startup_timeout_seconds: float = 20.0
     stop_timeout_seconds: float = 5.0
     token: str | None = None
@@ -42,6 +48,12 @@ class ExecutorConfig:
             port_end=parse_int(os.environ.get("QWEN_EXECUTOR_PORT_END"), 4310),
             command_template=os.environ.get("QWEN_EXECUTOR_COMMAND"),
             container_command_template=os.environ.get("QWEN_CONTAINER_COMMAND"),
+            container_image=os.environ.get("QWEN_CONTAINER_IMAGE"),
+            container_network=os.environ.get("QWEN_CONTAINER_NETWORK") or "bridge",
+            container_cpus=parse_float(os.environ.get("QWEN_CONTAINER_CPUS"), 1.0),
+            container_memory_mb=parse_int(os.environ.get("QWEN_CONTAINER_MEMORY_MB"), 1024),
+            container_pids=parse_int(os.environ.get("QWEN_CONTAINER_PIDS"), 256),
+            container_extra_args=os.environ.get("QWEN_CONTAINER_EXTRA_ARGS"),
             startup_timeout_seconds=parse_float(
                 os.environ.get("QWEN_EXECUTOR_STARTUP_TIMEOUT"),
                 20.0,
@@ -70,6 +82,12 @@ class ExecutorConfig:
             "port_end": self.port_end,
             "command_template": bool(self.command_template),
             "container_command_template": bool(self.container_command_template),
+            "container_image": self.container_image,
+            "container_network": self.container_network,
+            "container_cpus": self.container_cpus,
+            "container_memory_mb": self.container_memory_mb,
+            "container_pids": self.container_pids,
+            "container_extra_args": bool(self.container_extra_args),
             "startup_timeout_seconds": self.startup_timeout_seconds,
             "stop_timeout_seconds": self.stop_timeout_seconds,
             "token": "configured" if self.token else None,
@@ -132,29 +150,24 @@ class ExecutorRegistry:
     def acquire_qwen(self, run: RunState) -> ExecutorLease:
         if not self.enabled:
             raise RuntimeError("executor registry is not enabled")
-        if self.config.strategy == "container":
-            command_template = self.config.container_command_template
-            if not command_template:
-                raise RuntimeError("QWEN_CONTAINER_COMMAND is required for container strategy")
-        else:
-            command_template = self.config.command_template or default_qwen_command()
-
         with self._lock:
             port = self._allocate_port()
             executor_id = f"exec_{uuid4().hex}"
             base_url = f"http://{self.config.host}:{port}"
             workspace = Path(run.spec.workspace or ".").expanduser().resolve()
-            command = render_command(
-                command_template,
-                {
-                    "host": self.config.host,
-                    "port": str(port),
-                    "workspace": str(workspace),
-                    "run_id": run.run_id,
-                    "executor_id": executor_id,
-                    "token": self.config.token or "",
-                },
-            )
+            variables = {
+                "host": self.config.host,
+                "port": str(port),
+                "workspace": str(workspace),
+                "run_id": run.run_id,
+                "executor_id": executor_id,
+                "token": self.config.token or "",
+            }
+            try:
+                command = self._command_for_run(run, workspace, variables)
+            except Exception:
+                self._release_port(port)
+                raise
             lease = ExecutorLease(
                 executor_id=executor_id,
                 run_id=run.run_id,
@@ -170,6 +183,7 @@ class ExecutorRegistry:
                 metadata={
                     "resource_policy": run.spec.metadata.get("resource_policy"),
                     "workspace_allocation": run.spec.metadata.get("workspace_allocation"),
+                    "container": container_metadata(self.config, run),
                 },
             )
             self.store.upsert_executor_lease(lease)
@@ -342,6 +356,26 @@ class ExecutorRegistry:
             lease.updated_at = utc_now()
             self.store.upsert_executor_lease(lease)
 
+    def _command_for_run(
+        self,
+        run: RunState,
+        workspace: Path,
+        variables: dict[str, str],
+    ) -> list[str]:
+        if self.config.strategy == "container":
+            if self.config.container_command_template:
+                return render_command(self.config.container_command_template, variables)
+            return default_container_command(
+                self.config,
+                workspace=workspace,
+                run=run,
+                host=variables["host"],
+                port=int(variables["port"]),
+                executor_id=variables["executor_id"],
+            )
+        command_template = self.config.command_template or default_qwen_command()
+        return render_command(command_template, variables)
+
 
 def normalize_strategy(value: str | None) -> str:
     strategy = (value or "shared").strip().lower().replace("-", "_")
@@ -358,6 +392,72 @@ def normalize_strategy(value: str | None) -> str:
 
 def default_qwen_command() -> str:
     return "qwen serve --hostname {host} --port {port}"
+
+
+def default_container_command(
+    config: ExecutorConfig,
+    *,
+    workspace: Path,
+    run: RunState,
+    host: str,
+    port: int,
+    executor_id: str,
+) -> list[str]:
+    if not config.container_image:
+        raise RuntimeError("QWEN_CONTAINER_IMAGE or QWEN_CONTAINER_COMMAND is required")
+    resource_policy = run.spec.metadata.get("resource_policy")
+    cpus = resource_float(resource_policy, "cpus", config.container_cpus)
+    memory_mb = resource_int(resource_policy, "memory_mb", config.container_memory_mb)
+    pids = resource_int(resource_policy, "pids", config.container_pids)
+    container_name = safe_container_name(executor_id)
+    command = [
+        "docker",
+        "run",
+        "--rm",
+        "--name",
+        container_name,
+        "--cpus",
+        compact_number(cpus),
+        "--memory",
+        f"{memory_mb}m",
+        "--pids-limit",
+        str(pids),
+        "--network",
+        config.container_network,
+    ]
+    if config.container_network != "host":
+        command.extend(["-p", f"{host}:{port}:{port}"])
+    command.extend(["-v", f"{workspace}:{workspace}:rw", "-w", str(workspace)])
+    if config.token:
+        command.extend(["-e", f"QWEN_SERVER_TOKEN={config.token}"])
+    if config.container_extra_args:
+        command.extend(shlex.split(config.container_extra_args))
+    command.extend(
+        [
+            config.container_image,
+            "qwen",
+            "serve",
+            "--hostname",
+            "0.0.0.0" if config.container_network != "host" else host,
+            "--port",
+            str(port),
+        ]
+    )
+    return command
+
+
+def container_metadata(config: ExecutorConfig, run: RunState) -> dict[str, Any] | None:
+    if config.strategy != "container":
+        return None
+    resource_policy = run.spec.metadata.get("resource_policy")
+    return {
+        "image": config.container_image,
+        "network": config.container_network,
+        "cpus": resource_float(resource_policy, "cpus", config.container_cpus),
+        "memory_mb": resource_int(resource_policy, "memory_mb", config.container_memory_mb),
+        "pids": resource_int(resource_policy, "pids", config.container_pids),
+        "custom_command": bool(config.container_command_template),
+    }
 
 
 def render_command(template: str, variables: dict[str, str]) -> list[str]:
@@ -413,3 +513,33 @@ def parse_float(value: str | None, default: float) -> float:
         return float(value)
     except ValueError:
         return default
+
+
+def resource_float(resource_policy: Any, key: str, default: float) -> float:
+    if isinstance(resource_policy, dict):
+        value = resource_policy.get(key)
+        if isinstance(value, (int, float)) and not isinstance(value, bool):
+            return max(0.0, float(value))
+    return max(0.0, float(default))
+
+
+def resource_int(resource_policy: Any, key: str, default: int) -> int:
+    if isinstance(resource_policy, dict):
+        value = resource_policy.get(key)
+        if isinstance(value, int) and not isinstance(value, bool):
+            return max(1, value)
+        if isinstance(value, float):
+            return max(1, int(value))
+    return max(1, int(default))
+
+
+def safe_container_name(executor_id: str) -> str:
+    safe = "".join(
+        character if character.isalnum() or character in "-_" else "-"
+        for character in executor_id
+    )
+    return f"cloud-agent-{safe[:48]}"
+
+
+def compact_number(value: float) -> str:
+    return str(int(value)) if value.is_integer() else str(value)

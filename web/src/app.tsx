@@ -18,19 +18,23 @@ import { useForm } from "@tanstack/react-form";
 import {
   AlertTriangle,
   Copy,
+  Cpu,
   Download,
   FileText,
   Filter,
   GitBranch,
+  KeyRound,
   MessageSquare,
   PauseCircle,
   Play,
   Radio,
   RefreshCw,
   Save,
+  Server,
   ShieldCheck,
   UserCog,
   Users,
+  WalletCards,
 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 
@@ -60,9 +64,13 @@ import {
   resolvedPermissionIds,
   runEventStreamHref,
   runtimeApi,
+  type AccessProject,
   type ArtifactInfo,
+  type ApiToken,
+  type CostStatus,
   type DrillCheck,
   type AgentProfile,
+  type ExecutorLease,
   type MissionEvent,
   type MissionState,
   type RuntimeEvent,
@@ -95,6 +103,11 @@ const runDetailRoute = createRoute({
   path: "/runs/$runId",
   component: RunDetailPage,
 });
+const executorsRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/executors",
+  component: ExecutorsPage,
+});
 const missionsRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/missions",
@@ -125,6 +138,7 @@ const routeTree = rootRoute.addChildren([
   indexRoute,
   runsRoute,
   runDetailRoute,
+  executorsRoute,
   missionsRoute,
   missionDetailRoute,
   profilesRoute,
@@ -275,6 +289,131 @@ function RunsPage() {
         </Card>
       </div>
     </Page>
+  );
+}
+
+function ExecutorsPage() {
+  const executors = useQuery({
+    queryKey: ["executors"],
+    queryFn: runtimeApi.executors,
+  });
+  const capabilities = useQuery({
+    queryKey: ["capabilities"],
+    queryFn: runtimeApi.capabilities,
+  });
+  const registry = executors.data?.executor_registry ?? {};
+  const config = registryValue(registry, "config");
+  const counts = registryValue(registry, "counts");
+  const leases = executors.data?.executors ?? [];
+  const activeCount = leases.filter((lease) =>
+    ["starting", "running"].includes(lease.status),
+  ).length;
+  const failedCount = leases.filter((lease) =>
+    ["failed", "orphaned"].includes(lease.status),
+  ).length;
+
+  return (
+    <Page
+      title="Executors"
+      subtitle="Per-run qwen executor leases, isolation state, and worker registry."
+    >
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <Metric
+          label="Strategy"
+          value={stringValue(config.strategy ?? "shared")}
+          detail={config.enabled ? "registry enabled" : "shared endpoint"}
+        />
+        <Metric label="Active" value={activeCount} detail="starting/running" />
+        <Metric label="Failed" value={failedCount} detail="failed/orphaned" />
+        <Metric
+          label="Container"
+          value={stringValue(config.container_image ?? "-")}
+          detail={stringValue(config.container_network ?? "bridge")}
+        />
+      </div>
+
+      <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_360px]">
+        <Card>
+          <CardHeader>
+            <div className="flex items-center gap-2">
+              <Server className="h-4 w-4 text-primary" />
+              <CardTitle>Executor Leases</CardTitle>
+            </div>
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={() => executors.refetch()}
+            >
+              <RefreshCw className="h-4 w-4" />
+              Refresh
+            </Button>
+          </CardHeader>
+          <CardBody>
+            <ExecutorLeaseList leases={leases} />
+          </CardBody>
+        </Card>
+        <Card>
+          <CardHeader>
+            <div className="flex items-center gap-2">
+              <Cpu className="h-4 w-4 text-primary" />
+              <CardTitle>Registry</CardTitle>
+            </div>
+            <Badge tone={capabilities.data?.features.includes("executor_registry") ? "ok" : "neutral"}>
+              {stringValue(config.strategy ?? "shared")}
+            </Badge>
+          </CardHeader>
+          <CardBody className="grid gap-3">
+            <ProfileJson label="Config" value={config} />
+            <ProfileJson label="Counts" value={counts} />
+          </CardBody>
+        </Card>
+      </div>
+    </Page>
+  );
+}
+
+function ExecutorLeaseList({ leases }: { leases: ExecutorLease[] }) {
+  if (!leases.length) {
+    return <EmptyState title="No executor leases" />;
+  }
+  return (
+    <div className="grid gap-2">
+      {leases.map((lease) => (
+        <div
+          key={lease.executor_id}
+          className="grid gap-3 rounded-md border border-border p-3 lg:grid-cols-[220px_120px_minmax(0,1fr)_160px]"
+        >
+          <div className="min-w-0">
+            <div className="truncate font-mono text-xs">
+              {lease.executor_id}
+            </div>
+            <Link
+              className="mt-1 block truncate text-sm text-primary"
+              to="/runs/$runId"
+              params={{ runId: lease.run_id }}
+            >
+              {lease.run_id}
+            </Link>
+          </div>
+          <div className="grid content-start gap-1">
+            <StatusBadge status={lease.status} />
+            <Badge tone="neutral">{lease.strategy}</Badge>
+          </div>
+          <div className="min-w-0 text-sm text-muted-foreground">
+            <div className="truncate">{lease.base_url ?? "-"}</div>
+            <div className="mt-1 truncate">{lease.workspace ?? "-"}</div>
+            {lease.last_error ? (
+              <div className="mt-1 text-destructive">{lease.last_error}</div>
+            ) : null}
+          </div>
+          <div className="grid content-start gap-1 text-xs text-muted-foreground">
+            <div>pid {lease.pid ?? "-"}</div>
+            <div>port {lease.port ?? "-"}</div>
+            <div>{timeAgo(lease.heartbeat_at ?? lease.started_at)}</div>
+          </div>
+        </div>
+      ))}
+    </div>
   );
 }
 
@@ -1129,9 +1268,41 @@ function ProfilesPage() {
 }
 
 function AccessPage() {
+  const queryClient = useQueryClient();
+  const [projectId, setProjectId] = useState("default");
+  const [projectName, setProjectName] = useState("Default");
+  const [tokenName, setTokenName] = useState("operator-token");
+  const [createdToken, setCreatedToken] = useState<string | null>(null);
   const policy = useQuery({
     queryKey: ["access", "policy"],
     queryFn: runtimeApi.accessPolicy,
+  });
+  const projects = useQuery({
+    queryKey: ["access", "projects"],
+    queryFn: runtimeApi.accessProjects,
+  });
+  const tokens = useQuery({
+    queryKey: ["access", "tokens"],
+    queryFn: runtimeApi.apiTokens,
+  });
+  const createProject = useMutation({
+    mutationFn: runtimeApi.createAccessProject,
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["access"] });
+    },
+  });
+  const createToken = useMutation({
+    mutationFn: runtimeApi.createApiToken,
+    onSuccess: async (token) => {
+      setCreatedToken(token.token ?? null);
+      await queryClient.invalidateQueries({ queryKey: ["access"] });
+    },
+  });
+  const revokeToken = useMutation({
+    mutationFn: runtimeApi.revokeApiToken,
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["access"] });
+    },
   });
   const principal = policy.data?.current_principal;
   return (
@@ -1212,7 +1383,171 @@ function AccessPage() {
           ))}
         </CardBody>
       </Card>
+      <div className="grid gap-4 xl:grid-cols-2">
+        <Card>
+          <CardHeader>
+            <div className="flex items-center gap-2">
+              <Users className="h-4 w-4 text-primary" />
+              <CardTitle>Projects</CardTitle>
+            </div>
+            <Badge tone="neutral">{projects.data?.projects.length ?? 0}</Badge>
+          </CardHeader>
+          <CardBody className="grid gap-4">
+            <div className="grid gap-3 md:grid-cols-[1fr_1fr_auto]">
+              <Field label="Project ID">
+                <Input
+                  value={projectId}
+                  onChange={(event) => setProjectId(event.target.value)}
+                />
+              </Field>
+              <Field label="Display name">
+                <Input
+                  value={projectName}
+                  onChange={(event) => setProjectName(event.target.value)}
+                />
+              </Field>
+              <Button
+                className="self-end"
+                disabled={createProject.isPending}
+                onClick={() =>
+                  createProject.mutate({
+                    project_id: projectId,
+                    display_name: projectName,
+                  })
+                }
+              >
+                <Save className="h-4 w-4" />
+                Create
+              </Button>
+            </div>
+            <AccessProjectList projects={projects.data?.projects ?? policy.data?.projects ?? []} />
+          </CardBody>
+        </Card>
+        <Card>
+          <CardHeader>
+            <div className="flex items-center gap-2">
+              <KeyRound className="h-4 w-4 text-primary" />
+              <CardTitle>API Tokens</CardTitle>
+            </div>
+            <Badge tone="neutral">{tokens.data?.tokens.length ?? 0}</Badge>
+          </CardHeader>
+          <CardBody className="grid gap-4">
+            <div className="grid gap-3 md:grid-cols-[1fr_1fr_auto]">
+              <Field label="Token name">
+                <Input
+                  value={tokenName}
+                  onChange={(event) => setTokenName(event.target.value)}
+                />
+              </Field>
+              <Field label="Project ID">
+                <Input
+                  value={projectId}
+                  onChange={(event) => setProjectId(event.target.value)}
+                />
+              </Field>
+              <Button
+                className="self-end"
+                disabled={createToken.isPending}
+                onClick={() =>
+                  createToken.mutate({
+                    name: tokenName,
+                    project_id: projectId || undefined,
+                  })
+                }
+              >
+                <KeyRound className="h-4 w-4" />
+                Create
+              </Button>
+            </div>
+            {createdToken ? (
+              <div className="rounded-md border border-warning/40 bg-warning/10 p-3">
+                <div className="text-sm font-medium">New token</div>
+                <div className="mt-2 break-words font-mono text-xs">
+                  {createdToken}
+                </div>
+              </div>
+            ) : null}
+            <ApiTokenList
+              tokens={tokens.data?.tokens ?? policy.data?.tokens ?? []}
+              onRevoke={(tokenId) => revokeToken.mutate(tokenId)}
+            />
+          </CardBody>
+        </Card>
+      </div>
     </Page>
+  );
+}
+
+function AccessProjectList({ projects }: { projects: AccessProject[] }) {
+  if (!projects.length) {
+    return <EmptyState title="No projects" />;
+  }
+  return (
+    <div className="grid gap-2">
+      {projects.map((project) => (
+        <div
+          key={project.project_id}
+          className="rounded-md border border-border p-3"
+        >
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <div className="font-medium">{project.display_name}</div>
+              <div className="mt-1 font-mono text-xs text-muted-foreground">
+                {project.project_id}
+              </div>
+            </div>
+            <StatusBadge status={project.status} />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function ApiTokenList({
+  tokens,
+  onRevoke,
+}: {
+  tokens: ApiToken[];
+  onRevoke: (tokenId: string) => void;
+}) {
+  if (!tokens.length) {
+    return <EmptyState title="No API tokens" />;
+  }
+  return (
+    <div className="grid gap-2">
+      {tokens.map((token) => (
+        <div
+          key={token.token_id}
+          className="grid gap-3 rounded-md border border-border p-3 md:grid-cols-[minmax(0,1fr)_auto]"
+        >
+          <div className="min-w-0">
+            <div className="flex items-center gap-2">
+              <span className="truncate font-medium">{token.name}</span>
+              <StatusBadge status={token.status} />
+            </div>
+            <div className="mt-1 font-mono text-xs text-muted-foreground">
+              {token.token_id} / {token.token_prefix}
+            </div>
+            <div className="mt-2 flex flex-wrap gap-1">
+              {token.scopes.map((scope) => (
+                <Badge key={scope} tone="neutral">
+                  {scope}
+                </Badge>
+              ))}
+            </div>
+          </div>
+          <Button
+            disabled={token.status !== "active"}
+            size="sm"
+            variant="danger"
+            onClick={() => onRevoke(token.token_id)}
+          >
+            Revoke
+          </Button>
+        </div>
+      ))}
+    </div>
   );
 }
 
@@ -1371,6 +1706,10 @@ function OperationsPage() {
     queryFn: runtimeApi.backups,
   });
   const p5 = useQuery({ queryKey: ["p5"], queryFn: runtimeApi.p5Evaluations });
+  const cost = useQuery({
+    queryKey: ["cost"],
+    queryFn: runtimeApi.costStatus,
+  });
   const createBackup = useMutation({
     mutationFn: runtimeApi.createBackup,
     onSuccess: async () =>
@@ -1447,6 +1786,7 @@ function OperationsPage() {
         </Card>
       </div>
       <div className="grid gap-4 xl:grid-cols-2">
+        <CostBudgetPanel cost={cost.data} />
         <Card>
           <CardHeader>
             <CardTitle>P5 Evaluations</CardTitle>
@@ -1480,6 +1820,41 @@ function OperationsPage() {
         </Card>
       </div>
     </Page>
+  );
+}
+
+function CostBudgetPanel({ cost }: { cost?: CostStatus }) {
+  return (
+    <Card>
+      <CardHeader>
+        <div className="flex items-center gap-2">
+          <WalletCards className="h-4 w-4 text-primary" />
+          <CardTitle>Cost Budget</CardTitle>
+        </div>
+        <StatusBadge status={cost?.status ?? "loading"} />
+      </CardHeader>
+      <CardBody className="grid gap-3 md:grid-cols-3">
+        <Metric
+          label="Month"
+          value={cost?.month ?? "-"}
+          detail="UTC"
+        />
+        <Metric
+          label="Estimated"
+          value={money(cost?.monthly_estimated_cost_usd)}
+          detail={`${cost?.runs.length ?? 0} runs`}
+        />
+        <Metric
+          label="Budget"
+          value={money(cost?.monthly_budget_usd)}
+          detail={
+            cost?.warning_threshold_usd == null
+              ? "unconfigured"
+              : `warn at ${money(cost.warning_threshold_usd)}`
+          }
+        />
+      </CardBody>
+    </Card>
   );
 }
 
@@ -2296,6 +2671,21 @@ function compactJson(value: unknown) {
     return String(value ?? "");
   }
   return JSON.stringify(value, null, 2);
+}
+
+function registryValue(source: Record<string, unknown>, key: string) {
+  const value = source[key];
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return {};
+  }
+  return value as Record<string, unknown>;
+}
+
+function money(value?: number | null) {
+  if (value == null || !Number.isFinite(value)) {
+    return "$0.00";
+  }
+  return `$${value.toFixed(2)}`;
 }
 
 function stringValue(value: unknown) {

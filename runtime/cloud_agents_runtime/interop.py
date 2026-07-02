@@ -7,27 +7,40 @@ from .models import RunSpec
 
 
 JSONRPC_VERSION = "2.0"
+ACP_PROTOCOL_VERSION = "cloud-agents-acp-compat-2026-07"
+A2A_PROTOCOL_VERSION = "cloud-agents-a2a-compat-2026-07"
 
 
 def acp_capabilities(manager: Any) -> dict[str, Any]:
     return {
         "protocol": "acp-poc",
+        "protocol_version": ACP_PROTOCOL_VERSION,
         "transport": "json-rpc-over-http",
         "methods": [
             "initialize",
+            "capabilities.get",
             "run.create",
             "run.input",
             "run.status",
             "run.events",
             "run.artifacts",
+            "run.permissions",
             "run.cancel",
+            "executor.list",
             "mission.create",
             "mission.status",
             "mission.cancel",
             "mission.events",
             "mission.artifacts",
+            "access.policy",
+            "cost.status",
         ],
         "runtime_capabilities": manager.capabilities()["features"],
+        "event_stream": {
+            "transport": "server-sent-events",
+            "run_url": "/runs/{run_id}/events",
+            "resume": "Last-Event-ID",
+        },
     }
 
 
@@ -46,6 +59,8 @@ def handle_acp_jsonrpc(manager: Any, payload: dict[str, Any]) -> tuple[dict[str,
     try:
         if method == "initialize":
             result = acp_capabilities(manager)
+        elif method == "capabilities.get":
+            result = manager.capabilities()
         elif method == "run.create":
             run = manager.create_run(RunSpec.from_payload(params))
             result = run.to_dict()
@@ -73,10 +88,24 @@ def handle_acp_jsonrpc(manager: Any, payload: dict[str, Any]) -> tuple[dict[str,
         elif method == "run.artifacts":
             run_id = require_string(params, "run_id")
             result = {"run_id": run_id, "artifacts": manager.store.list_artifacts(run_id)}
+        elif method == "run.permissions":
+            run_id = require_string(params, "run_id")
+            last_sequence = optional_int(params.get("last_sequence"))
+            events = manager.store.events_since(run_id, last_sequence)
+            result = {
+                "run_id": run_id,
+                "permissions": [
+                    event.to_dict()
+                    for event in events
+                    if event.type.startswith("permission.")
+                ],
+            }
         elif method == "run.cancel":
             run_id = require_string(params, "run_id")
             manager.cancel(run_id, params.get("reason"))
             result = {"cancelled": True, "run_id": run_id}
+        elif method == "executor.list":
+            result = manager.executors()
         elif method == "mission.create":
             mission = manager.create_mission(params)
             result = mission
@@ -105,6 +134,10 @@ def handle_acp_jsonrpc(manager: Any, payload: dict[str, Any]) -> tuple[dict[str,
                 "mission_id": mission_id,
                 "artifacts": manager.store.list_mission_artifacts(mission_id),
             }
+        elif method == "access.policy":
+            result = manager.access_policy(None)
+        elif method == "cost.status":
+            result = manager.cost_status()
         else:
             return jsonrpc_error(request_id, -32601, "method not found"), HTTPStatus.NOT_FOUND
     except ValueError as exc:
@@ -116,15 +149,35 @@ def handle_acp_jsonrpc(manager: Any, payload: dict[str, Any]) -> tuple[dict[str,
 
 
 def a2a_agent_card(manager: Any, base_url: str) -> dict[str, Any]:
+    base = base_url.rstrip("/")
     return {
         "protocol": "a2a-poc",
+        "protocolVersion": A2A_PROTOCOL_VERSION,
         "name": "Cloud Agents Runtime",
         "description": "Mission/task gateway over durable SAEU runs.",
-        "url": base_url.rstrip("/"),
+        "url": base,
         "capabilities": {
             "streaming": True,
             "pushNotifications": False,
             "stateTransitionHistory": True,
+            "permissionRequests": True,
+            "executorIntrospection": True,
+        },
+        "securitySchemes": {
+            "bearer": {
+                "type": "http",
+                "scheme": "bearer",
+                "description": "Runtime bearer token or hashed API token.",
+            }
+        },
+        "endpoints": {
+            "tasks": f"{base}/a2a/tasks",
+            "task": f"{base}/a2a/tasks/{{task_id}}",
+            "task_events": f"{base}/a2a/tasks/{{task_id}}/events.json",
+            "task_artifacts": f"{base}/a2a/tasks/{{task_id}}/artifacts",
+            "acp": f"{base}/acp",
+            "executors": f"{base}/executors",
+            "cost": f"{base}/cost/status",
         },
         "defaultInputModes": ["text/plain", "application/json"],
         "defaultOutputModes": ["application/json", "text/markdown"],
@@ -138,6 +191,11 @@ def a2a_agent_card(manager: Any, base_url: str) -> dict[str, Any]:
                 "id": "single-run",
                 "name": "Single SAEU run",
                 "description": "Create and monitor a single stable Agent execution unit.",
+            },
+            {
+                "id": "executor-introspection",
+                "name": "Executor introspection",
+                "description": "Inspect per-run qwen executors and isolation state.",
             },
         ],
         "runtime_capabilities": manager.capabilities()["features"],

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hmac
 import json
 import sqlite3
 import threading
@@ -11,6 +12,8 @@ from typing import Any
 from .events import RuntimeEvent, TERMINAL_RUN_EVENTS, utc_now
 from .models import (
     AgentProfile,
+    AccessProject,
+    ApiToken,
     MissionEvent,
     MissionSpec,
     MissionState,
@@ -35,6 +38,8 @@ class RunStore:
         self._jobs: dict[str, RunJob] = {}
         self._workers: dict[str, WorkerState] = {}
         self._profiles: dict[tuple[str, int], AgentProfile] = builtin_profiles()
+        self._access_projects: dict[str, AccessProject] = {}
+        self._api_tokens: dict[str, ApiToken] = {}
         self._missions: dict[str, MissionState] = {}
         self._mission_tasks: dict[str, list[MissionTask]] = {}
         self._mission_events: dict[str, list[MissionEvent]] = {}
@@ -494,6 +499,81 @@ class RunStore:
                 reverse=True,
             )
 
+    def create_access_project(self, payload: dict[str, Any]) -> AccessProject:
+        with self._lock:
+            project = AccessProject.from_payload(payload)
+            if project.project_id in self._access_projects:
+                raise ValueError(f"project already exists: {project.project_id}")
+            self._access_projects[project.project_id] = project
+            self._persist_access_project(project)
+            return project
+
+    def ensure_access_project(
+        self,
+        project_id: str,
+        display_name: str | None = None,
+    ) -> AccessProject:
+        with self._lock:
+            existing = self._access_projects.get(project_id)
+            if existing:
+                return existing
+            project = AccessProject(
+                project_id=project_id,
+                display_name=display_name or project_id,
+                description="Default single-tenant project",
+            )
+            self._access_projects[project.project_id] = project
+            self._persist_access_project(project)
+            return project
+
+    def list_access_projects(self) -> list[AccessProject]:
+        with self._lock:
+            return sorted(
+                self._access_projects.values(),
+                key=lambda project: (project.status != "active", project.project_id),
+            )
+
+    def create_api_token(self, token: ApiToken) -> ApiToken:
+        with self._lock:
+            if token.token_id in self._api_tokens:
+                raise ValueError(f"token already exists: {token.token_id}")
+            if token.project_id and token.project_id not in self._access_projects:
+                raise ValueError(f"project not found: {token.project_id}")
+            self._api_tokens[token.token_id] = token
+            self._persist_api_token(token)
+            return token
+
+    def list_api_tokens(self) -> list[ApiToken]:
+        with self._lock:
+            return sorted(
+                self._api_tokens.values(),
+                key=lambda token: (token.status != "active", token.created_at, token.token_id),
+            )
+
+    def revoke_api_token(self, token_id: str) -> ApiToken:
+        with self._lock:
+            token = self._api_tokens.get(token_id)
+            if token is None:
+                raise KeyError(token_id)
+            token.status = "revoked"
+            token.revoked_at = utc_now()
+            token.updated_at = token.revoked_at
+            self._persist_api_token(token)
+            return token
+
+    def find_api_token_by_hash(self, token_hash: str) -> ApiToken | None:
+        with self._lock:
+            for token in self._api_tokens.values():
+                if token.status == "active" and hmac.compare_digest(
+                    token.token_hash,
+                    token_hash,
+                ):
+                    token.last_used_at = utc_now()
+                    token.updated_at = token.last_used_at
+                    self._persist_api_token(token)
+                    return token
+            return None
+
     def update_status(self, run_id: str, status: str) -> None:
         with self._lock:
             run = self._require_run(run_id)
@@ -792,6 +872,30 @@ class RunStore:
               metadata_json text not null,
               updated_at text not null
             );
+            create table if not exists access_projects (
+              project_id text primary key,
+              display_name text not null,
+              description text not null,
+              status text not null,
+              metadata_json text not null,
+              created_at text not null,
+              updated_at text not null
+            );
+            create table if not exists api_tokens (
+              token_id text primary key,
+              name text not null,
+              principal_id text not null,
+              project_id text,
+              scopes_json text not null,
+              status text not null,
+              token_prefix text not null,
+              token_hash text not null,
+              created_at text not null,
+              updated_at text not null,
+              revoked_at text,
+              last_used_at text,
+              metadata_json text not null
+            );
             create table if not exists agent_profiles (
               profile_id text not null,
               version integer not null,
@@ -925,6 +1029,32 @@ class RunStore:
                     last_error=row["last_error"],
                     metadata=json.loads(row["metadata_json"]),
                     updated_at=row["updated_at"],
+                )
+            for row in self._db.execute("select * from access_projects order by project_id"):
+                self._access_projects[row["project_id"]] = AccessProject(
+                    project_id=row["project_id"],
+                    display_name=row["display_name"],
+                    description=row["description"],
+                    status=row["status"],
+                    metadata=json.loads(row["metadata_json"]),
+                    created_at=row["created_at"],
+                    updated_at=row["updated_at"],
+                )
+            for row in self._db.execute("select * from api_tokens order by created_at"):
+                self._api_tokens[row["token_id"]] = ApiToken(
+                    token_id=row["token_id"],
+                    name=row["name"],
+                    principal_id=row["principal_id"],
+                    project_id=row["project_id"],
+                    scopes=json.loads(row["scopes_json"]),
+                    status=row["status"],
+                    token_prefix=row["token_prefix"],
+                    token_hash=row["token_hash"],
+                    created_at=row["created_at"],
+                    updated_at=row["updated_at"],
+                    revoked_at=row["revoked_at"],
+                    last_used_at=row["last_used_at"],
+                    metadata=json.loads(row["metadata_json"]),
                 )
             for row in self._db.execute("select * from missions order by created_at"):
                 spec = MissionSpec.from_payload(json.loads(row["spec_json"]))
@@ -1108,6 +1238,71 @@ class RunStore:
                 lease.last_error,
                 json.dumps(lease.metadata, ensure_ascii=False, sort_keys=True),
                 lease.updated_at,
+            ),
+        )
+        self._db.commit()
+
+    def _persist_access_project(self, project: AccessProject) -> None:
+        self._db.execute(
+            """
+            insert into access_projects(
+              project_id, display_name, description, status, metadata_json,
+              created_at, updated_at
+            ) values (?, ?, ?, ?, ?, ?, ?)
+            on conflict(project_id) do update set
+              display_name=excluded.display_name,
+              description=excluded.description,
+              status=excluded.status,
+              metadata_json=excluded.metadata_json,
+              updated_at=excluded.updated_at
+            """,
+            (
+                project.project_id,
+                project.display_name,
+                project.description,
+                project.status,
+                json.dumps(project.metadata, ensure_ascii=False, sort_keys=True),
+                project.created_at,
+                project.updated_at,
+            ),
+        )
+        self._db.commit()
+
+    def _persist_api_token(self, token: ApiToken) -> None:
+        self._db.execute(
+            """
+            insert into api_tokens(
+              token_id, name, principal_id, project_id, scopes_json, status,
+              token_prefix, token_hash, created_at, updated_at, revoked_at,
+              last_used_at, metadata_json
+            ) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            on conflict(token_id) do update set
+              name=excluded.name,
+              principal_id=excluded.principal_id,
+              project_id=excluded.project_id,
+              scopes_json=excluded.scopes_json,
+              status=excluded.status,
+              token_prefix=excluded.token_prefix,
+              token_hash=excluded.token_hash,
+              updated_at=excluded.updated_at,
+              revoked_at=excluded.revoked_at,
+              last_used_at=excluded.last_used_at,
+              metadata_json=excluded.metadata_json
+            """,
+            (
+                token.token_id,
+                token.name,
+                token.principal_id,
+                token.project_id,
+                json.dumps(token.scopes, ensure_ascii=False, sort_keys=True),
+                token.status,
+                token.token_prefix,
+                token.token_hash,
+                token.created_at,
+                token.updated_at,
+                token.revoked_at,
+                token.last_used_at,
+                json.dumps(token.metadata, ensure_ascii=False, sort_keys=True),
             ),
         )
         self._db.commit()
