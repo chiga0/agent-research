@@ -443,6 +443,33 @@ qwen serve 已有：
 - 默认巡检不创建真实任务，避免监控污染任务队列；需要完整 runner 验证时通过
   workflow_dispatch 的 `deep_run` 或本地 `--deep-run` 手动触发。
 
+## 2026-07-02 Qwen Per-run + Lightweight Mission 实机验收
+
+### 验收配置
+
+- GitHub Actions run：`Deploy Runtime` workflow_dispatch `28590700911`。
+- 部署 revision：`8ab6b2a28050d25d13de5b52aa17cd66f35a95c8`。
+- executor strategy：`per_run_process`。
+- qwen acceptance：`validate_qwen=true`、`qwen_validate_mission=true`、`qwen_mission_task_count=1`、timeout `1200s`。
+- 部署后 Runtime Monitor：workflow_run `28591480294` 成功。
+
+### 验收结果
+
+- `per_run_process` 单 run 成功完成，executor lifecycle 包含 `executor.starting`、`executor.acquired`、`executor.released`。
+- 单 run artifact 包含 `events.jsonl`、`raw_events.jsonl`、`diagnostics.json`、`cost.json`、`executor.json`、stdout/stderr、permission request/resolution、`workspace.json`。
+- 单 run executor 使用 `qwen serve --hostname 127.0.0.1 --port 4210`，状态 `released`，exit code `0`，workspace 为 per-run isolated workspace。
+- 轻量 qwen mission `mission_a2625eb5f8e542a9817b546d73ae2adc` 完成 `1/1` task。
+- Mission events 包含 `mission.created`、`task.created`、`mission.started`、`task.queued`、`task.run_created`、`task.running`、`task.completed`、`mission.completed`。
+- Mission artifact 包含 `events.jsonl`、`final_report.md`、`mission_manifest.json`、`mission_spec.json`、`task_inspect.json`。
+
+### 审计结论
+
+- 单 SAEU 的 per-run qwen process 隔离已经具备真实可用性：可启动、可审计、可释放、可下载 executor artifacts。
+- 轻量 mission 证明 “Supervisor -> task -> SAEU run -> artifact -> mission completion” 的真实 qwen 链路可跑通。
+- 真实 qwen acceptance 仍然是分钟级深验收，不应放入默认 push 路径；当前只通过 workflow_dispatch 开启是正确边界。
+- `mission_task_count=1` 适合小 VPS 的 smoke；`mission_task_count=2` 可验证 dependency handoff；更高任务数需要单独预算时间、内存和 qwen 配额。
+- 下一项硬风险仍是 `container` executor：需要用 `qwen_container_build=true` 或真实 image 验证 Docker/cgroup/network、credential mount 和 cleanup。
+
 ## Go / No-Go 决策
 
 ### Go

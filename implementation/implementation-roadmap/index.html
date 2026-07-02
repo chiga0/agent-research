@@ -1430,9 +1430,9 @@
 <h2 id="_4">当前优先级<a class="headerlink" href="#_4" title="Permanent link">&para;</a></h2>
 <p>近期主线：</p>
 <ol>
-<li>在 VPS 上验收 React 管理台：run、mission、permission、artifact、backup、drill。</li>
-<li>用真实 qwen serve 跑一次单 run 和一次 mission，确认 qwen settings、日志下载和 permission stalled audit 可用。</li>
-<li>决定 P7 是否优先做多租户/团队权限，还是先做远程 worker/container sandbox。</li>
+<li><code>done</code>：在 VPS 上验收 React 管理台、部署后公网 Monitor、fake smoke。</li>
+<li><code>done</code>：用真实 qwen + <code>per_run_process</code> 跑通单 run 和 <code>mission_task_count=1</code> 轻量 mission。</li>
+<li>下一步：在 VPS 上用 <code>container</code> strategy + <code>qwen_container_build=true</code> 做 Docker/cgroup/network 实机验收。</li>
 <li>决定 ACP/A2A POC 是否升级到官方完整协议实现或 SDK。</li>
 <li>决定是否引入 model proxy 做预算、token、provider audit。</li>
 </ol>
@@ -1542,7 +1542,7 @@
 </li>
 <li>
 <ol>
-<li>真实 VPS/qwen 验收：<code>scripts/validate_qwen_mission.py</code> 已支持 <code>--validate-single-run</code>、<code>--expect-executor-strategy</code> 和 <code>--mission-task-count</code>；默认手动验收优先验证单 SAEU，mission 验收可用 1-2 个轻量任务控制小 VPS 成本。</li>
+<li>真实 VPS/qwen 验收：<code>scripts/validate_qwen_mission.py</code> 已支持 <code>--validate-single-run</code>、<code>--expect-executor-strategy</code> 和 <code>--mission-task-count</code>；2026-07-02 已用 <code>per_run_process</code>、<code>validate_qwen=true</code>、<code>qwen_validate_mission=true</code>、<code>qwen_mission_task_count=1</code> 跑通真实单 run + 轻量 mission。</li>
 </ol>
 </li>
 <li>

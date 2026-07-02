@@ -1189,6 +1189,32 @@ qwen 第一实现: qwen serve HTTP/SSE + ACP bridge，后续优先 `/acp` Stream
 <li>默认巡检不创建真实任务，避免监控污染任务队列；需要完整 runner 验证时通过
   workflow_dispatch 的 <code>deep_run</code> 或本地 <code>--deep-run</code> 手动触发。</li>
 </ul>
+<h2 id="2026-07-02-qwen-per-run-lightweight-mission">2026-07-02 Qwen Per-run + Lightweight Mission 实机验收<a class="headerlink" href="#2026-07-02-qwen-per-run-lightweight-mission" title="Permanent link">&para;</a></h2>
+<h3 id="_43">验收配置<a class="headerlink" href="#_43" title="Permanent link">&para;</a></h3>
+<ul>
+<li>GitHub Actions run：<code>Deploy Runtime</code> workflow_dispatch <code>28590700911</code>。</li>
+<li>部署 revision：<code>8ab6b2a28050d25d13de5b52aa17cd66f35a95c8</code>。</li>
+<li>executor strategy：<code>per_run_process</code>。</li>
+<li>qwen acceptance：<code>validate_qwen=true</code>、<code>qwen_validate_mission=true</code>、<code>qwen_mission_task_count=1</code>、timeout <code>1200s</code>。</li>
+<li>部署后 Runtime Monitor：workflow_run <code>28591480294</code> 成功。</li>
+</ul>
+<h3 id="_44">验收结果<a class="headerlink" href="#_44" title="Permanent link">&para;</a></h3>
+<ul>
+<li><code>per_run_process</code> 单 run 成功完成，executor lifecycle 包含 <code>executor.starting</code>、<code>executor.acquired</code>、<code>executor.released</code>。</li>
+<li>单 run artifact 包含 <code>events.jsonl</code>、<code>raw_events.jsonl</code>、<code>diagnostics.json</code>、<code>cost.json</code>、<code>executor.json</code>、stdout/stderr、permission request/resolution、<code>workspace.json</code>。</li>
+<li>单 run executor 使用 <code>qwen serve --hostname 127.0.0.1 --port 4210</code>，状态 <code>released</code>，exit code <code>0</code>，workspace 为 per-run isolated workspace。</li>
+<li>轻量 qwen mission <code>mission_a2625eb5f8e542a9817b546d73ae2adc</code> 完成 <code>1/1</code> task。</li>
+<li>Mission events 包含 <code>mission.created</code>、<code>task.created</code>、<code>mission.started</code>、<code>task.queued</code>、<code>task.run_created</code>、<code>task.running</code>、<code>task.completed</code>、<code>mission.completed</code>。</li>
+<li>Mission artifact 包含 <code>events.jsonl</code>、<code>final_report.md</code>、<code>mission_manifest.json</code>、<code>mission_spec.json</code>、<code>task_inspect.json</code>。</li>
+</ul>
+<h3 id="_45">审计结论<a class="headerlink" href="#_45" title="Permanent link">&para;</a></h3>
+<ul>
+<li>单 SAEU 的 per-run qwen process 隔离已经具备真实可用性：可启动、可审计、可释放、可下载 executor artifacts。</li>
+<li>轻量 mission 证明 “Supervisor -&gt; task -&gt; SAEU run -&gt; artifact -&gt; mission completion” 的真实 qwen 链路可跑通。</li>
+<li>真实 qwen acceptance 仍然是分钟级深验收，不应放入默认 push 路径；当前只通过 workflow_dispatch 开启是正确边界。</li>
+<li><code>mission_task_count=1</code> 适合小 VPS 的 smoke；<code>mission_task_count=2</code> 可验证 dependency handoff；更高任务数需要单独预算时间、内存和 qwen 配额。</li>
+<li>下一项硬风险仍是 <code>container</code> executor：需要用 <code>qwen_container_build=true</code> 或真实 image 验证 Docker/cgroup/network、credential mount 和 cleanup。</li>
+</ul>
 <h2 id="go-no-go">Go / No-Go 决策<a class="headerlink" href="#go-no-go" title="Permanent link">&para;</a></h2>
 <h3 id="go">Go<a class="headerlink" href="#go" title="Permanent link">&para;</a></h3>
 <ul>
@@ -1210,7 +1236,7 @@ qwen 第一实现: qwen serve HTTP/SSE + ACP bridge，后续优先 `/acp` Stream
 <li>把所有 SubAgent 都强制拆成独立 daemon。</li>
 <li>从头实现 coding agent core。</li>
 </ul>
-<h2 id="_43">最终可实施判断<a class="headerlink" href="#_43" title="Permanent link">&para;</a></h2>
+<h2 id="_46">最终可实施判断<a class="headerlink" href="#_46" title="Permanent link">&para;</a></h2>
 <p>方案可行，且适合 1-2 台 VPS 起步。推荐第一阶段只实现一个 qwen serve SAEU adapter，把审计、权限、事件、artifact 和恢复做扎实；第二阶段再抽象 ACP-compatible runtime adapter；第三阶段再做常驻 Supervisor + SubAgent + SAEU 的多 Agent 编排。</p>
 <p>只要不跳过单 Agent 单元稳定性，多 Agent 编排不会建立在松散 CLI 进程上，而是建立在可管理、可恢复、可审计的执行单元上。</p>
   </div>
@@ -1851,6 +1877,34 @@ qwen 第一实现: qwen serve HTTP/SSE + ACP bridge，后续优先 `/acp` Stream
         
 
         
+        <a href="#2026-07-02-qwen-per-run-lightweight-mission"
+            class="text-muted-foreground hover:text-foreground data-[active=true]:text-foreground text-[0.8rem] no-underline transition-colors data-[depth=3]:pl-4 data-[depth=4]:pl-6"
+            data-active="false" data-depth="2" onClick="deferSetActiveTocLink('#2026-07-02-qwen-per-run-lightweight-mission');">
+            2026-07-02 Qwen Per-run + Lightweight Mission 实机验收
+        </a>
+        
+        
+        <a href="#_43"
+            class="text-muted-foreground hover:text-foreground data-[active=true]:text-foreground text-[0.8rem] no-underline transition-colors data-[depth=3]:pl-4 data-[depth=4]:pl-6"
+            data-active="false" data-depth="3" onClick="deferSetActiveTocLink('#_43');">
+            验收配置
+        </a>
+        
+        <a href="#_44"
+            class="text-muted-foreground hover:text-foreground data-[active=true]:text-foreground text-[0.8rem] no-underline transition-colors data-[depth=3]:pl-4 data-[depth=4]:pl-6"
+            data-active="false" data-depth="3" onClick="deferSetActiveTocLink('#_44');">
+            验收结果
+        </a>
+        
+        <a href="#_45"
+            class="text-muted-foreground hover:text-foreground data-[active=true]:text-foreground text-[0.8rem] no-underline transition-colors data-[depth=3]:pl-4 data-[depth=4]:pl-6"
+            data-active="false" data-depth="3" onClick="deferSetActiveTocLink('#_45');">
+            审计结论
+        </a>
+        
+        
+
+        
         <a href="#go-no-go"
             class="text-muted-foreground hover:text-foreground data-[active=true]:text-foreground text-[0.8rem] no-underline transition-colors data-[depth=3]:pl-4 data-[depth=4]:pl-6"
             data-active="false" data-depth="2" onClick="deferSetActiveTocLink('#go-no-go');">
@@ -1873,9 +1927,9 @@ qwen 第一实现: qwen serve HTTP/SSE + ACP bridge，后续优先 `/acp` Stream
         
 
         
-        <a href="#_43"
+        <a href="#_46"
             class="text-muted-foreground hover:text-foreground data-[active=true]:text-foreground text-[0.8rem] no-underline transition-colors data-[depth=3]:pl-4 data-[depth=4]:pl-6"
-            data-active="false" data-depth="2" onClick="deferSetActiveTocLink('#_43');">
+            data-active="false" data-depth="2" onClick="deferSetActiveTocLink('#_46');">
             最终可实施判断
         </a>
         

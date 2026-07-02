@@ -299,9 +299,9 @@ P4 剩余风险：
 
 近期主线：
 
-1. 在 VPS 上验收 React 管理台：run、mission、permission、artifact、backup、drill。
-2. 用真实 qwen serve 跑一次单 run 和一次 mission，确认 qwen settings、日志下载和 permission stalled audit 可用。
-3. 决定 P7 是否优先做多租户/团队权限，还是先做远程 worker/container sandbox。
+1. `done`：在 VPS 上验收 React 管理台、部署后公网 Monitor、fake smoke。
+2. `done`：用真实 qwen + `per_run_process` 跑通单 run 和 `mission_task_count=1` 轻量 mission。
+3. 下一步：在 VPS 上用 `container` strategy + `qwen_container_build=true` 做 Docker/cgroup/network 实机验收。
 4. 决定 ACP/A2A POC 是否升级到官方完整协议实现或 SDK。
 5. 决定是否引入 model proxy 做预算、token、provider audit。
 
@@ -353,7 +353,7 @@ Executor isolation 决策：
 P7 当前判断：
 
 - 1. CI 状态：`Runtime CI`、`Deploy MkDocs`、`Deploy Runtime` 和部署后 `Runtime Monitor` 已可通过 `gh` 查询；最新 push 全绿。
-- 2. 真实 VPS/qwen 验收：`scripts/validate_qwen_mission.py` 已支持 `--validate-single-run`、`--expect-executor-strategy` 和 `--mission-task-count`；默认手动验收优先验证单 SAEU，mission 验收可用 1-2 个轻量任务控制小 VPS 成本。
+- 2. 真实 VPS/qwen 验收：`scripts/validate_qwen_mission.py` 已支持 `--validate-single-run`、`--expect-executor-strategy` 和 `--mission-task-count`；2026-07-02 已用 `per_run_process`、`validate_qwen=true`、`qwen_validate_mission=true`、`qwen_mission_task_count=1` 跑通真实单 run + 轻量 mission。
 - 3. Container worker：默认 Docker 命令生成、可选本地镜像构建、VPS Docker 安装/启动、`cloudagents` docker group、`.qwen/settings.json` 只读挂载和审计 metadata 已落地；实机部署需要真实镜像或 `QWEN_CONTAINER_BUILD=1`。
 - 4. Executor UI：`/executors` 页面可排查 lease、pid、port、workspace、strategy、失败原因。
 - 5. IAM/API token：当前是单租户 foundation，可管理 project 和 API token，token 只保存 hash。
