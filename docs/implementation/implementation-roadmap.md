@@ -301,7 +301,7 @@ P4 剩余风险：
 
 1. `done`：在 VPS 上验收 React 管理台、部署后公网 Monitor、fake smoke。
 2. `done`：用真实 qwen + `per_run_process` 跑通单 run 和 `mission_task_count=1` 轻量 mission。
-3. `in_progress`：在 VPS 上用 `container` strategy + `qwen_container_build=true` 做 Docker/cgroup/network 实机验收；第一轮 run `28592133076` 已通过部署、镜像构建和 fake smoke，但 qwen deep acceptance 在容器启动阶段失败，已补失败 artifact 诊断和 token 不落 argv，下一步重跑 container workflow。
+3. `in_progress`：在 VPS 上用 `container` strategy + `qwen_container_build=true` 做 Docker/cgroup/network 实机验收；第一轮 run `28592133076` 暴露诊断不足和 Docker argv token 风险，第二轮 run `28593133445` 证明 qwen 容器已启动监听但 readiness probe 被瞬时 reset 误杀；已补 health auth、reset retry 和单测，下一步第三轮重跑 container workflow。
 4. 决定 ACP/A2A POC 是否升级到官方完整协议实现或 SDK。
 5. 决定是否引入 model proxy 做预算、token、provider audit。
 
@@ -348,14 +348,14 @@ Executor isolation 决策：
   - `QWEN_CONTAINER_COMMAND` 自定义命令模板。
   - `QWEN_CONTAINER_IMAGE` 默认 Docker foreground worker，自动注入 `--cpus`、`--memory`、`--pids-limit`、端口映射、workspace mount、qwen token env 名称，并在 VPS deploy 时把宿主 `.qwen/settings.json` 凭据只读挂进容器。
 - `Deploy Runtime` workflow_dispatch 已支持选择 executor strategy、container image/local build、container resource limit，并可打开真实 qwen single-run + bounded mission acceptance。
-- Container 第一轮实机验收 run `28592133076` 已证明部署脚本、Docker build、service reload 和 fake smoke 可用；qwen single-run 在 container executor 启动后 `Connection reset by peer`，当前已补 stdout/stderr artifact 诊断和 Docker token 不落 argv，下一步重跑以定位 qwen 容器内退出原因。
+- Container 第一轮实机验收 run `28592133076` 已证明部署脚本、Docker build、service reload 和 fake smoke 可用，并暴露诊断不足和 token argv 风险；第二轮实机验收 run `28593133445` 通过新增 artifact 证明容器内 `qwen serve` 已启动监听，失败点收敛为 runtime readiness probe 对瞬时 TCP reset 的误判；当前已补 health auth、reset retry 和回归测试，下一步第三轮重跑真实 Docker image 验收。
 - 下一步仍必须在 VPS 上用真实镜像或 `qwen_container_build=true` 做到 Docker/cgroup/network qwen acceptance 验收通过；当前自动 push 部署仍保持 shared strategy 以降低生产风险。
 
 P7 当前判断：
 
 - 1. CI 状态：`Runtime CI`、`Deploy MkDocs`、`Deploy Runtime` 和部署后 `Runtime Monitor` 已可通过 `gh` 查询；最新 push 全绿。
 - 2. 真实 VPS/qwen 验收：`scripts/validate_qwen_mission.py` 已支持 `--validate-single-run`、`--expect-executor-strategy` 和 `--mission-task-count`；2026-07-02 已用 `per_run_process`、`validate_qwen=true`、`qwen_validate_mission=true`、`qwen_mission_task_count=1` 跑通真实单 run + 轻量 mission。
-- 3. Container worker：默认 Docker 命令生成、可选本地镜像构建、VPS Docker 安装/启动、`cloudagents` docker group、`.qwen/settings.json` 只读挂载和审计 metadata 已落地；第一轮实机 container qwen acceptance 未通过，已补失败 artifact 诊断，下一步重跑并根据 stderr 修容器用户/home/settings 挂载策略。
+- 3. Container worker：默认 Docker 命令生成、可选本地镜像构建、VPS Docker 安装/启动、`cloudagents` docker group、`.qwen/settings.json` 只读挂载和审计 metadata 已落地；第二轮实机 container qwen acceptance 证明 qwen 容器已启动监听，当前修复 readiness auth/reset retry 后需要第三轮验收确认 qwen single-run 可完成。
 - 4. Executor UI：`/executors` 页面可排查 lease、pid、port、workspace、strategy、失败原因。
 - 5. IAM/API token：当前是单租户 foundation，可管理 project 和 API token，token 只保存 hash。
 - 6. Cost governance：当前是估算预算 foundation，后续可替换为 model proxy/provider billing ledger。

@@ -296,19 +296,23 @@ class ExecutorRegistry:
     ) -> None:
         deadline = time.monotonic() + self.config.startup_timeout_seconds
         last_error: Exception | None = None
+        health_url = f"{lease.base_url}/health"
         while time.monotonic() < deadline:
             exit_code = process.poll()
             if exit_code is not None:
                 raise RuntimeError(f"executor exited early with code {exit_code}")
             try:
-                with urllib.request.urlopen(f"{lease.base_url}/health", timeout=1) as response:
+                request = urllib.request.Request(health_url)
+                if lease.token:
+                    request.add_header("authorization", f"Bearer {lease.token}")
+                with urllib.request.urlopen(request, timeout=1) as response:
                     if response.status < 500:
                         return
             except urllib.error.HTTPError as exc:
                 if exc.code < 500:
                     return
                 last_error = exc
-            except (urllib.error.URLError, TimeoutError) as exc:
+            except (urllib.error.URLError, TimeoutError, OSError) as exc:
                 last_error = exc
             time.sleep(0.2)
         raise RuntimeError(f"executor did not become healthy: {last_error}")

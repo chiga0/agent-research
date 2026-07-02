@@ -509,6 +509,43 @@ qwen serve 已有：
 - 下一轮必须基于新增 artifact 诊断重跑 container workflow，并按 stderr 决定是否调整容器用户、`HOME`/`.qwen` 挂载、settings 可写性、`QWEN_*` env 或 image 依赖。
 - 在 container qwen acceptance 通过前，默认 push 部署继续保持 shared/per-run 稳定路径，不把 container strategy 作为公网默认运行形态。
 
+## 2026-07-02 Container Executor 第二轮实机验收与 readiness 修复
+
+### 验收配置
+
+- GitHub Actions run：`Deploy Runtime` workflow_dispatch `28593133445`。
+- executor strategy：`container`。
+- container image：`qwen_container_build=true`，base image `node:22-bookworm-slim`，local tag `cloud-agents-qwen:local`。
+- resource limit：`cpus=1`、`memory_mb=1024`、`pids=512`。
+- qwen acceptance：`validate_qwen=true`、`qwen_validate_mission=false`、timeout `1200s`。
+
+### 验收结果
+
+- CI、Docker image build、VPS deploy、systemd service reload、runtime health 和 fake smoke 均通过。
+- qwen single-run `run_bbcffecd56af40848302f32e35e032fa` 失败，最终错误仍为 `[Errno 104] Connection reset by peer`。
+- 新增诊断证明容器内 `qwen serve` 已经启动并监听：
+  - `executor.stdout.log` 输出 `qwen serve listening on http://0.0.0.0:4211`。
+  - `executor.stderr.log` 显示 workspace 绑定到 per-run workspace，`processToListenMs=1488`、`runQwenServeToListenMs=114`，并启用 `/acp WebSocket transport`。
+  - `executor.json` 中 Docker argv 仅包含 `-e QWEN_SERVER_TOKEN -e QWEN_SERVE_TOKEN`，未暴露 token 值。
+
+### 根因判断
+
+- 失败点已经从“qwen 容器是否能启动”收敛到 runtime readiness probe。
+- `_wait_until_ready()` 过去直接对字符串 URL 请求 `/health`，没有带 bearer token。
+- 启动瞬间的 raw `ConnectionResetError` / `OSError` 没有被视为可重试错误，因此 qwen 已监听后仍可能被 runtime 误判为 executor failed。
+
+### 已修复
+
+- readiness probe 改为构造 `urllib.request.Request`，在 lease token 存在时带 `Authorization: Bearer ...`。
+- readiness probe 将 `OSError` 纳入启动窗口内的可重试错误，避免瞬时 TCP reset 直接终止 executor。
+- 新增 `test_executor_readiness_retries_reset_with_auth`，覆盖首次 reset、二次成功和 health auth header。
+
+### 审计结论
+
+- 第二轮失败不是容器镜像启动失败；qwen 已在容器内完成监听，当前修复聚焦在 runtime 对健康探测的误判。
+- Container executor 仍需第三轮 workflow_dispatch 实机验收，验收标准是 qwen single-run 完成且 executor lease 进入 released。
+- 在第三轮通过前，container strategy 仍保持手动验收路径，不作为默认公网部署策略。
+
 ## Go / No-Go 决策
 
 ### Go

@@ -848,6 +848,61 @@ class RuntimeEdgeTest(unittest.TestCase):
             finally:
                 store.close()
 
+    def test_executor_readiness_retries_reset_with_auth(self) -> None:
+        class ReadyResponse:
+            status = 200
+
+            def __enter__(self) -> "ReadyResponse":
+                return self
+
+            def __exit__(self, *_args: object) -> None:
+                return None
+
+        class LiveProcess:
+            def poll(self) -> None:
+                return None
+
+        with tempfile.TemporaryDirectory() as tmp:
+            store = RunStore(Path(tmp))
+            try:
+                registry = ExecutorRegistry(
+                    store,
+                    ExecutorConfig(
+                        strategy="per_run_process",
+                        startup_timeout_seconds=1,
+                    ),
+                )
+                lease = ExecutorLease(
+                    executor_id="exec_health",
+                    run_id="run_health",
+                    adapter="qwen",
+                    strategy="per_run_process",
+                    status="starting",
+                    base_url="http://127.0.0.1:4211",
+                    token="health-token",
+                )
+                with (
+                    patch(
+                        "runtime.cloud_agents_runtime.executors.urllib.request.urlopen",
+                        side_effect=[
+                            ConnectionResetError(104, "Connection reset by peer"),
+                            ReadyResponse(),
+                        ],
+                    ) as urlopen_mock,
+                    patch("runtime.cloud_agents_runtime.executors.time.sleep"),
+                ):
+                    registry._wait_until_ready(lease, LiveProcess())
+
+                self.assertEqual(urlopen_mock.call_count, 2)
+                for call in urlopen_mock.call_args_list:
+                    request = call.args[0]
+                    self.assertEqual(
+                        request.get_header("Authorization"),
+                        "Bearer health-token",
+                    )
+            finally:
+                store.close()
+
     def test_executor_config_and_helpers(self) -> None:
         self.assertEqual(normalize_strategy("per-run"), "per_run_process")
         self.assertEqual(normalize_strategy("docker"), "container")
