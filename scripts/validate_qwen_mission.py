@@ -98,6 +98,14 @@ def main(argv: list[str] | None = None) -> int:
         help="create a qwen-backed mission after the single-run checks",
     )
     parser.add_argument(
+        "--auto-approve-permissions",
+        action="store_true",
+        help=(
+            "approve pending qwen permission requests during smoke validation; "
+            "use only for trusted acceptance prompts"
+        ),
+    )
+    parser.add_argument(
         "--mission-task-count",
         type=int,
         default=1,
@@ -169,6 +177,7 @@ def main(argv: list[str] | None = None) -> int:
     print(f"mission: {mission_id}")
 
     state: dict[str, Any] = mission
+    approved_permissions: set[str] = set()
     while now() < deadline:
         state = client.get(f"/missions/{mission_id}")
         print(
@@ -176,6 +185,12 @@ def main(argv: list[str] | None = None) -> int:
             state.get("status"),
             f"{state.get('completed_task_count')}/{state.get('task_count')}",
         )
+        if args.auto_approve_permissions:
+            auto_approve_mission_permissions(
+                client,
+                state,
+                approved_permissions,
+            )
         if state.get("status") in TERMINAL_MISSION_STATUSES:
             break
         sleep_for(5)
@@ -222,9 +237,12 @@ def validate_single_run(
     run_id = run["run_id"]
     print(f"single run: {run_id}")
     state: dict[str, Any] = run
+    approved_permissions: set[str] = set()
     while now() < deadline:
         state = client.get(f"/runs/{run_id}")
         print("single run state:", state.get("status"))
+        if args.auto_approve_permissions:
+            auto_approve_run_permissions(client, run_id, approved_permissions)
         if state.get("status") in TERMINAL_RUN_STATUSES:
             break
         sleep_for(3)
@@ -252,6 +270,71 @@ def validate_single_run(
             print("single run executor strategy mismatch", file=sys.stderr)
             return False
     return True
+
+
+def auto_approve_mission_permissions(
+    client: "Client",
+    mission_state: dict[str, Any],
+    approved_permissions: set[str],
+) -> None:
+    tasks = mission_state.get("tasks")
+    if not isinstance(tasks, list):
+        return
+    for task in tasks:
+        if not isinstance(task, dict):
+            continue
+        run_id = task.get("run_id")
+        if isinstance(run_id, str) and run_id:
+            auto_approve_run_permissions(client, run_id, approved_permissions)
+
+
+def auto_approve_run_permissions(
+    client: "Client",
+    run_id: str,
+    approved_permissions: set[str],
+) -> None:
+    events = client.get(f"/runs/{run_id}/events.json").get("events", [])
+    if not isinstance(events, list):
+        return
+    for event in events:
+        if not isinstance(event, dict) or event.get("type") != "permission.requested":
+            continue
+        permission_id = permission_id_from_event(event)
+        if not permission_id or permission_id in approved_permissions:
+            continue
+        client.post(
+            f"/runs/{run_id}/permissions/{quote(permission_id, safe='')}",
+            {
+                "decision": "approve",
+                "reason": "auto-approved by qwen smoke validation",
+            },
+        )
+        approved_permissions.add(permission_id)
+        print(f"approved permission: {run_id}/{permission_id}")
+
+
+def permission_id_from_event(event: dict[str, Any]) -> str | None:
+    data = event.get("data")
+    if not isinstance(data, dict):
+        return None
+    candidates = [
+        data.get("permission_id"),
+        data.get("requestId"),
+        nested_value(data, "raw", "data", "requestId"),
+    ]
+    for candidate in candidates:
+        if isinstance(candidate, str) and candidate:
+            return candidate
+    return None
+
+
+def nested_value(value: Any, *keys: str) -> Any:
+    current = value
+    for key in keys:
+        if not isinstance(current, dict):
+            return None
+        current = current.get(key)
+    return current
 
 
 def qwen_mission_payload(args: argparse.Namespace, timeout_seconds: int) -> dict[str, Any]:

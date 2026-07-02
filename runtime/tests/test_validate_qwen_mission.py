@@ -92,7 +92,11 @@ class ValidateQwenMissionTest(unittest.TestCase):
 
     def test_single_run_timeout_cancels_run_and_prints_diagnostics(self) -> None:
         client = RecordingClient()
-        args = argparse.Namespace(timeout=10.0, expect_executor_strategy=None)
+        args = argparse.Namespace(
+            timeout=10.0,
+            expect_executor_strategy=None,
+            auto_approve_permissions=False,
+        )
 
         with (
             patch(
@@ -119,7 +123,11 @@ class ValidateQwenMissionTest(unittest.TestCase):
 
     def test_single_run_failure_prints_redacted_artifact_diagnostics(self) -> None:
         client = FailedRunWithArtifactsClient()
-        args = argparse.Namespace(timeout=10.0, expect_executor_strategy="container")
+        args = argparse.Namespace(
+            timeout=10.0,
+            expect_executor_strategy="container",
+            auto_approve_permissions=False,
+        )
         output = io.StringIO()
 
         with (
@@ -136,6 +144,38 @@ class ValidateQwenMissionTest(unittest.TestCase):
         self.assertIn("boot failed", text)
         self.assertIn("QWEN_SERVER_TOKEN=<redacted>", text)
         self.assertNotIn("super-secret-token", text)
+
+    def test_single_run_can_auto_approve_pending_permissions(self) -> None:
+        client = PermissionRunClient()
+        args = argparse.Namespace(
+            timeout=30.0,
+            expect_executor_strategy=None,
+            auto_approve_permissions=True,
+        )
+
+        with (
+            patch("scripts.validate_qwen_mission.now", side_effect=[0.0, 0.0, 1.0]),
+            patch("scripts.validate_qwen_mission.sleep_for"),
+        ):
+            self.assertTrue(validate_single_run(client, args, deadline=30.0))
+
+        self.assertEqual(
+            [
+                call
+                for call in client.calls
+                if call[0] == "POST" and "/permissions/" in call[1]
+            ],
+            [
+                (
+                    "POST",
+                    "/runs/run-permission/permissions/perm-1",
+                    {
+                        "decision": "approve",
+                        "reason": "auto-approved by qwen smoke validation",
+                    },
+                )
+            ],
+        )
 
 
 class CompletedRunClient:
@@ -325,3 +365,44 @@ class FailedRunWithArtifactsClient:
         if path.endswith("/diagnostics.json"):
             return '{"token":"super-secret-token"}'
         raise AssertionError(f"unexpected get_text: {path}")
+
+
+class PermissionRunClient:
+    def __init__(self) -> None:
+        self.calls: list[tuple[str, str, dict[str, object] | None]] = []
+        self._status_count = 0
+
+    def post(self, path: str, payload: dict[str, object]) -> dict[str, object]:
+        self.calls.append(("POST", path, payload))
+        if path == "/runs":
+            return {"run_id": "run-permission", "status": "queued"}
+        if path == "/runs/run-permission/permissions/perm-1":
+            return {"accepted": True}
+        raise AssertionError(f"unexpected post: {path}")
+
+    def get(self, path: str) -> dict[str, object]:
+        self.calls.append(("GET", path, None))
+        if path == "/runs/run-permission":
+            self._status_count += 1
+            status = "completed" if self._status_count > 1 else "running"
+            return {"run_id": "run-permission", "status": status}
+        if path == "/runs/run-permission/events.json":
+            return {
+                "events": [
+                    {
+                        "type": "permission.requested",
+                        "data": {"permission_id": "perm-1"},
+                    },
+                    {"type": "run.completed"},
+                ]
+            }
+        if path == "/runs/run-permission/artifacts":
+            return {
+                "artifacts": [
+                    {"name": "events.jsonl"},
+                    {"name": "raw_events.jsonl"},
+                    {"name": "diagnostics.json"},
+                    {"name": "cost.json"},
+                ]
+            }
+        raise AssertionError(f"unexpected get: {path}")

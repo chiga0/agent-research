@@ -218,6 +218,160 @@ qwen serve 已有：
 | 多 Agent patch 冲突 | 中 | 每个 coder 独立 worktree，merge agent 独立处理 |
 | Event Store 写入失败 | 高 | 写入失败时暂停 run 或标记 degraded，不能继续无审计执行 |
 
+## 2026-07-03 P8 与多 VPS 控制面实机审计
+
+### 审计范围
+
+本轮审计覆盖当前 `main` 上的 Cloud Agents Runtime、Web 管理台、远程 worker 控制面、部署脚本、操作手册、CI 测试链路和 ECS 实机部署。
+
+重点检查：
+
+- 架构边界是否仍以 SAEU contract 为治理单元。
+- Web 管理台是否具备可操作的 Units 管理能力。
+- 远程 worker 是否可被控制面 drain、resume、retry、cancel 和 permission resolution。
+- 公网入口是否区分人类管理台 session 与 worker scoped bearer token。
+- run/mission 是否具备事件、artifact、audit bundle 和恢复线索。
+- 小 VPS 部署路径是否足够保守，可从 2C2G、capacity=1 开始接入。
+
+### 结论
+
+当前系统可以作为单租户 beta 的长期运行基线：
+
+- 主控 ECS 使用 Nginx + app login session + Cloud Agents Runtime + qwen shared executor。
+- 远程 worker 通过 `/cloud-agents-worker/` 使用 scoped `workers:*` bearer token 接入。
+- Units 页面可生成注册命令，并支持 Drain、Resume、Retry。
+- 远程 run 的 cancel 和 permission resolution 通过事件下发，由 worker 拉取控制面执行。
+- 公网 monitor、fake deep run 和 qwen single-run smoke 已完成实机验收。
+
+仍不建议在当前版本直接作为多租户公开服务或高并发生产平台。默认建议继续保持单租户、低并发、人工 permission gate 和明确 audit bundle 的运行方式。
+
+### 已发现并修复的问题
+
+| 问题 | 等级 | 修复 |
+| --- | --- | --- |
+| 本地部署脚本使用 Bash 4 `${VAR,,}`，macOS 默认 Bash 3 无法运行 | 高 | 改为 `tr '[:upper:]' '[:lower:]'`，部署脚本兼容 Bash 3 |
+| 操作手册 qwen 验收命令仍写 `per_run_process`，与当前 ECS `shared` 不一致 | 中 | 操作手册改为 `--expect-executor-strategy shared` |
+| qwen smoke 遇到权限请求会等待人工处理，容易被误判为 runner 卡死 | 中 | `validate_qwen_mission.py` 增加显式 `--auto-approve-permissions`，默认关闭 |
+| 文档可能诱导直接 source `/etc/cloud-agents-runtime.env` | 中 | 操作手册改为使用 `awk` 精确读取 token/password，避免带空格环境值导致 shell 执行错误 |
+| E2E 对 Mission Events 使用模糊文本定位，和 “No mission events” 冲突 | 低 | 改为 role heading 定位 |
+| Units 功能缺少 E2E 覆盖 | 中 | E2E 增加注册、复制命令、Drain、Resume、Retry 主流程 |
+
+### 架构审计
+
+通过。
+
+理由：
+
+- SAEU 仍是平台治理边界，不把子任务都强制降解为 runtime SubAgent。
+- Agent runtime 可替换：qwen、fake 已有 adapter，设计上可继续接入 Claude Code、Codex、OpenCode 或 ACP-compatible executor。
+- 控制面和执行面分离：Web/API 只编排 run、worker 和 permission，worker 自己执行 adapter。
+- 远程 worker control plane 使用事件流表达 cancel 和 permission resolution，避免直接跨机器调用 adapter 私有接口。
+- Drain 和 Retry 作用在 worker lease 层，适合小 VPS 故障恢复。
+
+### 安全审计
+
+通过，单租户 beta 可接受。
+
+安全边界：
+
+- `/cloud-agents/` 面向人类管理台，使用登录 session。
+- `/cloud-agents-worker/` 面向 worker，使用 scoped bearer token。
+- API token 明文只在创建时显示，持久化 hash。
+- worker 注册 token 可撤销。
+- qwen serve 只绑定本机，不直接公网暴露。
+- 高风险工具通过 permission request 进入人工审批流。
+
+仍需后续加强：
+
+- 多用户、多租户、组织级 RBAC 尚未完成。
+- token scope 还没有按 project/workspace 做强隔离。
+- container executor 尚未作为默认生产策略。
+- worker 注册命令仍需要操作者安全保存一次性 token。
+
+### 可恢复性审计
+
+通过，适合低并发长期运行。
+
+已具备：
+
+- RunStore 持久化 run、mission、event、job、worker、token。
+- running lease 可在 worker stale 或 runtime restart 后恢复为 failed/orphaned。
+- Retry 可将指定 worker 的 running lease 重新入队。
+- Artifacts 保存 canonical events、raw events、diagnostics、cost、audit bundle。
+- permission stalled watchdog 可记录超时审计事件。
+
+仍需后续加强：
+
+- qwen session resume 还不是强确定性恢复。
+- Retry 当前适合平台 lease 恢复，不保证外部工具副作用幂等。
+- 多 worker 同时写同一 repo 的 merge/conflict 策略仍需产品化。
+
+### 可观测性审计
+
+通过。
+
+已具备：
+
+- Overview、Runs、Run Detail、Missions、Executors、Units、Operations。
+- Runner Chat 可看实时模型输出、工具事件、permission、warning、error。
+- Event Stream 和 artifact 下载可用于审计。
+- `monitor_runtime.py` 可做公网健康检查和 fake deep run。
+- Operations 可创建 backup，查看 drills 和 runtime status。
+
+建议后续：
+
+- 增加后台周期性 monitor 的告警渠道。
+- 在 Units 页面展示每个 worker 最近控制事件和最近失败原因。
+- 在 Run Detail 中突出“等待 permission”的原因和等待时长。
+
+### 实机验收记录
+
+| 项目 | 结果 |
+| --- | --- |
+| 公网入口 `https://doubaofans.site/cloud-agents/` | 通过 |
+| 登录 session 鉴权 | 通过 |
+| Console assets 加载 | 通过 |
+| `/health`、`/capabilities`、`/queue`、`/executors` | 通过 |
+| fake deep run | 通过 |
+| qwen single-run smoke | 通过 |
+| Units list / registration / token revoke | 通过 |
+| MkDocs strict build | 通过 |
+| 后端单测与 runtime 覆盖率 | 通过，覆盖率超过 90% |
+| 前端 lint / unit / integration / E2E | 通过，覆盖率超过 90% |
+
+### 当前验收命令
+
+```bash
+python3 scripts/monitor_runtime.py \
+  --base-url https://doubaofans.site/cloud-agents \
+  --basic-user cloudagents \
+  --basic-password "$RUN_MANAGER_LOGIN_PASSWORD" \
+  --deep-run \
+  --json
+```
+
+```bash
+python3 scripts/validate_qwen_mission.py \
+  --base-url http://127.0.0.1:8765 \
+  --token "$RUN_MANAGER_TOKEN" \
+  --validate-single-run \
+  --expect-executor-strategy shared \
+  --auto-approve-permissions \
+  --timeout 600
+```
+
+### 审计结论
+
+本轮审计后，系统可以进入“单租户 beta 稳定运行 + 两台 2C2G remote worker 分批接入”的阶段。
+
+下一阶段优先级：
+
+1. 接入第 1 台远程 2C2G worker，capacity=1，先 fake 后 qwen。
+2. Units 页面增加 worker 最近事件、最近失败原因和一键复制诊断信息。
+3. 增加周期性公网 monitor 与告警。
+4. 将 qwen 权限请求在 Run Detail 中做更强提示和可筛选审计。
+5. 继续推进 container executor 的实机稳定性与资源隔离验收。
+
 ## 2026-07-01 P1/P2 实施审计
 
 ### 已落地能力

@@ -33,6 +33,19 @@ cloudagents
 
 密码来自部署脚本输出、GitHub Actions secret，或服务器上的 `/etc/cloud-agents-runtime.env`。不要把密码写入仓库或聊天记录。
 
+服务器上读取当前登录密码或 master token 时，不要直接 `source /etc/cloud-agents-runtime.env`，
+因为其中包含带空格的 systemd 环境值。建议使用精确读取：
+
+```bash
+RUN_MANAGER_TOKEN="$(awk -F= '$1=="RUN_MANAGER_TOKEN"{print substr($0,index($0,"=")+1)}' \
+  /etc/cloud-agents-runtime.env)"
+
+RUN_MANAGER_LOGIN_PASSWORD="$(
+  awk -F= '$1=="RUN_MANAGER_LOGIN_PASSWORD"{print substr($0,index($0,"=")+1)}' \
+    /etc/cloud-agents-runtime.env
+)"
+```
+
 ### 服务器常用路径
 
 ```text
@@ -91,6 +104,14 @@ cloudagents
 - 标签建议设置 `region=hk`、`tier=2c2g`。
 - 资源建议声明 `cpus=2`、`memory_gb=2`。
 - 真实 qwen 任务先用 1 台主控 + 2 台 remote worker 的形态跑 smoke，再逐步提高并发。
+
+推荐接入顺序：
+
+1. 主控 ECS 上先确认公网 monitor 全绿。
+2. Units 页面生成第 1 台 VPS 的注册命令。
+3. 在第 1 台 worker VPS 上执行命令，等心跳出现。
+4. 对该 Unit 执行 Drain/Resume/Retry smoke。
+5. 第 1 台稳定后再注册第 2 台，避免两个 worker 同时引入变量。
 
 ### Run Detail
 
@@ -526,9 +547,16 @@ python3 scripts/validate_qwen_mission.py \
   --base-url http://127.0.0.1:8765 \
   --token "$RUN_MANAGER_TOKEN" \
   --validate-single-run \
-  --expect-executor-strategy per_run_process \
+  --expect-executor-strategy shared \
+  --auto-approve-permissions \
   --timeout 600
 ```
+
+说明：
+
+- 当前 ECS 默认策略是 `shared`。
+- `--auto-approve-permissions` 只用于可信 smoke prompt，避免 qwen 因 shell 权限请求卡在等待人工审批。
+- 真实业务 run 不建议自动审批，应在 Run Detail 中人工处理 permission。
 
 ### qwen 轻量 mission 验收
 
@@ -539,9 +567,32 @@ python3 scripts/validate_qwen_mission.py \
   --validate-single-run \
   --validate-mission \
   --mission-task-count 1 \
-  --expect-executor-strategy per_run_process \
+  --expect-executor-strategy shared \
+  --auto-approve-permissions \
   --timeout 900
 ```
+
+如果不希望自动审批，去掉 `--auto-approve-permissions`，然后在 Run Detail 中处理 pending permission。
+
+### Units 管理验收
+
+```bash
+python3 scripts/monitor_runtime.py \
+  --base-url https://doubaofans.site/cloud-agents \
+  --basic-user cloudagents \
+  --basic-password "$RUN_MANAGER_LOGIN_PASSWORD" \
+  --deep-run \
+  --json
+```
+
+然后在管理台：
+
+1. 打开 Units。
+2. 点击 Refresh，确认本地 worker `active`。
+3. Generate 一个 smoke unit，确认生成命令包含 `deploy_worker_vps.sh`。
+4. 真实 worker 上线后，先 Drain，确认不再认领新任务。
+5. Resume 后提交一个 fake run，确认可正常完成。
+6. 如果 worker 上有 running run 且节点异常，使用 Retry 将 lease 重新入队。
 
 ## 10. 常见问题处理
 
