@@ -5,8 +5,8 @@
 <head>
     <script>
         /* const base_url = "https://chiga0.github.io/agent-research/"; */
-        const base_url = (new URL("/agent-research/.", window.location)).href.replace(/\/+$/, ""); /* for search plugin notably */
-        /* const root_relative_url = "/agent-research/."; */
+        const base_url = (new URL("../..", window.location)).href.replace(/\/+$/, ""); /* for search plugin notably */
+        /* const root_relative_url = "../.."; */
     </script>
     <script>
   (function () {
@@ -32,10 +32,55 @@
     <meta content="width=device-width, initial-scale=1" name="viewport" />
 
     
-    <link href="/agent-research/img/favicon.ico" rel="icon" />
+    
 
-    <link href="/agent-research/css/base.css" rel="stylesheet" />
-    <link href="/agent-research/css/geist.css" rel="stylesheet" />
+
+<title>Cloud Agents 操作手册</title>
+
+
+
+
+
+
+
+
+
+<link rel="canonical" href="https://chiga0.github.io/agent-research/implementation/operation-manual/">
+
+
+<!-- Open Graph (Facebook, LinkedIn) -->
+
+<meta property="og:title" content="Cloud Agents 操作手册">
+
+
+
+
+
+<meta property="og:url" content="https://chiga0.github.io/agent-research/implementation/operation-manual/">
+
+
+
+
+
+
+<!-- Twitter Card -->
+
+<meta name="twitter:title" content="Cloud Agents 操作手册">
+
+
+
+
+
+
+<!-- JSON-LD Structured Data -->
+
+
+
+    
+    <link href="../../img/favicon.ico" rel="icon" />
+
+    <link href="../../css/base.css" rel="stylesheet" />
+    <link href="../../css/geist.css" rel="stylesheet" />
 
     
 
@@ -44,21 +89,21 @@
             --theme-accent: oklch(62.3% 0.214 259.815);
         }
     </style>
-    <link href="/agent-research/stylesheets/shadcn-overrides.css" rel="stylesheet" />
+    <link href="../../stylesheets/shadcn-overrides.css" rel="stylesheet" />
 
     
 
     <script integrity="sha384-V2jkXRy811qODUbfkLlkVJYBbf4h6XHAEjcU6ReASBPrJvTrlYh4GrI4t6GCju6n"
-        src="/agent-research/js/callbacks.js"></script>
+        src="../../js/callbacks.js"></script>
 
     
     
 <!-- katex -->
-<link href="/agent-research/css/katex.min.css" rel="stylesheet"/>
+<link href="../../css/katex.min.css" rel="stylesheet"/>
 <!-- The loading of KaTeX is deferred to speed up page rendering -->
-<script defer="" integrity="sha384-YPHNAPyrxGS8BNnA7Q4ommqra8WQPEjooVSLzFgwgs8OXJBvadbyvx4QpfiFurGr" src="/agent-research/js/katex.min.js"></script>
+<script defer="" integrity="sha384-YPHNAPyrxGS8BNnA7Q4ommqra8WQPEjooVSLzFgwgs8OXJBvadbyvx4QpfiFurGr" src="../../js/katex.min.js"></script>
 <!-- To automatically render math in text elements, include the auto-render extension: -->
-<script defer="" integrity="sha384-JKXHIJf8PKPyDFptuKZoUyMRQJAmQKj4B4xyOca62ebJhciMYGiDdq/9twUUWyZH" onload='renderMathInElement(document.body, "{}");' src="/agent-research/js/auto-render.min.js"></script>
+<script defer="" integrity="sha384-JKXHIJf8PKPyDFptuKZoUyMRQJAmQKj4B4xyOca62ebJhciMYGiDdq/9twUUWyZH" onload='renderMathInElement(document.body, "{}");' src="../../js/auto-render.min.js"></script>
     
 
     
@@ -268,7 +313,7 @@
             
             <li data-slot="sidebar-menu-item" data-sidebar="menu-item" class="group/menu-item relative">
     <a data-slot="sidebar-menu-button" data-active="false" data-sidebar="menu-button"
-        data-size="default" href="/agent-research/."
+        data-size="default" href="../.."
         class="peer/menu-button flex items-center gap-2 rounded-md p-2 text-left ring-sidebar-ring outline-hidden transition-[width,height,padding] group-has-data-[sidebar=menu-action]/menu-item:pr-8 group-data-[collapsible=icon]:size-8! group-data-[collapsible=icon]:p-2! focus-visible:ring-2 active:bg-sidebar-accent active:text-sidebar-accent-foreground disabled:pointer-events-none disabled:opacity-50 aria-disabled:pointer-events-none aria-disabled:opacity-50 data-[active=true]:font-medium data-[active=true]:text-sidebar-accent-foreground data-[state=open]:hover:bg-sidebar-accent data-[state=open]:hover:text-sidebar-accent-foreground [&>span:last-child]:truncate [&>svg]:size-4 [&>svg]:shrink-0 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground relative h-[30px] w-fit overflow-visible border border-transparent text-[0.8rem] font-medium after:absolute after:inset-x-0 after:-inset-y-1 after:z-0 after:rounded-md data-[active=true]:border-accent data-[active=true]:bg-accent 3xl:fixed:w-full 3xl:fixed:max-w-48">
 
         
@@ -301,7 +346,7 @@
             
             <li data-slot="sidebar-menu-item" data-sidebar="menu-item" class="group/menu-item relative">
     <a data-slot="sidebar-menu-button" data-active="false" data-sidebar="menu-button"
-        data-size="default" href="/agent-research/implementation/"
+        data-size="default" href="../"
         class="peer/menu-button flex items-center gap-2 rounded-md p-2 text-left ring-sidebar-ring outline-hidden transition-[width,height,padding] group-has-data-[sidebar=menu-action]/menu-item:pr-8 group-data-[collapsible=icon]:size-8! group-data-[collapsible=icon]:p-2! focus-visible:ring-2 active:bg-sidebar-accent active:text-sidebar-accent-foreground disabled:pointer-events-none disabled:opacity-50 aria-disabled:pointer-events-none aria-disabled:opacity-50 data-[active=true]:font-medium data-[active=true]:text-sidebar-accent-foreground data-[state=open]:hover:bg-sidebar-accent data-[state=open]:hover:text-sidebar-accent-foreground [&>span:last-child]:truncate [&>svg]:size-4 [&>svg]:shrink-0 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground relative h-[30px] w-fit overflow-visible border border-transparent text-[0.8rem] font-medium after:absolute after:inset-x-0 after:-inset-y-1 after:z-0 after:rounded-md data-[active=true]:border-accent data-[active=true]:bg-accent 3xl:fixed:w-full 3xl:fixed:max-w-48">
 
         
@@ -320,7 +365,7 @@
             
             <li data-slot="sidebar-menu-item" data-sidebar="menu-item" class="group/menu-item relative">
     <a data-slot="sidebar-menu-button" data-active="false" data-sidebar="menu-button"
-        data-size="default" href="/agent-research/implementation/stable-agent-execution-unit/"
+        data-size="default" href="../stable-agent-execution-unit/"
         class="peer/menu-button flex items-center gap-2 rounded-md p-2 text-left ring-sidebar-ring outline-hidden transition-[width,height,padding] group-has-data-[sidebar=menu-action]/menu-item:pr-8 group-data-[collapsible=icon]:size-8! group-data-[collapsible=icon]:p-2! focus-visible:ring-2 active:bg-sidebar-accent active:text-sidebar-accent-foreground disabled:pointer-events-none disabled:opacity-50 aria-disabled:pointer-events-none aria-disabled:opacity-50 data-[active=true]:font-medium data-[active=true]:text-sidebar-accent-foreground data-[state=open]:hover:bg-sidebar-accent data-[state=open]:hover:text-sidebar-accent-foreground [&>span:last-child]:truncate [&>svg]:size-4 [&>svg]:shrink-0 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground relative h-[30px] w-fit overflow-visible border border-transparent text-[0.8rem] font-medium after:absolute after:inset-x-0 after:-inset-y-1 after:z-0 after:rounded-md data-[active=true]:border-accent data-[active=true]:bg-accent 3xl:fixed:w-full 3xl:fixed:max-w-48">
 
         
@@ -339,7 +384,7 @@
             
             <li data-slot="sidebar-menu-item" data-sidebar="menu-item" class="group/menu-item relative">
     <a data-slot="sidebar-menu-button" data-active="false" data-sidebar="menu-button"
-        data-size="default" href="/agent-research/implementation/subagent-vs-execution-unit/"
+        data-size="default" href="../subagent-vs-execution-unit/"
         class="peer/menu-button flex items-center gap-2 rounded-md p-2 text-left ring-sidebar-ring outline-hidden transition-[width,height,padding] group-has-data-[sidebar=menu-action]/menu-item:pr-8 group-data-[collapsible=icon]:size-8! group-data-[collapsible=icon]:p-2! focus-visible:ring-2 active:bg-sidebar-accent active:text-sidebar-accent-foreground disabled:pointer-events-none disabled:opacity-50 aria-disabled:pointer-events-none aria-disabled:opacity-50 data-[active=true]:font-medium data-[active=true]:text-sidebar-accent-foreground data-[state=open]:hover:bg-sidebar-accent data-[state=open]:hover:text-sidebar-accent-foreground [&>span:last-child]:truncate [&>svg]:size-4 [&>svg]:shrink-0 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground relative h-[30px] w-fit overflow-visible border border-transparent text-[0.8rem] font-medium after:absolute after:inset-x-0 after:-inset-y-1 after:z-0 after:rounded-md data-[active=true]:border-accent data-[active=true]:bg-accent 3xl:fixed:w-full 3xl:fixed:max-w-48">
 
         
@@ -358,7 +403,7 @@
             
             <li data-slot="sidebar-menu-item" data-sidebar="menu-item" class="group/menu-item relative">
     <a data-slot="sidebar-menu-button" data-active="false" data-sidebar="menu-button"
-        data-size="default" href="/agent-research/implementation/qwen-serve-single-agent-cloud-unit/"
+        data-size="default" href="../qwen-serve-single-agent-cloud-unit/"
         class="peer/menu-button flex items-center gap-2 rounded-md p-2 text-left ring-sidebar-ring outline-hidden transition-[width,height,padding] group-has-data-[sidebar=menu-action]/menu-item:pr-8 group-data-[collapsible=icon]:size-8! group-data-[collapsible=icon]:p-2! focus-visible:ring-2 active:bg-sidebar-accent active:text-sidebar-accent-foreground disabled:pointer-events-none disabled:opacity-50 aria-disabled:pointer-events-none aria-disabled:opacity-50 data-[active=true]:font-medium data-[active=true]:text-sidebar-accent-foreground data-[state=open]:hover:bg-sidebar-accent data-[state=open]:hover:text-sidebar-accent-foreground [&>span:last-child]:truncate [&>svg]:size-4 [&>svg]:shrink-0 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground relative h-[30px] w-fit overflow-visible border border-transparent text-[0.8rem] font-medium after:absolute after:inset-x-0 after:-inset-y-1 after:z-0 after:rounded-md data-[active=true]:border-accent data-[active=true]:bg-accent 3xl:fixed:w-full 3xl:fixed:max-w-48">
 
         
@@ -377,7 +422,7 @@
             
             <li data-slot="sidebar-menu-item" data-sidebar="menu-item" class="group/menu-item relative">
     <a data-slot="sidebar-menu-button" data-active="false" data-sidebar="menu-button"
-        data-size="default" href="/agent-research/implementation/sandbox-isolation/"
+        data-size="default" href="../sandbox-isolation/"
         class="peer/menu-button flex items-center gap-2 rounded-md p-2 text-left ring-sidebar-ring outline-hidden transition-[width,height,padding] group-has-data-[sidebar=menu-action]/menu-item:pr-8 group-data-[collapsible=icon]:size-8! group-data-[collapsible=icon]:p-2! focus-visible:ring-2 active:bg-sidebar-accent active:text-sidebar-accent-foreground disabled:pointer-events-none disabled:opacity-50 aria-disabled:pointer-events-none aria-disabled:opacity-50 data-[active=true]:font-medium data-[active=true]:text-sidebar-accent-foreground data-[state=open]:hover:bg-sidebar-accent data-[state=open]:hover:text-sidebar-accent-foreground [&>span:last-child]:truncate [&>svg]:size-4 [&>svg]:shrink-0 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground relative h-[30px] w-fit overflow-visible border border-transparent text-[0.8rem] font-medium after:absolute after:inset-x-0 after:-inset-y-1 after:z-0 after:rounded-md data-[active=true]:border-accent data-[active=true]:bg-accent 3xl:fixed:w-full 3xl:fixed:max-w-48">
 
         
@@ -396,7 +441,7 @@
             
             <li data-slot="sidebar-menu-item" data-sidebar="menu-item" class="group/menu-item relative">
     <a data-slot="sidebar-menu-button" data-active="false" data-sidebar="menu-button"
-        data-size="default" href="/agent-research/implementation/protocol-acp-a2a/"
+        data-size="default" href="../protocol-acp-a2a/"
         class="peer/menu-button flex items-center gap-2 rounded-md p-2 text-left ring-sidebar-ring outline-hidden transition-[width,height,padding] group-has-data-[sidebar=menu-action]/menu-item:pr-8 group-data-[collapsible=icon]:size-8! group-data-[collapsible=icon]:p-2! focus-visible:ring-2 active:bg-sidebar-accent active:text-sidebar-accent-foreground disabled:pointer-events-none disabled:opacity-50 aria-disabled:pointer-events-none aria-disabled:opacity-50 data-[active=true]:font-medium data-[active=true]:text-sidebar-accent-foreground data-[state=open]:hover:bg-sidebar-accent data-[state=open]:hover:text-sidebar-accent-foreground [&>span:last-child]:truncate [&>svg]:size-4 [&>svg]:shrink-0 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground relative h-[30px] w-fit overflow-visible border border-transparent text-[0.8rem] font-medium after:absolute after:inset-x-0 after:-inset-y-1 after:z-0 after:rounded-md data-[active=true]:border-accent data-[active=true]:bg-accent 3xl:fixed:w-full 3xl:fixed:max-w-48">
 
         
@@ -415,7 +460,7 @@
             
             <li data-slot="sidebar-menu-item" data-sidebar="menu-item" class="group/menu-item relative">
     <a data-slot="sidebar-menu-button" data-active="false" data-sidebar="menu-button"
-        data-size="default" href="/agent-research/implementation/temporal-evaluation/"
+        data-size="default" href="../temporal-evaluation/"
         class="peer/menu-button flex items-center gap-2 rounded-md p-2 text-left ring-sidebar-ring outline-hidden transition-[width,height,padding] group-has-data-[sidebar=menu-action]/menu-item:pr-8 group-data-[collapsible=icon]:size-8! group-data-[collapsible=icon]:p-2! focus-visible:ring-2 active:bg-sidebar-accent active:text-sidebar-accent-foreground disabled:pointer-events-none disabled:opacity-50 aria-disabled:pointer-events-none aria-disabled:opacity-50 data-[active=true]:font-medium data-[active=true]:text-sidebar-accent-foreground data-[state=open]:hover:bg-sidebar-accent data-[state=open]:hover:text-sidebar-accent-foreground [&>span:last-child]:truncate [&>svg]:size-4 [&>svg]:shrink-0 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground relative h-[30px] w-fit overflow-visible border border-transparent text-[0.8rem] font-medium after:absolute after:inset-x-0 after:-inset-y-1 after:z-0 after:rounded-md data-[active=true]:border-accent data-[active=true]:bg-accent 3xl:fixed:w-full 3xl:fixed:max-w-48">
 
         
@@ -434,7 +479,7 @@
             
             <li data-slot="sidebar-menu-item" data-sidebar="menu-item" class="group/menu-item relative">
     <a data-slot="sidebar-menu-button" data-active="false" data-sidebar="menu-button"
-        data-size="default" href="/agent-research/implementation/event-sourcing-and-replay/"
+        data-size="default" href="../event-sourcing-and-replay/"
         class="peer/menu-button flex items-center gap-2 rounded-md p-2 text-left ring-sidebar-ring outline-hidden transition-[width,height,padding] group-has-data-[sidebar=menu-action]/menu-item:pr-8 group-data-[collapsible=icon]:size-8! group-data-[collapsible=icon]:p-2! focus-visible:ring-2 active:bg-sidebar-accent active:text-sidebar-accent-foreground disabled:pointer-events-none disabled:opacity-50 aria-disabled:pointer-events-none aria-disabled:opacity-50 data-[active=true]:font-medium data-[active=true]:text-sidebar-accent-foreground data-[state=open]:hover:bg-sidebar-accent data-[state=open]:hover:text-sidebar-accent-foreground [&>span:last-child]:truncate [&>svg]:size-4 [&>svg]:shrink-0 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground relative h-[30px] w-fit overflow-visible border border-transparent text-[0.8rem] font-medium after:absolute after:inset-x-0 after:-inset-y-1 after:z-0 after:rounded-md data-[active=true]:border-accent data-[active=true]:bg-accent 3xl:fixed:w-full 3xl:fixed:max-w-48">
 
         
@@ -453,7 +498,7 @@
             
             <li data-slot="sidebar-menu-item" data-sidebar="menu-item" class="group/menu-item relative">
     <a data-slot="sidebar-menu-button" data-active="false" data-sidebar="menu-button"
-        data-size="default" href="/agent-research/implementation/single-agent-strategy/"
+        data-size="default" href="../single-agent-strategy/"
         class="peer/menu-button flex items-center gap-2 rounded-md p-2 text-left ring-sidebar-ring outline-hidden transition-[width,height,padding] group-has-data-[sidebar=menu-action]/menu-item:pr-8 group-data-[collapsible=icon]:size-8! group-data-[collapsible=icon]:p-2! focus-visible:ring-2 active:bg-sidebar-accent active:text-sidebar-accent-foreground disabled:pointer-events-none disabled:opacity-50 aria-disabled:pointer-events-none aria-disabled:opacity-50 data-[active=true]:font-medium data-[active=true]:text-sidebar-accent-foreground data-[state=open]:hover:bg-sidebar-accent data-[state=open]:hover:text-sidebar-accent-foreground [&>span:last-child]:truncate [&>svg]:size-4 [&>svg]:shrink-0 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground relative h-[30px] w-fit overflow-visible border border-transparent text-[0.8rem] font-medium after:absolute after:inset-x-0 after:-inset-y-1 after:z-0 after:rounded-md data-[active=true]:border-accent data-[active=true]:bg-accent 3xl:fixed:w-full 3xl:fixed:max-w-48">
 
         
@@ -472,7 +517,7 @@
             
             <li data-slot="sidebar-menu-item" data-sidebar="menu-item" class="group/menu-item relative">
     <a data-slot="sidebar-menu-button" data-active="false" data-sidebar="menu-button"
-        data-size="default" href="/agent-research/implementation/single-to-multi-agent-implementation-plan/"
+        data-size="default" href="../single-to-multi-agent-implementation-plan/"
         class="peer/menu-button flex items-center gap-2 rounded-md p-2 text-left ring-sidebar-ring outline-hidden transition-[width,height,padding] group-has-data-[sidebar=menu-action]/menu-item:pr-8 group-data-[collapsible=icon]:size-8! group-data-[collapsible=icon]:p-2! focus-visible:ring-2 active:bg-sidebar-accent active:text-sidebar-accent-foreground disabled:pointer-events-none disabled:opacity-50 aria-disabled:pointer-events-none aria-disabled:opacity-50 data-[active=true]:font-medium data-[active=true]:text-sidebar-accent-foreground data-[state=open]:hover:bg-sidebar-accent data-[state=open]:hover:text-sidebar-accent-foreground [&>span:last-child]:truncate [&>svg]:size-4 [&>svg]:shrink-0 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground relative h-[30px] w-fit overflow-visible border border-transparent text-[0.8rem] font-medium after:absolute after:inset-x-0 after:-inset-y-1 after:z-0 after:rounded-md data-[active=true]:border-accent data-[active=true]:bg-accent 3xl:fixed:w-full 3xl:fixed:max-w-48">
 
         
@@ -491,7 +536,7 @@
             
             <li data-slot="sidebar-menu-item" data-sidebar="menu-item" class="group/menu-item relative">
     <a data-slot="sidebar-menu-button" data-active="false" data-sidebar="menu-button"
-        data-size="default" href="/agent-research/implementation/alternative-solutions-comparative-audit/"
+        data-size="default" href="../alternative-solutions-comparative-audit/"
         class="peer/menu-button flex items-center gap-2 rounded-md p-2 text-left ring-sidebar-ring outline-hidden transition-[width,height,padding] group-has-data-[sidebar=menu-action]/menu-item:pr-8 group-data-[collapsible=icon]:size-8! group-data-[collapsible=icon]:p-2! focus-visible:ring-2 active:bg-sidebar-accent active:text-sidebar-accent-foreground disabled:pointer-events-none disabled:opacity-50 aria-disabled:pointer-events-none aria-disabled:opacity-50 data-[active=true]:font-medium data-[active=true]:text-sidebar-accent-foreground data-[state=open]:hover:bg-sidebar-accent data-[state=open]:hover:text-sidebar-accent-foreground [&>span:last-child]:truncate [&>svg]:size-4 [&>svg]:shrink-0 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground relative h-[30px] w-fit overflow-visible border border-transparent text-[0.8rem] font-medium after:absolute after:inset-x-0 after:-inset-y-1 after:z-0 after:rounded-md data-[active=true]:border-accent data-[active=true]:bg-accent 3xl:fixed:w-full 3xl:fixed:max-w-48">
 
         
@@ -510,7 +555,7 @@
             
             <li data-slot="sidebar-menu-item" data-sidebar="menu-item" class="group/menu-item relative">
     <a data-slot="sidebar-menu-button" data-active="false" data-sidebar="menu-button"
-        data-size="default" href="/agent-research/implementation/review-and-audit-record/"
+        data-size="default" href="../review-and-audit-record/"
         class="peer/menu-button flex items-center gap-2 rounded-md p-2 text-left ring-sidebar-ring outline-hidden transition-[width,height,padding] group-has-data-[sidebar=menu-action]/menu-item:pr-8 group-data-[collapsible=icon]:size-8! group-data-[collapsible=icon]:p-2! focus-visible:ring-2 active:bg-sidebar-accent active:text-sidebar-accent-foreground disabled:pointer-events-none disabled:opacity-50 aria-disabled:pointer-events-none aria-disabled:opacity-50 data-[active=true]:font-medium data-[active=true]:text-sidebar-accent-foreground data-[state=open]:hover:bg-sidebar-accent data-[state=open]:hover:text-sidebar-accent-foreground [&>span:last-child]:truncate [&>svg]:size-4 [&>svg]:shrink-0 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground relative h-[30px] w-fit overflow-visible border border-transparent text-[0.8rem] font-medium after:absolute after:inset-x-0 after:-inset-y-1 after:z-0 after:rounded-md data-[active=true]:border-accent data-[active=true]:bg-accent 3xl:fixed:w-full 3xl:fixed:max-w-48">
 
         
@@ -529,7 +574,7 @@
             
             <li data-slot="sidebar-menu-item" data-sidebar="menu-item" class="group/menu-item relative">
     <a data-slot="sidebar-menu-button" data-active="false" data-sidebar="menu-button"
-        data-size="default" href="/agent-research/implementation/implementation-roadmap/"
+        data-size="default" href="../implementation-roadmap/"
         class="peer/menu-button flex items-center gap-2 rounded-md p-2 text-left ring-sidebar-ring outline-hidden transition-[width,height,padding] group-has-data-[sidebar=menu-action]/menu-item:pr-8 group-data-[collapsible=icon]:size-8! group-data-[collapsible=icon]:p-2! focus-visible:ring-2 active:bg-sidebar-accent active:text-sidebar-accent-foreground disabled:pointer-events-none disabled:opacity-50 aria-disabled:pointer-events-none aria-disabled:opacity-50 data-[active=true]:font-medium data-[active=true]:text-sidebar-accent-foreground data-[state=open]:hover:bg-sidebar-accent data-[state=open]:hover:text-sidebar-accent-foreground [&>span:last-child]:truncate [&>svg]:size-4 [&>svg]:shrink-0 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground relative h-[30px] w-fit overflow-visible border border-transparent text-[0.8rem] font-medium after:absolute after:inset-x-0 after:-inset-y-1 after:z-0 after:rounded-md data-[active=true]:border-accent data-[active=true]:bg-accent 3xl:fixed:w-full 3xl:fixed:max-w-48">
 
         
@@ -547,8 +592,8 @@
             
             
             <li data-slot="sidebar-menu-item" data-sidebar="menu-item" class="group/menu-item relative">
-    <a data-slot="sidebar-menu-button" data-active="false" data-sidebar="menu-button"
-        data-size="default" href="/agent-research/implementation/operation-manual/"
+    <a data-slot="sidebar-menu-button" data-active="true" data-sidebar="menu-button"
+        data-size="default" href="./"
         class="peer/menu-button flex items-center gap-2 rounded-md p-2 text-left ring-sidebar-ring outline-hidden transition-[width,height,padding] group-has-data-[sidebar=menu-action]/menu-item:pr-8 group-data-[collapsible=icon]:size-8! group-data-[collapsible=icon]:p-2! focus-visible:ring-2 active:bg-sidebar-accent active:text-sidebar-accent-foreground disabled:pointer-events-none disabled:opacity-50 aria-disabled:pointer-events-none aria-disabled:opacity-50 data-[active=true]:font-medium data-[active=true]:text-sidebar-accent-foreground data-[state=open]:hover:bg-sidebar-accent data-[state=open]:hover:text-sidebar-accent-foreground [&>span:last-child]:truncate [&>svg]:size-4 [&>svg]:shrink-0 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground relative h-[30px] w-fit overflow-visible border border-transparent text-[0.8rem] font-medium after:absolute after:inset-x-0 after:-inset-y-1 after:z-0 after:rounded-md data-[active=true]:border-accent data-[active=true]:bg-accent 3xl:fixed:w-full 3xl:fixed:max-w-48">
 
         
@@ -580,7 +625,7 @@
             
             <li data-slot="sidebar-menu-item" data-sidebar="menu-item" class="group/menu-item relative">
     <a data-slot="sidebar-menu-button" data-active="false" data-sidebar="menu-button"
-        data-size="default" href="/agent-research/cloud-agents/"
+        data-size="default" href="../../cloud-agents/"
         class="peer/menu-button flex items-center gap-2 rounded-md p-2 text-left ring-sidebar-ring outline-hidden transition-[width,height,padding] group-has-data-[sidebar=menu-action]/menu-item:pr-8 group-data-[collapsible=icon]:size-8! group-data-[collapsible=icon]:p-2! focus-visible:ring-2 active:bg-sidebar-accent active:text-sidebar-accent-foreground disabled:pointer-events-none disabled:opacity-50 aria-disabled:pointer-events-none aria-disabled:opacity-50 data-[active=true]:font-medium data-[active=true]:text-sidebar-accent-foreground data-[state=open]:hover:bg-sidebar-accent data-[state=open]:hover:text-sidebar-accent-foreground [&>span:last-child]:truncate [&>svg]:size-4 [&>svg]:shrink-0 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground relative h-[30px] w-fit overflow-visible border border-transparent text-[0.8rem] font-medium after:absolute after:inset-x-0 after:-inset-y-1 after:z-0 after:rounded-md data-[active=true]:border-accent data-[active=true]:bg-accent 3xl:fixed:w-full 3xl:fixed:max-w-48">
 
         
@@ -612,7 +657,7 @@
             
             <li data-slot="sidebar-menu-item" data-sidebar="menu-item" class="group/menu-item relative">
     <a data-slot="sidebar-menu-button" data-active="false" data-sidebar="menu-button"
-        data-size="default" href="/agent-research/multi-agent/research-on-multi-agent-orchestration-frameworks/"
+        data-size="default" href="../../multi-agent/research-on-multi-agent-orchestration-frameworks/"
         class="peer/menu-button flex items-center gap-2 rounded-md p-2 text-left ring-sidebar-ring outline-hidden transition-[width,height,padding] group-has-data-[sidebar=menu-action]/menu-item:pr-8 group-data-[collapsible=icon]:size-8! group-data-[collapsible=icon]:p-2! focus-visible:ring-2 active:bg-sidebar-accent active:text-sidebar-accent-foreground disabled:pointer-events-none disabled:opacity-50 aria-disabled:pointer-events-none aria-disabled:opacity-50 data-[active=true]:font-medium data-[active=true]:text-sidebar-accent-foreground data-[state=open]:hover:bg-sidebar-accent data-[state=open]:hover:text-sidebar-accent-foreground [&>span:last-child]:truncate [&>svg]:size-4 [&>svg]:shrink-0 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground relative h-[30px] w-fit overflow-visible border border-transparent text-[0.8rem] font-medium after:absolute after:inset-x-0 after:-inset-y-1 after:z-0 after:rounded-md data-[active=true]:border-accent data-[active=true]:bg-accent 3xl:fixed:w-full 3xl:fixed:max-w-48">
 
         
@@ -644,7 +689,7 @@
             
             <li data-slot="sidebar-menu-item" data-sidebar="menu-item" class="group/menu-item relative">
     <a data-slot="sidebar-menu-button" data-active="false" data-sidebar="menu-button"
-        data-size="default" href="/agent-research/other-agents/qwen-code-core-sdk-agent-architecture/"
+        data-size="default" href="../../other-agents/qwen-code-core-sdk-agent-architecture/"
         class="peer/menu-button flex items-center gap-2 rounded-md p-2 text-left ring-sidebar-ring outline-hidden transition-[width,height,padding] group-has-data-[sidebar=menu-action]/menu-item:pr-8 group-data-[collapsible=icon]:size-8! group-data-[collapsible=icon]:p-2! focus-visible:ring-2 active:bg-sidebar-accent active:text-sidebar-accent-foreground disabled:pointer-events-none disabled:opacity-50 aria-disabled:pointer-events-none aria-disabled:opacity-50 data-[active=true]:font-medium data-[active=true]:text-sidebar-accent-foreground data-[state=open]:hover:bg-sidebar-accent data-[state=open]:hover:text-sidebar-accent-foreground [&>span:last-child]:truncate [&>svg]:size-4 [&>svg]:shrink-0 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground relative h-[30px] w-fit overflow-visible border border-transparent text-[0.8rem] font-medium after:absolute after:inset-x-0 after:-inset-y-1 after:z-0 after:rounded-md data-[active=true]:border-accent data-[active=true]:bg-accent 3xl:fixed:w-full 3xl:fixed:max-w-48">
 
         
@@ -680,22 +725,676 @@
                             <div class="flex min-w-0 flex-1 flex-col">
                                 <div class="h-(--top-spacing) shrink-0"></div>
                                 
-<div class='h-full flex flex-row items-center justify-center'>
-    <svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' class='w-1/2'>
-        <path d='M0 0h24v24H0z' fill='none' />
-        <g fill='none' fill-rule='evenodd' clip-rule='evenodd'>
-            <path fill='var(--color-muted)'
-                d='M12.276 15.59c-.277-.662-2.117-.054-2.874 1.706a5.39 5.39 0 0 0 .964 5.877a2.99 2.99 0 0 0 4.592-1.473a7.12 7.12 0 0 0-.94-5.43c-.414-.458-1.353-.988-1.742-.68m-.136.496a2.17 2.17 0 0 0-1.713 1.603a4.5 4.5 0 0 0 .727 4.404a1.69 1.69 0 0 0 2.567-.83c.33-.883.375-4.492-1.263-4.906a.43.43 0 0 1-.318-.271' />
-            <path fill='var(--color-muted)'
-                d='M13.019.337c-.2-.458-1.431-.39-2.078-.146a9.2 9.2 0 0 0-3.608 4.108c-3.192 5.907-3.78 9.218 2.746 9.734c2.484.177 4.98-.078 7.377-.754a2.44 2.44 0 0 0 1.705-2.763C18.929 8.668 14.624-.528 13.019.336m-.2.536a.4.4 0 0 1-.276.028C9.386.25 6.273 9.22 6.32 10.718c.082 2.829 8.758 2.105 10.629 1.342c.69-.276 1.014-.596.93-1.41a25 25 0 0 0-1.657-4.49C13.502.143 13.062 1.527 12.82.875z' />
-            <path fill='var(--color-muted)'
-                d='M12.46 9.179c-.25-.702-2.486-.172-1.914 1.533a1.381 1.381 0 0 0 2.567.141c.406-.975-.238-1.666-.652-1.674zm-.121-1.13c1.177-5.432-2-8.29-.83-.03a.415.415 0 1 0 .83.03' />
-            <path fill='var(--color-muted)'
-                d='M19.917 21.432c.243 2.04.23 2.62.754 2.565c.525-.056.33-.415.276-2.708c.83-.133 1.758-.108 1.692-.694c-.067-.585-.813-.356-1.71-.298c-.042-2.263-.034-2.21-.147-4.24c-.166-2.507-5.338 3.336-4.68 4.745c.45.926 2.782.744 3.815.63m-.122-1.077c-.11-1.105-.149-1.735-.237-2.926a10 10 0 0 0-1.79 2.27c-.46.896-.49.515.276.595q.873.09 1.751.053zM5.35 21.07c.222 1.882.206 2.763.772 2.71s.326-.477.277-2.781c.878-.07 1.76-.022 1.693-.62c-.058-.513-.552-.353-1.713-.367c-.038-2.183-.036-2.166-.143-4.17a.666.666 0 0 0-1.028-.513A19.2 19.2 0 0 0 1.38 20.34a.67.67 0 0 0 .627.845s1.724-.027 3.343-.116m-.117-1.077c-.097-1.01-.12-1.382-.213-2.647a30 30 0 0 0-1.934 2.583c.602.022 1.38.047 2.147.064' />
-        </g>
-    </svg>
-</div>
+                                
+                                <article class="w-full" view-transition-name="page">
+  <div class="flex flex-col gap-2">
+    <div class="flex flex-col gap-2">
+      <div id="page-header" class="flex items-start justify-between">
+        <h1 class="scroll-m-20 text-4xl font-semibold tracking-tight sm:text-3xl xl:text-4xl">
+          Cloud Agents 操作手册
+        </h1>
 
+        <div class="flex items-center gap-2 pt-1.5">
+          <button
+    onclick="fetch(`https://chiga0.github.io/agent-research/implementation/operation-manual.md`).then((r) => r.blob()).then((blob) => navigator.clipboard.write([new ClipboardItem({ 'text/plain': blob })]))"
+    data-slot="button" class="secondary cursor-pointer">
+    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+        stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="tabler-icon tabler-icon-copy ">
+        <path
+            d="M7 7m0 2.667a2.667 2.667 0 0 1 2.667 -2.667h8.666a2.667 2.667 0 0 1 2.667 2.667v8.666a2.667 2.667 0 0 1 -2.667 2.667h-8.666a2.667 2.667 0 0 1 -2.667 -2.667z">
+        </path>
+        <path d="M4.012 16.737a2.005 2.005 0 0 1 -1.012 -1.737v-10c0 -1.1 .9 -2 2 -2h10c.75 0 1.158 .385 1.5 1"></path>
+    </svg>
+    <span class="max-md:hidden">Copy Page</span>
+</button>
+          
+          <a data-slot="button" id="previous-button"
+            class="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-all disabled:pointer-events-none disabled:opacity-50 [&amp;_svg]:pointer-events-none [&amp;_svg:not([class*='size-'])]:size-4 shrink-0 [&amp;_svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive bg-secondary text-secondary-foreground hover:bg-secondary/80 extend-touch-target size-8 shadow-none md:size-7"
+            href="../implementation-roadmap/">
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
+              stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+              class="tabler-icon tabler-icon-arrow-left">
+              <path d="M5 12l14 0"></path>
+              <path d="M5 12l6 6"></path>
+              <path d="M5 12l6 -6"></path>
+            </svg>
+            <span class="sr-only">Previous</span>
+          </a>
+          
+          
+          <a data-slot="button" id="next-button"
+            class="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-all disabled:pointer-events-none disabled:opacity-50 [&amp;_svg]:pointer-events-none [&amp;_svg:not([class*='size-'])]:size-4 shrink-0 [&amp;_svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive bg-secondary text-secondary-foreground hover:bg-secondary/80 extend-touch-target size-8 shadow-none md:size-7"
+            href="../../cloud-agents/">
+            <span class="sr-only">Next</span>
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
+              stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+              class="tabler-icon tabler-icon-arrow-right">
+              <path d="M5 12l14 0"></path>
+              <path d="M13 18l6 -6"></path>
+              <path d="M13 6l6 6"></path>
+            </svg>
+          </a>
+          
+        </div>
+      </div>
+      
+    </div>
+    <div class="flex justify-end items-center">
+      
+      
+    </div>
+  </div>
+  <div class="typography w-full flex-1 *:data-[slot=alert]:first:mt-0">
+    <blockquote>
+<p>适用范围：当前单租户 beta 版 Cloud Agents Runtime。它适合单控制面、1 台主 VPS、1-2 个本地或远程 worker、fake/qwen run、轻量 mission 和人工审计闭环。</p>
+</blockquote>
+<h2 id="1">1. 访问入口<a class="headerlink" href="#1" title="Permanent link">&para;</a></h2>
+<h3 id="web">Web 管理台<a class="headerlink" href="#web" title="Permanent link">&para;</a></h3>
+<p>优先使用域名入口：</p>
+<pre class="highlight"><code class="language-text">https://doubaofans.site/cloud-agents/</code></pre>
+<p>如果域名或 HTTPS 还未恢复，可临时使用 IP 入口：</p>
+<pre class="highlight"><code class="language-text">http://47.243.94.91/cloud-agents/</code></pre>
+<p>浏览器入口经过 Nginx：</p>
+<ul>
+<li><code>/cloud-agents/</code>：给人使用的 Web 管理台，默认 Basic Auth。</li>
+<li><code>/cloud-agents-worker/</code>：给远程 worker 使用的 API 入口，透传 worker Bearer token，不给人直接操作。</li>
+</ul>
+<h3 id="_1">登录信息<a class="headerlink" href="#_1" title="Permanent link">&para;</a></h3>
+<p>默认 Basic Auth 用户名通常是：</p>
+<pre class="highlight"><code class="language-text">cloudagents</code></pre>
+<p>密码来自部署脚本输出、GitHub Actions secret，或服务器上的 Nginx htpasswd 文件。不要把密码写入仓库或聊天记录。</p>
+<h3 id="_2">服务器常用路径<a class="headerlink" href="#_2" title="Permanent link">&para;</a></h3>
+<pre class="highlight"><code class="language-text">/opt/agent-research
+/etc/cloud-agents-runtime.env
+/etc/cloud-agents-worker.env
+/var/lib/cloud-agents-runtime
+/var/lib/cloud-agents-runtime/artifacts</code></pre>
+<h2 id="2">2. 管理台页面说明<a class="headerlink" href="#2" title="Permanent link">&para;</a></h2>
+<h3 id="overview">Overview<a class="headerlink" href="#overview" title="Permanent link">&para;</a></h3>
+<p>用于看系统总览：</p>
+<ul>
+<li>当前 runs、missions、queue、workers 的概况。</li>
+<li>最近 runs 和 missions。</li>
+<li>运行状态、失败态、等待态的分布。</li>
+</ul>
+<p>日常第一步先看这里：如果 queue 堆积、worker stale 或 run failed 会比较直观。</p>
+<h3 id="runs">Runs<a class="headerlink" href="#runs" title="Permanent link">&para;</a></h3>
+<p>用于创建和管理单个 SAEU run。</p>
+<p>可以做：</p>
+<ul>
+<li>创建 fake/qwen run。</li>
+<li>查看 run 状态。</li>
+<li>打开 run detail。</li>
+<li>取消正在运行的 run。</li>
+</ul>
+<p>常见 adapter：</p>
+<div class="table-wrapper"><table>
+<thead>
+<tr>
+<th>Adapter</th>
+<th>用途</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>fake</code></td>
+<td>低成本 smoke test、验证平台链路</td>
+</tr>
+<tr>
+<td><code>qwen</code></td>
+<td>真实 qwen-code 执行</td>
+</tr>
+</tbody>
+</table></div>
+<h3 id="run-detail">Run Detail<a class="headerlink" href="#run-detail" title="Permanent link">&para;</a></h3>
+<p>这是最重要的排障页面。</p>
+<p>你可以查看：</p>
+<ul>
+<li>Runner Chat：实时事件、模型输出、工具事件摘要、warning、error。</li>
+<li>Event Stream：完整 canonical event。</li>
+<li>Artifacts：下载 <code>events.jsonl</code>、<code>raw_events.jsonl</code>、<code>diagnostics.json</code>、<code>final_*.json</code>、executor 日志等。</li>
+<li>Audit Bundle：下载完整审计包。</li>
+<li>Permission：处理 pending permission request。</li>
+</ul>
+<p>如果你觉得“卡住了”，优先看：</p>
+<ol>
+<li>Runner Chat 是否停在 permission。</li>
+<li>Event Stream 最后一条 event 是什么。</li>
+<li>Artifacts 里是否有 <code>diagnostics.json</code>、<code>executor.stderr.log</code>。</li>
+<li>Executor 页面里对应 lease 是否 failed/orphaned/running。</li>
+</ol>
+<h3 id="missions">Missions<a class="headerlink" href="#missions" title="Permanent link">&para;</a></h3>
+<p>用于创建复杂任务。</p>
+<p>Mission 会把一个目标拆成多个 task，每个 task 通过 profile 创建一个或多个 SAEU run。当前支持串行、fan-out/fan-in、自定义 DAG。</p>
+<p>适合：</p>
+<ul>
+<li>复杂需求分析。</li>
+<li>多阶段研发任务。</li>
+<li>planner -&gt; coder -&gt; tester -&gt; reviewer。</li>
+<li>需要 reviewer/release gate 的任务。</li>
+</ul>
+<h3 id="mission-detail">Mission Detail<a class="headerlink" href="#mission-detail" title="Permanent link">&para;</a></h3>
+<p>用于查看复杂任务的整体进展：</p>
+<ul>
+<li>Task DAG。</li>
+<li>每个 task 的 profile、依赖、run_id。</li>
+<li>Mission events。</li>
+<li>Mission artifacts。</li>
+<li>Reviewer gate 状态。</li>
+<li>人工 override。</li>
+</ul>
+<p>如果 mission blocked，通常原因是：</p>
+<ul>
+<li>reviewer 输出 <code>block</code> 或 <code>needs_human</code>。</li>
+<li><code>review_gate.json</code> 缺失或非法。</li>
+<li>high/critical findings。</li>
+</ul>
+<h3 id="profiles">Profiles<a class="headerlink" href="#profiles" title="Permanent link">&para;</a></h3>
+<p>Profile 是“执行模板”，不是 Agent 实例。</p>
+<p>内置 profile：</p>
+<div class="table-wrapper"><table>
+<thead>
+<tr>
+<th>Profile</th>
+<th>用途</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>planner</code></td>
+<td>拆任务、读代码、设计方案</td>
+</tr>
+<tr>
+<td><code>coder</code></td>
+<td>代码实现</td>
+</tr>
+<tr>
+<td><code>tester</code></td>
+<td>测试和复现</td>
+</tr>
+<tr>
+<td><code>reviewer</code></td>
+<td>代码审查和风险识别</td>
+</tr>
+<tr>
+<td><code>release-gate</code></td>
+<td>合并/部署前 gate</td>
+</tr>
+<tr>
+<td><code>doc-writer</code></td>
+<td>文档输出</td>
+</tr>
+</tbody>
+</table></div>
+<p>你可以：</p>
+<ul>
+<li>复制系统 profile。</li>
+<li>新建用户 profile。</li>
+<li>编辑 runtime/tools/approval/limits/workspace/artifacts JSON policy。</li>
+<li>保存为新版本。</li>
+</ul>
+<p>建议：先复制内置 profile，再改副本，不直接依赖临时 prompt 模拟角色。</p>
+<h3 id="access">Access<a class="headerlink" href="#access" title="Permanent link">&para;</a></h3>
+<p>用于管理单租户 RBAC foundation：</p>
+<ul>
+<li>当前 principal。</li>
+<li>role/scope matrix。</li>
+<li>projects。</li>
+<li>API tokens。</li>
+<li>token revoke。</li>
+</ul>
+<p>当前 token 只保存 hash，明文 token 只在创建时显示一次。</p>
+<p>常用 token scope：</p>
+<div class="table-wrapper"><table>
+<thead>
+<tr>
+<th>Scope</th>
+<th>用途</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>runs:read</code></td>
+<td>只读 run</td>
+</tr>
+<tr>
+<td><code>runs:create</code></td>
+<td>创建 run</td>
+</tr>
+<tr>
+<td><code>missions:*</code></td>
+<td>操作 mission</td>
+</tr>
+<tr>
+<td><code>workers:*</code></td>
+<td>远程 worker 注册、claim、上报</td>
+</tr>
+<tr>
+<td><code>ops:*</code></td>
+<td>备份、drill、清理等运维操作</td>
+</tr>
+<tr>
+<td><code>access:*</code></td>
+<td>管理项目和 token</td>
+</tr>
+</tbody>
+</table></div>
+<h3 id="executors">Executors<a class="headerlink" href="#executors" title="Permanent link">&para;</a></h3>
+<p>用于排查 qwen 执行器：</p>
+<ul>
+<li>executor strategy。</li>
+<li>active/failed leases。</li>
+<li>pid、port、workspace。</li>
+<li>container config。</li>
+<li>run 关联。</li>
+<li>last_error。</li>
+</ul>
+<p>常见策略：</p>
+<div class="table-wrapper"><table>
+<thead>
+<tr>
+<th>Strategy</th>
+<th>含义</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>shared</code></td>
+<td>共用一个 qwen serve</td>
+</tr>
+<tr>
+<td><code>per_run_process</code></td>
+<td>每个 qwen run 启动独立 qwen serve</td>
+</tr>
+<tr>
+<td><code>container</code></td>
+<td>每个 run 使用 Docker 容器隔离</td>
+</tr>
+</tbody>
+</table></div>
+<p>当前稳定建议：普通 beta 运行优先 <code>shared</code> 或 <code>per_run_process</code>；<code>container</code> 仍需要继续做真实 qwen 实机验收。</p>
+<h3 id="operations">Operations<a class="headerlink" href="#operations" title="Permanent link">&para;</a></h3>
+<p>用于运维：</p>
+<ul>
+<li>Failure drills。</li>
+<li>Backups。</li>
+<li>Runtime status。</li>
+<li>P5 evaluations。</li>
+<li>Cost budget。</li>
+<li>备份下载。</li>
+</ul>
+<p>日常建议：</p>
+<ul>
+<li>部署后先跑一次 drill。</li>
+<li>重要任务前创建 backup。</li>
+<li>出问题时下载 audit bundle + backup。</li>
+</ul>
+<h2 id="3-run">3. 创建单个 Run<a class="headerlink" href="#3-run" title="Permanent link">&para;</a></h2>
+<h3 id="web_1">Web 操作<a class="headerlink" href="#web_1" title="Permanent link">&para;</a></h3>
+<ol>
+<li>进入 <code>/cloud-agents/</code>。</li>
+<li>打开 Runs。</li>
+<li>选择 adapter：</li>
+<li>快速验证选 <code>fake</code>。</li>
+<li>真实任务选 <code>qwen</code>。</li>
+<li>输入 prompt。</li>
+<li>提交。</li>
+<li>打开 Run Detail 查看实时进展。</li>
+</ol>
+<h3 id="api">API 操作<a class="headerlink" href="#api" title="Permanent link">&para;</a></h3>
+<p>通过公网 Nginx 管理入口时，使用 Basic Auth 即可：</p>
+<pre class="highlight"><code class="language-bash">curl -s https://doubaofans.site/cloud-agents/runs \
+  -u cloudagents:&lt;basic-password&gt; \
+  -H 'content-type: application/json' \
+  -d '{"prompt":"hello runtime","adapter":"fake"}'</code></pre>
+<p>直连 runtime 本地端口时，使用 master token：</p>
+<pre class="highlight"><code class="language-bash">RUN_MANAGER_TOKEN="$(awk -F= '$1=="RUN_MANAGER_TOKEN"{print $2}' \
+  /etc/cloud-agents-runtime.env)"
+
+curl -s http://127.0.0.1:8765/runs \
+  -H "authorization: Bearer $RUN_MANAGER_TOKEN" \
+  -H 'content-type: application/json' \
+  -d '{"prompt":"hello runtime","adapter":"fake"}'</code></pre>
+<h2 id="4-mission">4. 创建 Mission<a class="headerlink" href="#4-mission" title="Permanent link">&para;</a></h2>
+<h3 id="web_2">Web 操作<a class="headerlink" href="#web_2" title="Permanent link">&para;</a></h3>
+<ol>
+<li>打开 Missions。</li>
+<li>输入 goal。</li>
+<li>选择策略：</li>
+<li><code>sequential</code>：串行任务。</li>
+<li><code>fanout</code>：并行后汇总。</li>
+<li><code>custom</code>：自定义 task DAG。</li>
+<li>选择 adapter。</li>
+<li>提交。</li>
+<li>打开 Mission Detail 查看 DAG 和子 run。</li>
+</ol>
+<h3 id="api_1">API 示例<a class="headerlink" href="#api_1" title="Permanent link">&para;</a></h3>
+<pre class="highlight"><code class="language-bash">curl -s https://doubaofans.site/cloud-agents/missions \
+  -u cloudagents:&lt;basic-password&gt; \
+  -H 'content-type: application/json' \
+  -d '{
+    "goal": "验证一个两阶段任务",
+    "strategy": "custom",
+    "adapter": "fake",
+    "tasks": [
+      {"id": "plan", "profile": "planner", "prompt": "plan the work"},
+      {
+        "id": "review",
+        "profile": "reviewer",
+        "depends_on": ["plan"],
+        "prompt": "review the plan"
+      }
+    ]
+  }'</code></pre>
+<h2 id="5">5. 处理权限请求<a class="headerlink" href="#5" title="Permanent link">&para;</a></h2>
+<p>当 Agent 触发需要人工审批的工具或操作时，run 会产生 <code>permission.requested</code>。</p>
+<p>处理方式：</p>
+<ol>
+<li>打开 Run Detail。</li>
+<li>在 Runner Chat 或 Permission 区域查看请求内容。</li>
+<li>选择 approve 或 deny。</li>
+<li>填写 reason。</li>
+<li>提交后会产生 <code>permission.resolved</code> 事件。</li>
+</ol>
+<p>如果长时间未处理：</p>
+<ul>
+<li>系统会产生 <code>permission.stalled</code>。</li>
+<li>默认策略是 audit。</li>
+<li>可通过环境变量改为 <code>deny</code> 或 <code>cancel</code>。</li>
+</ul>
+<pre class="highlight"><code class="language-text">RUN_MANAGER_PERMISSION_STALL_SECONDS=300
+RUN_MANAGER_PERMISSION_STALL_ACTION=audit</code></pre>
+<h2 id="6">6. 下载日志和审计材料<a class="headerlink" href="#6" title="Permanent link">&para;</a></h2>
+<p>Run Detail 中常用下载：</p>
+<div class="table-wrapper"><table>
+<thead>
+<tr>
+<th>文件</th>
+<th>用途</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>events.jsonl</code></td>
+<td>canonical event stream</td>
+</tr>
+<tr>
+<td><code>raw_events.jsonl</code></td>
+<td>adapter raw events</td>
+</tr>
+<tr>
+<td><code>diagnostics.json</code></td>
+<td>诊断信息</td>
+</tr>
+<tr>
+<td><code>executor.json</code></td>
+<td>executor lease</td>
+</tr>
+<tr>
+<td><code>executor.stdout.log</code></td>
+<td>executor stdout</td>
+</tr>
+<tr>
+<td><code>executor.stderr.log</code></td>
+<td>executor stderr</td>
+</tr>
+<tr>
+<td><code>audit.json</code></td>
+<td>完整 run 审计包</td>
+</tr>
+</tbody>
+</table></div>
+<p>API 下载示例：</p>
+<pre class="highlight"><code class="language-bash">curl -s https://doubaofans.site/cloud-agents/runs/&lt;run_id&gt;/audit.json \
+  -u cloudagents:&lt;basic-password&gt; \
+  -o run-audit.json</code></pre>
+<p>Mission 常用下载：</p>
+<div class="table-wrapper"><table>
+<thead>
+<tr>
+<th>文件</th>
+<th>用途</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>mission_manifest.json</code></td>
+<td>mission 总览</td>
+</tr>
+<tr>
+<td><code>events.jsonl</code></td>
+<td>mission event stream</td>
+</tr>
+<tr>
+<td><code>task_&lt;task_id&gt;.json</code></td>
+<td>task 状态</td>
+</tr>
+<tr>
+<td><code>final_report.md</code></td>
+<td>最终报告</td>
+</tr>
+</tbody>
+</table></div>
+<h2 id="7">7. 运维操作<a class="headerlink" href="#7" title="Permanent link">&para;</a></h2>
+<h3 id="_3">查看服务状态<a class="headerlink" href="#_3" title="Permanent link">&para;</a></h3>
+<pre class="highlight"><code class="language-bash">ssh root@47.243.94.91
+systemctl status cloud-agents-runtime --no-pager --full
+journalctl -u cloud-agents-runtime -n 120 --no-pager</code></pre>
+<h3 id="_4">重启服务<a class="headerlink" href="#_4" title="Permanent link">&para;</a></h3>
+<pre class="highlight"><code class="language-bash">systemctl restart cloud-agents-runtime
+systemctl status cloud-agents-runtime --no-pager --full</code></pre>
+<h3 id="_5">查看运行时健康<a class="headerlink" href="#_5" title="Permanent link">&para;</a></h3>
+<pre class="highlight"><code class="language-bash">curl -s http://127.0.0.1:8765/health</code></pre>
+<p>如果开启 <code>--protect-health</code>，公网 <code>/health</code> 也可能需要认证。</p>
+<h3 id="worker">查看队列和 worker<a class="headerlink" href="#worker" title="Permanent link">&para;</a></h3>
+<pre class="highlight"><code class="language-bash">RUN_MANAGER_TOKEN="$(awk -F= '$1=="RUN_MANAGER_TOKEN"{print $2}' \
+  /etc/cloud-agents-runtime.env)"
+
+curl -s http://127.0.0.1:8765/queue \
+  -H "authorization: Bearer $RUN_MANAGER_TOKEN"
+
+curl -s http://127.0.0.1:8765/workers \
+  -H "authorization: Bearer $RUN_MANAGER_TOKEN"</code></pre>
+<h3 id="_6">创建备份<a class="headerlink" href="#_6" title="Permanent link">&para;</a></h3>
+<p>Web：</p>
+<ol>
+<li>打开 Operations。</li>
+<li>找到 Backups。</li>
+<li>点击 Create。</li>
+<li>下载生成的 tar.gz。</li>
+</ol>
+<p>API：</p>
+<pre class="highlight"><code class="language-bash">curl -s -X POST https://doubaofans.site/cloud-agents/ops/backups \
+  -u cloudagents:&lt;basic-password&gt; \
+  -H 'content-type: application/json' \
+  -d '{}'</code></pre>
+<h3 id="_7">运行故障演练<a class="headerlink" href="#_7" title="Permanent link">&para;</a></h3>
+<pre class="highlight"><code class="language-bash">curl -s -X POST https://doubaofans.site/cloud-agents/ops/drills \
+  -u cloudagents:&lt;basic-password&gt; \
+  -H 'content-type: application/json' \
+  -d '{}'</code></pre>
+<h2 id="8">8. 部署和更新<a class="headerlink" href="#8" title="Permanent link">&para;</a></h2>
+<h3 id="runtime-vps">主 Runtime VPS 部署<a class="headerlink" href="#runtime-vps" title="Permanent link">&para;</a></h3>
+<pre class="highlight"><code class="language-bash">QWEN_SETTINGS_FILE=/Users/chigao/Documents/works/settings.json \
+PUBLIC_DOMAIN=doubaofans.site \
+BASIC_AUTH_USER=cloudagents \
+BASIC_AUTH_PASSWORD=&lt;basic-password&gt; \
+  bash scripts/deploy_runtime_vps.sh \
+  root@47.243.94.91 \
+  /Users/chigao/Documents/works/ecs/aliyun-hongkong.pem</code></pre>
+<p>部署脚本会：</p>
+<ul>
+<li>安装 git/python3/npm/nginx。</li>
+<li>安装 qwen CLI。</li>
+<li>拉取仓库 main。</li>
+<li>写 <code>/etc/cloud-agents-runtime.env</code>。</li>
+<li>安装 systemd service。</li>
+<li>配置 Nginx。</li>
+<li>重启 runtime。</li>
+</ul>
+<h3 id="worker-vps">远程 Worker VPS 部署<a class="headerlink" href="#worker-vps" title="Permanent link">&para;</a></h3>
+<p>先在 Access 页面或 API 创建 worker token：</p>
+<pre class="highlight"><code class="language-bash">curl -s https://doubaofans.site/cloud-agents/access/tokens \
+  -u cloudagents:&lt;basic-password&gt; \
+  -H 'content-type: application/json' \
+  -d '{"name":"worker-vps-a","scopes":["workers:*"]}'</code></pre>
+<p>然后部署 worker：</p>
+<pre class="highlight"><code class="language-bash">RUN_WORKER_CONTROL_URL=https://doubaofans.site/cloud-agents-worker \
+RUN_WORKER_TOKEN=cat_... \
+RUN_WORKER_ID=vps-a \
+RUN_WORKER_METADATA_JSON='{"region":"hk","labels":{"tier":"sandbox"}}' \
+QWEN_SETTINGS_FILE=/Users/chigao/Documents/works/settings.json \
+  bash scripts/deploy_worker_vps.sh \
+  root@&lt;worker-host&gt; \
+  /path/to/key.pem</code></pre>
+<p>Worker VPS 服务状态：</p>
+<pre class="highlight"><code class="language-bash">systemctl status cloud-agents-worker --no-pager --full
+journalctl -u cloud-agents-worker -n 120 --no-pager</code></pre>
+<h2 id="9">9. 验收流程<a class="headerlink" href="#9" title="Permanent link">&para;</a></h2>
+<h3 id="smoke">快速 smoke<a class="headerlink" href="#smoke" title="Permanent link">&para;</a></h3>
+<pre class="highlight"><code class="language-bash">python3 scripts/monitor_runtime.py \
+  --base-url https://doubaofans.site/cloud-agents \
+  --basic-auth-user cloudagents \
+  --basic-auth-password &lt;basic-password&gt; \
+  --json</code></pre>
+<h3 id="fake-run">fake run 验收<a class="headerlink" href="#fake-run" title="Permanent link">&para;</a></h3>
+<pre class="highlight"><code class="language-bash">python3 scripts/validate_runtime.py \
+  --base-url https://doubaofans.site/cloud-agents \
+  --basic-auth-user cloudagents \
+  --basic-auth-password &lt;basic-password&gt; \
+  --adapter fake</code></pre>
+<h3 id="qwen-run">qwen 单 run 验收<a class="headerlink" href="#qwen-run" title="Permanent link">&para;</a></h3>
+<pre class="highlight"><code class="language-bash">python3 scripts/validate_qwen_mission.py \
+  --base-url https://doubaofans.site/cloud-agents \
+  --basic-auth-user cloudagents \
+  --basic-auth-password &lt;basic-password&gt; \
+  --validate-single-run \
+  --expect-executor-strategy per_run_process \
+  --timeout 600</code></pre>
+<h3 id="qwen-mission">qwen 轻量 mission 验收<a class="headerlink" href="#qwen-mission" title="Permanent link">&para;</a></h3>
+<pre class="highlight"><code class="language-bash">python3 scripts/validate_qwen_mission.py \
+  --base-url https://doubaofans.site/cloud-agents \
+  --basic-auth-user cloudagents \
+  --basic-auth-password &lt;basic-password&gt; \
+  --validate-single-run \
+  --qwen-validate-mission \
+  --mission-task-count 1 \
+  --expect-executor-strategy per_run_process \
+  --timeout 900</code></pre>
+<h2 id="10">10. 常见问题处理<a class="headerlink" href="#10" title="Permanent link">&para;</a></h2>
+<h3 id="_8">页面白屏<a class="headerlink" href="#_8" title="Permanent link">&para;</a></h3>
+<p>检查：</p>
+<ol>
+<li>浏览器是否打开 <code>/cloud-agents/</code>，不是裸域 API 路径。</li>
+<li>DevTools Network 是否有 JS 资源 404。</li>
+<li>Nginx 是否配置了 hash routing。</li>
+<li>服务是否正常：</li>
+</ol>
+<pre class="highlight"><code class="language-bash">systemctl status cloud-agents-runtime --no-pager --full
+nginx -t
+journalctl -u cloud-agents-runtime -n 120 --no-pager</code></pre>
+<h3 id="run-queued">Run 一直 queued<a class="headerlink" href="#run-queued" title="Permanent link">&para;</a></h3>
+<p>检查：</p>
+<ol>
+<li><code>/queue</code> 里是否有可用 worker。</li>
+<li>worker capacity 是否为 0。</li>
+<li>worker 是否 stale。</li>
+<li>run 的 <code>worker_requirements</code> 是否没有任何 worker 满足。</li>
+</ol>
+<h3 id="run-permission">Run 卡在 permission<a class="headerlink" href="#run-permission" title="Permanent link">&para;</a></h3>
+<p>打开 Run Detail，处理 permission request。也可以检查 event：</p>
+<pre class="highlight"><code class="language-bash">curl -s https://doubaofans.site/cloud-agents/runs/&lt;run_id&gt;/events.json \
+  -u cloudagents:&lt;basic-password&gt;</code></pre>
+<h3 id="qwen-run-failed">qwen run failed<a class="headerlink" href="#qwen-run-failed" title="Permanent link">&para;</a></h3>
+<p>优先下载：</p>
+<ul>
+<li><code>executor.stderr.log</code></li>
+<li><code>executor.stdout.log</code></li>
+<li><code>executor.json</code></li>
+<li><code>diagnostics.json</code></li>
+<li><code>audit.json</code></li>
+</ul>
+<p>再检查：</p>
+<pre class="highlight"><code class="language-bash">journalctl -u cloud-agents-runtime -n 200 --no-pager</code></pre>
+<h3 id="worker_1">Worker 无法注册<a class="headerlink" href="#worker_1" title="Permanent link">&para;</a></h3>
+<p>检查：</p>
+<ol>
+<li>worker 是否使用 <code>/cloud-agents-worker/</code>。</li>
+<li>token scope 是否包含 <code>workers:*</code> 或 <code>workers:write</code>。</li>
+<li>token 是否已 revoke。</li>
+<li>主控制面 Nginx 是否包含 worker route。</li>
+<li>worker journal：</li>
+</ol>
+<pre class="highlight"><code class="language-bash">journalctl -u cloud-agents-worker -n 120 --no-pager</code></pre>
+<h3 id="ssh">SSH 部署中断<a class="headerlink" href="#ssh" title="Permanent link">&para;</a></h3>
+<p>部署脚本已经有 keepalive 和 scp retry，但小 VPS 网络仍可能断。可重跑部署脚本；它会 fetch/reset 到最新 main 并覆盖 systemd/env 配置。</p>
+<h2 id="11">11. 使用建议<a class="headerlink" href="#11" title="Permanent link">&para;</a></h2>
+<p>推荐日常节奏：</p>
+<ol>
+<li>先用 <code>fake</code> run 验证平台链路。</li>
+<li>再用 qwen single-run 验证真实执行。</li>
+<li>复杂任务用 Mission，不要一开始就写超长 prompt。</li>
+<li>每次重要任务后下载 audit bundle。</li>
+<li>失败时先看 Run Detail，再看 Executor，再看 journal。</li>
+<li>远程 worker 先跑 fake，再跑 qwen。</li>
+<li>容器 executor 暂时作为手动验收路径，不作为默认生产策略。</li>
+</ol>
+<p>当前最稳运行形态：</p>
+<pre class="highlight"><code class="language-text">主 VPS:
+  Nginx + Cloud Agents Runtime + local worker
+
+执行策略:
+  fake smoke
+  qwen shared / per_run_process
+
+可选:
+  第二台 VPS remote worker</code></pre>
+<p>暂不建议作为默认生产形态：</p>
+<pre class="highlight"><code class="language-text">多租户公开服务
+无 Basic Auth 直接暴露 runtime
+未验收的 qwen container strategy
+高并发多控制面
+大文件/二进制 artifact 密集任务</code></pre>
+  </div>
+  
+  <script>
+    document.querySelectorAll('article h2, article h3').forEach((header) => {
+      toc.observer.observe(header);
+    });
+  </script>
+</article>
+                                <div class="mx-auto flex flex-wrap h-16 w-full max-w-2xl items-center gap-2 px-4 md:px-0">
+    
+    <a data-slot="button"
+        class="inline-flex items-center justify-center whitespace-nowrap text-sm font-medium transition-all disabled:pointer-events-none disabled:opacity-50 [&amp;_svg]:pointer-events-none [&amp;_svg:not([class*='size-'])]:size-4 shrink-0 [&amp;_svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive bg-secondary text-secondary-foreground hover:bg-secondary/80 h-8 rounded-md gap-1.5 px-3 has-[&gt;svg]:px-2.5 shadow-none"
+        href="../implementation-roadmap/">
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
+            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+            class="tabler-icon tabler-icon-arrow-left ">
+            <path d="M5 12l14 0"></path>
+            <path d="M5 12l6 6"></path>
+            <path d="M5 12l6 -6"></path>
+        </svg>
+        <span class="max-[500px]:hidden">实施 Roadmap</span>
+    </a>
+    
+    
+    <a data-slot="button"
+        class="inline-flex items-center justify-center whitespace-nowrap text-sm font-medium transition-all disabled:pointer-events-none disabled:opacity-50 [&amp;_svg]:pointer-events-none [&amp;_svg:not([class*='size-'])]:size-4 shrink-0 [&amp;_svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive bg-secondary text-secondary-foreground hover:bg-secondary/80 h-8 rounded-md gap-1.5 px-3 has-[&gt;svg]:px-2.5 ml-auto shadow-none"
+        href="../../cloud-agents/">
+        <span class="max-[500px]:hidden">企业级 Cloud Agents 框架与运行时技术调研报告</span>
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
+            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+            class="tabler-icon tabler-icon-arrow-right ">
+            <path d="M5 12l14 0"></path>
+            <path d="M13 18l6 -6"></path>
+            <path d="M13 6l6 6"></path>
+        </svg>
+    </a>
+    
+</div>
+                                
+                                
                             </div>
                             
                             <dialog id="bottom-sidebar" onclick="onBottomSidebarDialogClick(event)" class="bg-transparent"
@@ -714,7 +1413,7 @@
                 <div class="text-muted-foreground text-sm font-medium">Menu</div>
                 <div class="flex flex-col gap-3">
                     
-                    <a class="text-2xl font-medium" href="/agent-research/.">
+                    <a class="text-2xl font-medium" href="../..">
                         
                         首页
                         
@@ -732,85 +1431,85 @@
                     
                     <div class="flex flex-col gap-3">
                         
-                        <a class="text-2xl font-medium" href="/agent-research/implementation/">
+                        <a class="text-2xl font-medium" href="../">
                             
                             可云端长期运行的多 Agent 系统落地方案
                             
                         </a>
                         
-                        <a class="text-2xl font-medium" href="/agent-research/implementation/stable-agent-execution-unit/">
+                        <a class="text-2xl font-medium" href="../stable-agent-execution-unit/">
                             
                             稳定单 Agent 执行单元
                             
                         </a>
                         
-                        <a class="text-2xl font-medium" href="/agent-research/implementation/subagent-vs-execution-unit/">
+                        <a class="text-2xl font-medium" href="../subagent-vs-execution-unit/">
                             
                             SubAgent 与独立执行单元边界
                             
                         </a>
                         
-                        <a class="text-2xl font-medium" href="/agent-research/implementation/qwen-serve-single-agent-cloud-unit/">
+                        <a class="text-2xl font-medium" href="../qwen-serve-single-agent-cloud-unit/">
                             
                             基于 qwen-code serve 的云端单 Agent 单元方案
                             
                         </a>
                         
-                        <a class="text-2xl font-medium" href="/agent-research/implementation/sandbox-isolation/">
+                        <a class="text-2xl font-medium" href="../sandbox-isolation/">
                             
                             沙箱与隔离方案
                             
                         </a>
                         
-                        <a class="text-2xl font-medium" href="/agent-research/implementation/protocol-acp-a2a/">
+                        <a class="text-2xl font-medium" href="../protocol-acp-a2a/">
                             
                             ACP、A2A 与 MCP 协议选型
                             
                         </a>
                         
-                        <a class="text-2xl font-medium" href="/agent-research/implementation/temporal-evaluation/">
+                        <a class="text-2xl font-medium" href="../temporal-evaluation/">
                             
                             Temporal 调研与适配方案
                             
                         </a>
                         
-                        <a class="text-2xl font-medium" href="/agent-research/implementation/event-sourcing-and-replay/">
+                        <a class="text-2xl font-medium" href="../event-sourcing-and-replay/">
                             
                             事件溯源、JSONL 与回放
                             
                         </a>
                         
-                        <a class="text-2xl font-medium" href="/agent-research/implementation/single-agent-strategy/">
+                        <a class="text-2xl font-medium" href="../single-agent-strategy/">
                             
                             单 Agent 基座选型
                             
                         </a>
                         
-                        <a class="text-2xl font-medium" href="/agent-research/implementation/single-to-multi-agent-implementation-plan/">
+                        <a class="text-2xl font-medium" href="../single-to-multi-agent-implementation-plan/">
                             
                             从单 Agent 执行单元到多 Agent 编排
                             
                         </a>
                         
-                        <a class="text-2xl font-medium" href="/agent-research/implementation/alternative-solutions-comparative-audit/">
+                        <a class="text-2xl font-medium" href="../alternative-solutions-comparative-audit/">
                             
                             外部方案对比与多方向审计
                             
                         </a>
                         
-                        <a class="text-2xl font-medium" href="/agent-research/implementation/review-and-audit-record/">
+                        <a class="text-2xl font-medium" href="../review-and-audit-record/">
                             
                             方案审计与 Review 记录
                             
                         </a>
                         
-                        <a class="text-2xl font-medium" href="/agent-research/implementation/implementation-roadmap/">
+                        <a class="text-2xl font-medium" href="../implementation-roadmap/">
                             
                             实施 Roadmap
                             
                         </a>
                         
-                        <a class="text-2xl font-medium" href="/agent-research/implementation/operation-manual/">
+                        <a class="text-2xl font-medium" href="./">
                             
                             Cloud Agents 操作手册
                             
@@ -825,7 +1524,7 @@
                     
                     <div class="flex flex-col gap-3">
                         
-                        <a class="text-2xl font-medium" href="/agent-research/cloud-agents/">
+                        <a class="text-2xl font-medium" href="../../cloud-agents/">
                             
                             企业级 Cloud Agents 框架与运行时技术调研报告
                             
@@ -840,7 +1539,7 @@
                     
                     <div class="flex flex-col gap-3">
                         
-                        <a class="text-2xl font-medium" href="/agent-research/multi-agent/research-on-multi-agent-orchestration-frameworks/">
+                        <a class="text-2xl font-medium" href="../../multi-agent/research-on-multi-agent-orchestration-frameworks/">
                             
                             生产级多 Agent 系统编排与运行屏障工程
                             
@@ -855,7 +1554,7 @@
                     
                     <div class="flex flex-col gap-3">
                         
-                        <a class="text-2xl font-medium" href="/agent-research/other-agents/qwen-code-core-sdk-agent-architecture/">
+                        <a class="text-2xl font-medium" href="../../other-agents/qwen-code-core-sdk-agent-architecture/">
                             
                             Qwen Code Core 与 SDK Agent 架构分析
                             
@@ -876,6 +1575,330 @@
                                 class="sticky top-[calc(var(--header-height)+1px)] ml-auto hidden h-[calc(100svh-var(--header-height)-var(--footer-height))] w-72 flex-col gap-4 overflow-hidden overscroll-none pb-8 xl:flex">
                                 <div class="h-(--top-spacing) shrink-0"></div>
                                 
+                                
+                                <div id="toc" view-transition-name="toc" class="no-scrollbar overflow-y-auto px-8">
+    <div class="flex flex-col gap-2 p-4 pt-0 text-sm">
+        <p class="text-muted-foreground bg-background sticky top-0 h-6 text-xs">On This Page</p>
+        
+        
+        
+        
+        <a href="#1"
+            class="text-muted-foreground hover:text-foreground data-[active=true]:text-foreground text-[0.8rem] no-underline transition-colors data-[depth=3]:pl-4 data-[depth=4]:pl-6"
+            data-active="false" data-depth="2" onClick="deferSetActiveTocLink('#1');">
+            1. 访问入口
+        </a>
+        
+        
+        <a href="#web"
+            class="text-muted-foreground hover:text-foreground data-[active=true]:text-foreground text-[0.8rem] no-underline transition-colors data-[depth=3]:pl-4 data-[depth=4]:pl-6"
+            data-active="false" data-depth="3" onClick="deferSetActiveTocLink('#web');">
+            Web 管理台
+        </a>
+        
+        <a href="#_1"
+            class="text-muted-foreground hover:text-foreground data-[active=true]:text-foreground text-[0.8rem] no-underline transition-colors data-[depth=3]:pl-4 data-[depth=4]:pl-6"
+            data-active="false" data-depth="3" onClick="deferSetActiveTocLink('#_1');">
+            登录信息
+        </a>
+        
+        <a href="#_2"
+            class="text-muted-foreground hover:text-foreground data-[active=true]:text-foreground text-[0.8rem] no-underline transition-colors data-[depth=3]:pl-4 data-[depth=4]:pl-6"
+            data-active="false" data-depth="3" onClick="deferSetActiveTocLink('#_2');">
+            服务器常用路径
+        </a>
+        
+        
+
+        
+        <a href="#2"
+            class="text-muted-foreground hover:text-foreground data-[active=true]:text-foreground text-[0.8rem] no-underline transition-colors data-[depth=3]:pl-4 data-[depth=4]:pl-6"
+            data-active="false" data-depth="2" onClick="deferSetActiveTocLink('#2');">
+            2. 管理台页面说明
+        </a>
+        
+        
+        <a href="#overview"
+            class="text-muted-foreground hover:text-foreground data-[active=true]:text-foreground text-[0.8rem] no-underline transition-colors data-[depth=3]:pl-4 data-[depth=4]:pl-6"
+            data-active="false" data-depth="3" onClick="deferSetActiveTocLink('#overview');">
+            Overview
+        </a>
+        
+        <a href="#runs"
+            class="text-muted-foreground hover:text-foreground data-[active=true]:text-foreground text-[0.8rem] no-underline transition-colors data-[depth=3]:pl-4 data-[depth=4]:pl-6"
+            data-active="false" data-depth="3" onClick="deferSetActiveTocLink('#runs');">
+            Runs
+        </a>
+        
+        <a href="#run-detail"
+            class="text-muted-foreground hover:text-foreground data-[active=true]:text-foreground text-[0.8rem] no-underline transition-colors data-[depth=3]:pl-4 data-[depth=4]:pl-6"
+            data-active="false" data-depth="3" onClick="deferSetActiveTocLink('#run-detail');">
+            Run Detail
+        </a>
+        
+        <a href="#missions"
+            class="text-muted-foreground hover:text-foreground data-[active=true]:text-foreground text-[0.8rem] no-underline transition-colors data-[depth=3]:pl-4 data-[depth=4]:pl-6"
+            data-active="false" data-depth="3" onClick="deferSetActiveTocLink('#missions');">
+            Missions
+        </a>
+        
+        <a href="#mission-detail"
+            class="text-muted-foreground hover:text-foreground data-[active=true]:text-foreground text-[0.8rem] no-underline transition-colors data-[depth=3]:pl-4 data-[depth=4]:pl-6"
+            data-active="false" data-depth="3" onClick="deferSetActiveTocLink('#mission-detail');">
+            Mission Detail
+        </a>
+        
+        <a href="#profiles"
+            class="text-muted-foreground hover:text-foreground data-[active=true]:text-foreground text-[0.8rem] no-underline transition-colors data-[depth=3]:pl-4 data-[depth=4]:pl-6"
+            data-active="false" data-depth="3" onClick="deferSetActiveTocLink('#profiles');">
+            Profiles
+        </a>
+        
+        <a href="#access"
+            class="text-muted-foreground hover:text-foreground data-[active=true]:text-foreground text-[0.8rem] no-underline transition-colors data-[depth=3]:pl-4 data-[depth=4]:pl-6"
+            data-active="false" data-depth="3" onClick="deferSetActiveTocLink('#access');">
+            Access
+        </a>
+        
+        <a href="#executors"
+            class="text-muted-foreground hover:text-foreground data-[active=true]:text-foreground text-[0.8rem] no-underline transition-colors data-[depth=3]:pl-4 data-[depth=4]:pl-6"
+            data-active="false" data-depth="3" onClick="deferSetActiveTocLink('#executors');">
+            Executors
+        </a>
+        
+        <a href="#operations"
+            class="text-muted-foreground hover:text-foreground data-[active=true]:text-foreground text-[0.8rem] no-underline transition-colors data-[depth=3]:pl-4 data-[depth=4]:pl-6"
+            data-active="false" data-depth="3" onClick="deferSetActiveTocLink('#operations');">
+            Operations
+        </a>
+        
+        
+
+        
+        <a href="#3-run"
+            class="text-muted-foreground hover:text-foreground data-[active=true]:text-foreground text-[0.8rem] no-underline transition-colors data-[depth=3]:pl-4 data-[depth=4]:pl-6"
+            data-active="false" data-depth="2" onClick="deferSetActiveTocLink('#3-run');">
+            3. 创建单个 Run
+        </a>
+        
+        
+        <a href="#web_1"
+            class="text-muted-foreground hover:text-foreground data-[active=true]:text-foreground text-[0.8rem] no-underline transition-colors data-[depth=3]:pl-4 data-[depth=4]:pl-6"
+            data-active="false" data-depth="3" onClick="deferSetActiveTocLink('#web_1');">
+            Web 操作
+        </a>
+        
+        <a href="#api"
+            class="text-muted-foreground hover:text-foreground data-[active=true]:text-foreground text-[0.8rem] no-underline transition-colors data-[depth=3]:pl-4 data-[depth=4]:pl-6"
+            data-active="false" data-depth="3" onClick="deferSetActiveTocLink('#api');">
+            API 操作
+        </a>
+        
+        
+
+        
+        <a href="#4-mission"
+            class="text-muted-foreground hover:text-foreground data-[active=true]:text-foreground text-[0.8rem] no-underline transition-colors data-[depth=3]:pl-4 data-[depth=4]:pl-6"
+            data-active="false" data-depth="2" onClick="deferSetActiveTocLink('#4-mission');">
+            4. 创建 Mission
+        </a>
+        
+        
+        <a href="#web_2"
+            class="text-muted-foreground hover:text-foreground data-[active=true]:text-foreground text-[0.8rem] no-underline transition-colors data-[depth=3]:pl-4 data-[depth=4]:pl-6"
+            data-active="false" data-depth="3" onClick="deferSetActiveTocLink('#web_2');">
+            Web 操作
+        </a>
+        
+        <a href="#api_1"
+            class="text-muted-foreground hover:text-foreground data-[active=true]:text-foreground text-[0.8rem] no-underline transition-colors data-[depth=3]:pl-4 data-[depth=4]:pl-6"
+            data-active="false" data-depth="3" onClick="deferSetActiveTocLink('#api_1');">
+            API 示例
+        </a>
+        
+        
+
+        
+        <a href="#5"
+            class="text-muted-foreground hover:text-foreground data-[active=true]:text-foreground text-[0.8rem] no-underline transition-colors data-[depth=3]:pl-4 data-[depth=4]:pl-6"
+            data-active="false" data-depth="2" onClick="deferSetActiveTocLink('#5');">
+            5. 处理权限请求
+        </a>
+        
+
+        
+        <a href="#6"
+            class="text-muted-foreground hover:text-foreground data-[active=true]:text-foreground text-[0.8rem] no-underline transition-colors data-[depth=3]:pl-4 data-[depth=4]:pl-6"
+            data-active="false" data-depth="2" onClick="deferSetActiveTocLink('#6');">
+            6. 下载日志和审计材料
+        </a>
+        
+
+        
+        <a href="#7"
+            class="text-muted-foreground hover:text-foreground data-[active=true]:text-foreground text-[0.8rem] no-underline transition-colors data-[depth=3]:pl-4 data-[depth=4]:pl-6"
+            data-active="false" data-depth="2" onClick="deferSetActiveTocLink('#7');">
+            7. 运维操作
+        </a>
+        
+        
+        <a href="#_3"
+            class="text-muted-foreground hover:text-foreground data-[active=true]:text-foreground text-[0.8rem] no-underline transition-colors data-[depth=3]:pl-4 data-[depth=4]:pl-6"
+            data-active="false" data-depth="3" onClick="deferSetActiveTocLink('#_3');">
+            查看服务状态
+        </a>
+        
+        <a href="#_4"
+            class="text-muted-foreground hover:text-foreground data-[active=true]:text-foreground text-[0.8rem] no-underline transition-colors data-[depth=3]:pl-4 data-[depth=4]:pl-6"
+            data-active="false" data-depth="3" onClick="deferSetActiveTocLink('#_4');">
+            重启服务
+        </a>
+        
+        <a href="#_5"
+            class="text-muted-foreground hover:text-foreground data-[active=true]:text-foreground text-[0.8rem] no-underline transition-colors data-[depth=3]:pl-4 data-[depth=4]:pl-6"
+            data-active="false" data-depth="3" onClick="deferSetActiveTocLink('#_5');">
+            查看运行时健康
+        </a>
+        
+        <a href="#worker"
+            class="text-muted-foreground hover:text-foreground data-[active=true]:text-foreground text-[0.8rem] no-underline transition-colors data-[depth=3]:pl-4 data-[depth=4]:pl-6"
+            data-active="false" data-depth="3" onClick="deferSetActiveTocLink('#worker');">
+            查看队列和 worker
+        </a>
+        
+        <a href="#_6"
+            class="text-muted-foreground hover:text-foreground data-[active=true]:text-foreground text-[0.8rem] no-underline transition-colors data-[depth=3]:pl-4 data-[depth=4]:pl-6"
+            data-active="false" data-depth="3" onClick="deferSetActiveTocLink('#_6');">
+            创建备份
+        </a>
+        
+        <a href="#_7"
+            class="text-muted-foreground hover:text-foreground data-[active=true]:text-foreground text-[0.8rem] no-underline transition-colors data-[depth=3]:pl-4 data-[depth=4]:pl-6"
+            data-active="false" data-depth="3" onClick="deferSetActiveTocLink('#_7');">
+            运行故障演练
+        </a>
+        
+        
+
+        
+        <a href="#8"
+            class="text-muted-foreground hover:text-foreground data-[active=true]:text-foreground text-[0.8rem] no-underline transition-colors data-[depth=3]:pl-4 data-[depth=4]:pl-6"
+            data-active="false" data-depth="2" onClick="deferSetActiveTocLink('#8');">
+            8. 部署和更新
+        </a>
+        
+        
+        <a href="#runtime-vps"
+            class="text-muted-foreground hover:text-foreground data-[active=true]:text-foreground text-[0.8rem] no-underline transition-colors data-[depth=3]:pl-4 data-[depth=4]:pl-6"
+            data-active="false" data-depth="3" onClick="deferSetActiveTocLink('#runtime-vps');">
+            主 Runtime VPS 部署
+        </a>
+        
+        <a href="#worker-vps"
+            class="text-muted-foreground hover:text-foreground data-[active=true]:text-foreground text-[0.8rem] no-underline transition-colors data-[depth=3]:pl-4 data-[depth=4]:pl-6"
+            data-active="false" data-depth="3" onClick="deferSetActiveTocLink('#worker-vps');">
+            远程 Worker VPS 部署
+        </a>
+        
+        
+
+        
+        <a href="#9"
+            class="text-muted-foreground hover:text-foreground data-[active=true]:text-foreground text-[0.8rem] no-underline transition-colors data-[depth=3]:pl-4 data-[depth=4]:pl-6"
+            data-active="false" data-depth="2" onClick="deferSetActiveTocLink('#9');">
+            9. 验收流程
+        </a>
+        
+        
+        <a href="#smoke"
+            class="text-muted-foreground hover:text-foreground data-[active=true]:text-foreground text-[0.8rem] no-underline transition-colors data-[depth=3]:pl-4 data-[depth=4]:pl-6"
+            data-active="false" data-depth="3" onClick="deferSetActiveTocLink('#smoke');">
+            快速 smoke
+        </a>
+        
+        <a href="#fake-run"
+            class="text-muted-foreground hover:text-foreground data-[active=true]:text-foreground text-[0.8rem] no-underline transition-colors data-[depth=3]:pl-4 data-[depth=4]:pl-6"
+            data-active="false" data-depth="3" onClick="deferSetActiveTocLink('#fake-run');">
+            fake run 验收
+        </a>
+        
+        <a href="#qwen-run"
+            class="text-muted-foreground hover:text-foreground data-[active=true]:text-foreground text-[0.8rem] no-underline transition-colors data-[depth=3]:pl-4 data-[depth=4]:pl-6"
+            data-active="false" data-depth="3" onClick="deferSetActiveTocLink('#qwen-run');">
+            qwen 单 run 验收
+        </a>
+        
+        <a href="#qwen-mission"
+            class="text-muted-foreground hover:text-foreground data-[active=true]:text-foreground text-[0.8rem] no-underline transition-colors data-[depth=3]:pl-4 data-[depth=4]:pl-6"
+            data-active="false" data-depth="3" onClick="deferSetActiveTocLink('#qwen-mission');">
+            qwen 轻量 mission 验收
+        </a>
+        
+        
+
+        
+        <a href="#10"
+            class="text-muted-foreground hover:text-foreground data-[active=true]:text-foreground text-[0.8rem] no-underline transition-colors data-[depth=3]:pl-4 data-[depth=4]:pl-6"
+            data-active="false" data-depth="2" onClick="deferSetActiveTocLink('#10');">
+            10. 常见问题处理
+        </a>
+        
+        
+        <a href="#_8"
+            class="text-muted-foreground hover:text-foreground data-[active=true]:text-foreground text-[0.8rem] no-underline transition-colors data-[depth=3]:pl-4 data-[depth=4]:pl-6"
+            data-active="false" data-depth="3" onClick="deferSetActiveTocLink('#_8');">
+            页面白屏
+        </a>
+        
+        <a href="#run-queued"
+            class="text-muted-foreground hover:text-foreground data-[active=true]:text-foreground text-[0.8rem] no-underline transition-colors data-[depth=3]:pl-4 data-[depth=4]:pl-6"
+            data-active="false" data-depth="3" onClick="deferSetActiveTocLink('#run-queued');">
+            Run 一直 queued
+        </a>
+        
+        <a href="#run-permission"
+            class="text-muted-foreground hover:text-foreground data-[active=true]:text-foreground text-[0.8rem] no-underline transition-colors data-[depth=3]:pl-4 data-[depth=4]:pl-6"
+            data-active="false" data-depth="3" onClick="deferSetActiveTocLink('#run-permission');">
+            Run 卡在 permission
+        </a>
+        
+        <a href="#qwen-run-failed"
+            class="text-muted-foreground hover:text-foreground data-[active=true]:text-foreground text-[0.8rem] no-underline transition-colors data-[depth=3]:pl-4 data-[depth=4]:pl-6"
+            data-active="false" data-depth="3" onClick="deferSetActiveTocLink('#qwen-run-failed');">
+            qwen run failed
+        </a>
+        
+        <a href="#worker_1"
+            class="text-muted-foreground hover:text-foreground data-[active=true]:text-foreground text-[0.8rem] no-underline transition-colors data-[depth=3]:pl-4 data-[depth=4]:pl-6"
+            data-active="false" data-depth="3" onClick="deferSetActiveTocLink('#worker_1');">
+            Worker 无法注册
+        </a>
+        
+        <a href="#ssh"
+            class="text-muted-foreground hover:text-foreground data-[active=true]:text-foreground text-[0.8rem] no-underline transition-colors data-[depth=3]:pl-4 data-[depth=4]:pl-6"
+            data-active="false" data-depth="3" onClick="deferSetActiveTocLink('#ssh');">
+            SSH 部署中断
+        </a>
+        
+        
+
+        
+        <a href="#11"
+            class="text-muted-foreground hover:text-foreground data-[active=true]:text-foreground text-[0.8rem] no-underline transition-colors data-[depth=3]:pl-4 data-[depth=4]:pl-6"
+            data-active="false" data-depth="2" onClick="deferSetActiveTocLink('#11');">
+            11. 使用建议
+        </a>
+        
+
+        
+        
+        
+        
+
+    </div>
+    <div class="h-12"></div>
+
+</div>
                                 
                                 
                             </div>
@@ -900,11 +1923,11 @@
     </div>
      
 
-<script src="/agent-research/javascripts/vendor/mermaid.min.js"></script>
+<script src="../../javascripts/vendor/mermaid.min.js"></script>
 
      
 
-<script src="/agent-research/javascripts/mermaid-init.js"></script>
+<script src="../../javascripts/mermaid-init.js"></script>
 
      
 
@@ -912,17 +1935,17 @@
 
      
 
-<script src="/agent-research/search/main.js"></script>
+<script src="../../search/main.js"></script>
 
 
     
 
     <script integrity="sha384-JLNLRFGzvOp0up707XKgSnAjjt1w5BF/+lbeLQvlf6mNwf0m89IXFdpNAk4t6Hcs"
-        src="/agent-research/js/copy-button.js"></script>
+        src="../../js/copy-button.js"></script>
     <script integrity="sha384-JBx6cBEiyhK1KPwZgBHiI6GDaAmvlOxMQFyWAZTEpW5Ifo5XQ2LBcJ61GVOumwF1"
-        src="/agent-research/js/sidebar.js"></script>
+        src="../../js/sidebar.js"></script>
     <script integrity="sha384-fNURFMRt0p/HqXnQnV4+CT9dX1GiU5F0fC3pFbg7gfoANytoUMErSW7suWSBkSuF"
-        src="/agent-research/js/slider.js"></script>
+        src="../../js/slider.js"></script>
     <script>updatePygmentsStylesheet();</script>
     
     <script>fetchStargazers("https://github.com/chiga0/agent-research");</script>
