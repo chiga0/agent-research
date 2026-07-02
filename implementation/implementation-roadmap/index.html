@@ -1483,12 +1483,12 @@
 <tr>
 <td>部署后可用性验收</td>
 <td><code>done</code></td>
-<td><code>Runtime Monitor</code> 在 <code>Deploy Runtime</code> 成功后自动运行；手动 dispatch 可加 <code>deep_run</code> 创建 fake run 并校验 SSE completion</td>
+<td><code>Runtime Monitor</code> 在 <code>Deploy Runtime</code> 成功后自动运行；巡检 health/capabilities/queue/executors/access，手动 dispatch 可加 <code>deep_run</code> 创建 fake run 并校验 SSE completion</td>
 </tr>
 <tr>
 <td>多 SAEU executor isolation</td>
-<td><code>design_ready</code></td>
-<td>下一步实现 per-run qwen serve/container worker registry，替换当前单 qwen endpoint 共享模式</td>
+<td><code>in_progress</code></td>
+<td>backend Executor Registry 与 per-run qwen serve process 已落地；container worker command-template 已预留，仍需实机 Docker/资源隔离验收</td>
 </tr>
 <tr>
 <td>团队/项目/IAM</td>
@@ -1499,13 +1499,16 @@
 </table></div>
 <p>Executor isolation 决策：</p>
 <ul>
-<li>当前单 VPS qwen deployment 使用共享 <code>qwen serve</code>，适合最小成本 beta。</li>
-<li>产品级并发需要从 “一个 adapter endpoint” 升级为 “Executor Registry”：</li>
+<li>当前单 VPS qwen deployment 仍可使用共享 <code>qwen serve</code>，适合最小成本 beta。</li>
+<li>P7.1/P7.2 已把 “一个 adapter endpoint” 升级为 “Executor Registry”：</li>
 <li><code>executor_profile</code>: qwen/codex/claude/opencode/fake。</li>
 <li><code>workspace_strategy</code>: per-run worktree、persistent workspace、ephemeral container。</li>
 <li><code>process_strategy</code>: shared daemon、per-run daemon、container worker、remote worker。</li>
 <li><code>resource_policy</code>: CPU/memory/pids/timeout/concurrency。</li>
-<li>MVP 后续优先实现 per-run qwen serve 或 container worker，而不是先引入复杂外部调度器。</li>
+<li>已支持 <code>QWEN_EXECUTOR_STRATEGY=per_run_process</code>，每个 qwen run 独立启动
+  <code>qwen serve</code>、分配端口、写入 <code>executor.json</code> 和 executor lifecycle 事件。</li>
+<li><code>container</code> 作为 command-template strategy 预留；下一步应在 VPS 上接 Docker
+  cgroup/memory/pids/network 限制并补 E2E 验收。</li>
 </ul>
   </div>
   

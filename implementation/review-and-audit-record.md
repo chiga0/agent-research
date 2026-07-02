@@ -427,14 +427,18 @@ qwen serve 已有：
 - Profile Editor：复制系统 profile、新增/编辑用户 profile JSON policy、保存为版本化 profile。
 - Access 页面与 `/access/policy`：展示单租户到企业 RBAC 的迁移基线。
 - qwen mission 验收脚本：`scripts/validate_qwen_mission.py`。
+- Executor Registry：`/executors`、`/runs/<run_id>/executor`、SQLite
+  `executor_leases`、per-run qwen process、executor lifecycle events、stdout/stderr
+  logs 和 `executor.json` 已落地。
 - 公网可用性监控：`scripts/monitor_runtime.py` 检测 Basic Auth、console HTML/assets、
-  `/health`、`/capabilities`、`/queue`、`/access/policy`；`Runtime Monitor`
+  `/health`、`/capabilities`、`/queue`、`/executors`、`/access/policy`；`Runtime Monitor`
   workflow 在部署完成后自动运行，并每 15 分钟定时巡检。
 
 ### 剩余风险
 
 - Access/RBAC foundation 还不是完整用户系统；没有 org/project、role assignment、session login 和多人审批。
-- Executor isolation 仍处于设计 ready；当前部署继续使用共享 qwen serve，适合 beta，但不是强隔离并发的最终形态。
+- Executor isolation 已从设计进入实现：per-run qwen process 可用，但 Docker/container
+  worker、cgroup 资源限制、网络策略和远程 worker registry 仍需实机验收。
 - Mission DAG 当前是产品可视化，不是图数据库或专业 workflow engine；复杂 DAG 后续仍可接 Temporal/LangGraph/Airflow 外层调度。
 - 默认巡检不创建真实任务，避免监控污染任务队列；需要完整 runner 验证时通过
   workflow_dispatch 的 `deep_run` 或本地 `--deep-run` 手动触发。
