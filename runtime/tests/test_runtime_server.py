@@ -128,6 +128,78 @@ class RuntimeServerTest(unittest.TestCase):
             )
             self.assertIn("cleanup", cleanup)
 
+    def test_remote_worker_http_registry_claims_and_reports_run(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            with running_runtime(
+                artifact_root=Path(tmp),
+                token="secret",
+                worker_capacity=0,
+            ) as base_url:
+                headers = {"authorization": "Bearer secret"}
+                run = request_json(
+                    f"{base_url}/runs",
+                    method="POST",
+                    payload={"prompt": "remote http", "adapter": "fake"},
+                    headers=headers,
+                )
+                heartbeat = request_json(
+                    f"{base_url}/workers/vps-a/heartbeat",
+                    method="POST",
+                    payload={
+                        "capacity": 1,
+                        "lease_ttl_seconds": 30,
+                        "endpoint": "https://worker-a.example",
+                        "capabilities": {"adapters": ["qwen"], "container": True},
+                    },
+                    headers=headers,
+                )
+                self.assertEqual(heartbeat["worker"]["metadata"]["kind"], "remote")
+                worker = request_json(
+                    f"{base_url}/workers/vps-a",
+                    headers=headers,
+                )
+                self.assertEqual(
+                    worker["worker"]["metadata"]["endpoint"],
+                    "https://worker-a.example",
+                )
+
+                claim = request_json(
+                    f"{base_url}/workers/vps-a/claim",
+                    method="POST",
+                    payload={"capacity": 1, "lease_ttl_seconds": 30},
+                    headers=headers,
+                )
+                self.assertEqual(claim["run"]["run_id"], run["run_id"])
+                self.assertEqual(claim["job"]["worker_id"], "vps-a")
+                request_json(
+                    f"{base_url}/workers/vps-a/runs/{run['run_id']}/events",
+                    method="POST",
+                    payload={"type": "run.started", "data": {"adapter": "remote"}},
+                    headers=headers,
+                )
+                request_json(
+                    f"{base_url}/workers/vps-a/runs/{run['run_id']}/artifacts",
+                    method="POST",
+                    payload={"name": "remote_result.json", "json": {"ok": True}},
+                    headers=headers,
+                )
+                request_json(
+                    f"{base_url}/workers/vps-a/runs/{run['run_id']}/events",
+                    method="POST",
+                    payload={"type": "run.completed", "data": {"summary": "done"}},
+                    headers=headers,
+                )
+                completed = request_json(f"{base_url}/runs/{run['run_id']}", headers=headers)
+                self.assertEqual(completed["status"], "completed")
+                artifacts = request_json(
+                    f"{base_url}/runs/{run['run_id']}/artifacts",
+                    headers=headers,
+                )
+                self.assertIn(
+                    "remote_result.json",
+                    {artifact["name"] for artifact in artifacts["artifacts"]},
+                )
+
     def test_fake_run_streams_sse_and_writes_artifacts(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             with running_runtime(artifact_root=Path(tmp)) as base_url:

@@ -75,6 +75,14 @@ def make_handler(
             if path == "/workers":
                 self.write_json({"workers": manager.queue_status()["workers"]})
                 return
+            if len(parts) == 2 and parts[0] == "workers":
+                worker_id = unquote(parts[1])
+                for worker in manager.queue_status()["workers"]:
+                    if worker["worker_id"] == worker_id:
+                        self.write_json({"worker": worker})
+                        return
+                self.write_error(HTTPStatus.NOT_FOUND, "worker not found")
+                return
             if path == "/executors":
                 self.write_json(manager.executors())
                 return
@@ -303,6 +311,40 @@ def make_handler(
                 if len(parts) == 2 and parts[0] == "access" and parts[1] == "tokens":
                     token = manager.create_api_token(payload, headers=self.headers)
                     self.write_json(token, status=HTTPStatus.CREATED)
+                    return
+                if len(parts) == 3 and parts[0] == "workers" and parts[2] == "heartbeat":
+                    worker = manager.remote_worker_heartbeat(unquote(parts[1]), payload)
+                    self.write_json({"worker": worker}, status=HTTPStatus.ACCEPTED)
+                    return
+                if len(parts) == 3 and parts[0] == "workers" and parts[2] == "claim":
+                    claim = manager.claim_remote_run(unquote(parts[1]), payload)
+                    self.write_json(claim, status=HTTPStatus.ACCEPTED)
+                    return
+                if (
+                    len(parts) == 5
+                    and parts[0] == "workers"
+                    and parts[2] == "runs"
+                    and parts[4] == "events"
+                ):
+                    event = manager.append_remote_worker_event(
+                        unquote(parts[1]),
+                        unquote(parts[3]),
+                        payload,
+                    )
+                    self.write_json({"event": event}, status=HTTPStatus.ACCEPTED)
+                    return
+                if (
+                    len(parts) == 5
+                    and parts[0] == "workers"
+                    and parts[2] == "runs"
+                    and parts[4] == "artifacts"
+                ):
+                    artifact = manager.write_remote_worker_artifact(
+                        unquote(parts[1]),
+                        unquote(parts[3]),
+                        payload,
+                    )
+                    self.write_json(artifact, status=HTTPStatus.CREATED)
                     return
                 if (
                     len(parts) == 4

@@ -242,6 +242,82 @@ class RunManagerTest(unittest.TestCase):
             finally:
                 manager.shutdown()
 
+    def test_remote_worker_registry_claims_events_and_artifacts(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            manager = RunManager(Path(tmp), worker_capacity=0, worker_id="control-plane")
+            try:
+                run = manager.create_run(RunSpec(prompt="remote task", adapter="fake"))
+                heartbeat = manager.remote_worker_heartbeat(
+                    "vps-a",
+                    {
+                        "capacity": 1,
+                        "lease_ttl_seconds": 30,
+                        "endpoint": "https://worker-a.example",
+                        "labels": {"region": "us-west"},
+                        "capabilities": {"adapters": ["qwen"], "container": True},
+                        "resources": {"memory_mb": 1024},
+                    },
+                )
+                self.assertEqual(heartbeat["metadata"]["kind"], "remote")
+                self.assertEqual(heartbeat["metadata"]["endpoint"], "https://worker-a.example")
+
+                claim = manager.claim_remote_run(
+                    "vps-a",
+                    {"capacity": "1", "lease_ttl_seconds": "30"},
+                )
+                self.assertEqual(claim["run"]["run_id"], run.run_id)
+                self.assertEqual(claim["job"]["worker_id"], "vps-a")
+                self.assertEqual(
+                    claim["worker"]["metadata"]["endpoint"],
+                    "https://worker-a.example",
+                )
+                self.assertIsNone(
+                    manager.claim_remote_run(
+                        "vps-a",
+                        {"capacity": 1, "lease_ttl_seconds": 30},
+                    )["run"]
+                )
+
+                started = manager.append_remote_worker_event(
+                    "vps-a",
+                    run.run_id,
+                    {"type": "run.started", "data": {"adapter": "qwen"}},
+                )
+                self.assertEqual(started["type"], "run.started")
+                uploaded = manager.write_remote_worker_artifact(
+                    "vps-a",
+                    run.run_id,
+                    {"name": "remote_result.json", "json": {"ok": True}},
+                )
+                self.assertEqual(uploaded["artifact"]["name"], "remote_result.json")
+                self.assertTrue((Path(tmp) / run.run_id / "remote_result.json").exists())
+                with self.assertRaisesRegex(ValueError, "not leased"):
+                    manager.append_remote_worker_event(
+                        "vps-b",
+                        run.run_id,
+                        {"type": "run.completed", "data": {}},
+                    )
+                with self.assertRaisesRegex(ValueError, "event data must be an object"):
+                    manager.append_remote_worker_event(
+                        "vps-a",
+                        run.run_id,
+                        {"type": "run.progress", "data": []},
+                    )
+                manager.append_remote_worker_event(
+                    "vps-a",
+                    run.run_id,
+                    {"type": "run.completed", "data": {"summary": "done"}},
+                )
+                self.assertEqual(manager.get_run(run.run_id).status, "completed")
+                worker = next(
+                    item
+                    for item in manager.queue_status()["workers"]
+                    if item["worker_id"] == "vps-a"
+                )
+                self.assertEqual(worker["active_count"], 0)
+            finally:
+                manager.shutdown()
+
     def test_send_input_to_running_run_uses_adapter(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             manager = RunManager(

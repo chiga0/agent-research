@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import os
 import socket
 import threading
@@ -160,6 +161,8 @@ class RunManager:
                 "executor_registry",
                 "per_run_qwen_executor",
                 "container_qwen_executor",
+                "remote_worker_registry",
+                "remote_worker_claim_api",
                 "access_project_registry",
                 "api_token_registry",
                 "cost_budget",
@@ -236,6 +239,103 @@ class RunManager:
 
     def queue_status(self) -> dict[str, Any]:
         return self.store.queue_snapshot()
+
+    def remote_worker_heartbeat(self, worker_id: str, payload: dict[str, Any]) -> dict[str, Any]:
+        worker_id = normalize_worker_id(worker_id)
+        capacity = payload_positive_int(payload, "capacity", default=1)
+        lease_ttl_seconds = payload_positive_int(
+            payload,
+            "lease_ttl_seconds",
+            default=self.lease_ttl_seconds,
+        )
+        worker = self.store.heartbeat_worker(
+            worker_id,
+            capacity,
+            lease_ttl_seconds,
+            metadata=worker_metadata(payload, default_kind="remote"),
+        )
+        self.store.recover_expired_leases()
+        return worker.to_dict()
+
+    def claim_remote_run(self, worker_id: str, payload: dict[str, Any]) -> dict[str, Any]:
+        worker_id = normalize_worker_id(worker_id)
+        capacity = payload_positive_int(payload, "capacity", default=1)
+        lease_ttl_seconds = payload_positive_int(
+            payload,
+            "lease_ttl_seconds",
+            default=self.lease_ttl_seconds,
+        )
+        worker = self.store.heartbeat_worker(
+            worker_id,
+            capacity,
+            lease_ttl_seconds,
+            metadata=worker_metadata(payload, default_kind="remote"),
+        )
+        self.store.recover_expired_leases()
+        if self.store.active_job_count(worker_id) >= capacity:
+            return {"worker": worker.to_dict(), "job": None, "run": None}
+        job = self.store.claim_next_job(worker_id, lease_ttl_seconds)
+        run = self.store.get_run(job.run_id) if job else None
+        return {
+            "worker": self.store.heartbeat_worker(
+                worker_id,
+                capacity,
+                lease_ttl_seconds,
+                metadata=worker.metadata,
+            ).to_dict(),
+            "job": job.to_dict() if job else None,
+            "run": run.to_dict() if run else None,
+        }
+
+    def append_remote_worker_event(
+        self,
+        worker_id: str,
+        run_id: str,
+        payload: dict[str, Any],
+    ) -> dict[str, Any]:
+        worker_id = normalize_worker_id(worker_id)
+        self._require_worker_job(worker_id, run_id)
+        event_type = payload.get("type") or payload.get("event_type")
+        if not isinstance(event_type, str) or not event_type.strip():
+            raise ValueError("event type is required")
+        raw_data = payload.get("data", {})
+        if raw_data is None:
+            raw_data = {}
+        if not isinstance(raw_data, dict):
+            raise ValueError("event data must be an object")
+        data = dict(raw_data)
+        data.setdefault("worker_id", worker_id)
+        event = self.store.append_event(run_id, event_type.strip(), data)
+        return event.to_dict()
+
+    def write_remote_worker_artifact(
+        self,
+        worker_id: str,
+        run_id: str,
+        payload: dict[str, Any],
+    ) -> dict[str, Any]:
+        worker_id = normalize_worker_id(worker_id)
+        self._require_worker_job(worker_id, run_id)
+        name = payload.get("name")
+        if not isinstance(name, str) or not name.strip():
+            raise ValueError("artifact name is required")
+        if "json" in payload:
+            content = json.dumps(payload["json"], ensure_ascii=False, indent=2)
+        else:
+            content = payload.get("content")
+            if not isinstance(content, str):
+                raise ValueError("artifact content or json is required")
+        path = self.store.write_text(run_id, name.strip(), content)
+        event = self.store.append_event(
+            run_id,
+            "artifact.uploaded",
+            {
+                "worker_id": worker_id,
+                "name": path.name,
+                "size_bytes": path.stat().st_size,
+            },
+        )
+        return {"artifact": {"name": path.name}, "event": event.to_dict()}
 
     def executors(self) -> dict[str, Any]:
         return self.executor_registry.snapshot()
@@ -362,6 +462,15 @@ class RunManager:
         if run is None:
             raise KeyError(run_id)
         return run
+
+    def _require_worker_job(self, worker_id: str, run_id: str) -> None:
+        job = self.store.get_job(run_id)
+        if job is None:
+            raise KeyError(run_id)
+        if job.worker_id != worker_id:
+            raise ValueError("run is not leased to this worker")
+        if job.status != "running":
+            raise ValueError(f"run lease is {job.status}")
 
     def _adapter(self, name: str) -> RuntimeAdapter:
         adapter = self.adapters.get(name)
@@ -558,6 +667,41 @@ def positive_int(value: int | None, env_value: str | None, default: int) -> int:
     if candidate is None:
         candidate = default
     return max(0, candidate)
+
+
+def payload_positive_int(payload: dict[str, Any], key: str, default: int) -> int:
+    value = payload.get(key)
+    if isinstance(value, int):
+        return max(0, value)
+    if isinstance(value, str):
+        try:
+            return max(0, int(value))
+        except ValueError:
+            return default
+    return default
+
+
+def normalize_worker_id(value: str) -> str:
+    worker_id = value.strip()
+    if not worker_id:
+        raise ValueError("worker id is required")
+    return worker_id
+
+
+def worker_metadata(payload: dict[str, Any], *, default_kind: str) -> dict[str, Any]:
+    raw_metadata = payload.get("metadata")
+    metadata = dict(raw_metadata) if isinstance(raw_metadata, dict) else {}
+    kind = payload.get("kind")
+    metadata["kind"] = kind if isinstance(kind, str) and kind else default_kind
+    for key in ("endpoint", "hostname", "version", "region", "zone"):
+        value = payload.get(key)
+        if isinstance(value, str) and value:
+            metadata[key] = value
+    for key in ("labels", "capabilities", "resources", "executor", "sandbox"):
+        value = payload.get(key)
+        if isinstance(value, (dict, list)):
+            metadata[key] = value
+    return metadata
 
 
 def normalize_permission_stall_action(value: str | None) -> str:

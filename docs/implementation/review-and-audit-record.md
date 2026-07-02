@@ -568,12 +568,46 @@ qwen serve 已有：
 - `scripts/deploy_runtime_vps.sh` 增加统一 `SSH_OPTIONS`，用于 deploy SSH 和 qwen settings scp。
 - 默认启用 `ServerAliveInterval=30`、`ServerAliveCountMax=60`、`TCPKeepAlive=yes`，允许慢 VPS 上的静默构建保持连接。
 - keepalive 参数可通过 `DEPLOY_SSH_SERVER_ALIVE_INTERVAL` 和 `DEPLOY_SSH_SERVER_ALIVE_COUNT_MAX` 覆盖。
+- 远端 deploy 脚本增加 `[deploy] ...` 阶段日志，并为 apt/npm/git/docker build/pull 增加命令级 timeout。
+- 普通命令 timeout 默认 `900s`，Docker build/pull 默认 `1800s`，可通过 `DEPLOY_COMMAND_TIMEOUT_SECONDS` 和 `DEPLOY_DOCKER_BUILD_TIMEOUT_SECONDS` 覆盖。
 
 ### 审计结论
 
 - 第三轮没有触达 qwen runtime 层，当前下一步应先重跑默认 stable deploy 确认 VPS 状态恢复，再重跑 container workflow。
 - Container executor 的 qwen single-run 验收状态仍为 `pending`，不是 failed by qwen。
-- 后续若 Docker build 仍超过 SSH keepalive 窗口，应改为远端 `systemd-run`/后台 build job + poll 日志，或预构建/发布 executor image，减少小 VPS 在线构建压力。
+- 后续若 Docker build 仍超过命令 timeout，应改为远端 `systemd-run`/后台 build job + poll 日志，或预构建/发布 executor image，减少小 VPS 在线构建压力。
+
+## 2026-07-02 Remote Worker Registry Foundation 审计
+
+### 目标
+
+- 支持未来多 VPS worker：控制面保存 run/job/lease/audit，远程 worker 通过中心 API 注册、抢占任务、执行本地 SAEU，并回传事件与 artifact。
+- 保持当前单 VPS 本地 worker 兼容：默认 push 部署仍可使用同进程 worker，不强制引入第二台机器。
+
+### 已实现
+
+- `WorkerState` 增加 `metadata`，持久化到 SQLite `workers.metadata_json`，并对既有 DB 自动补列。
+- 远程 worker metadata 支持 `kind`、`endpoint`、`hostname`、`version`、`region`、`zone`、`labels`、`capabilities`、`resources`、`executor`、`sandbox`。
+- 新增控制面 API：
+  - `POST /workers/{worker_id}/heartbeat`
+  - `POST /workers/{worker_id}/claim`
+  - `POST /workers/{worker_id}/runs/{run_id}/events`
+  - `POST /workers/{worker_id}/runs/{run_id}/artifacts`
+  - `GET /workers/{worker_id}`
+- `claim` 复用现有 `run_jobs` lease；中心 `worker_capacity=0` 时不会本地抢占任务，适合纯 control-plane 模式。
+- 远程 worker 回传 event/artifact 前会校验 run lease 属于该 worker，防止跨 worker 写入。
+
+### 测试覆盖
+
+- `test_remote_worker_registry_claims_events_and_artifacts` 覆盖 manager 级 heartbeat、claim、metadata 合并、event 回传、artifact 写入、跨 worker 越权拒绝和 terminal 后 capacity 释放。
+- `test_remote_worker_http_registry_claims_and_reports_run` 覆盖 HTTP API 级注册、worker 查询、claim、event、artifact 和 run completion。
+
+### 审计结论
+
+- 当前实现已经具备多 VPS worker registry 的控制面基础，但还不是完整 worker daemon。
+- 下一步必须实现独立 worker pull-loop：携带 worker token 调 `/claim`，在本机执行 fake/qwen/container adapter，再把 events/artifacts 上传回控制面。
+- 能力匹配目前仍是声明与可视化基础；调度尚未按 labels/adapters/resources 过滤任务，不能把异构 worker 池视为已完成。
+- Artifact API 当前适合轻量 JSON/text；executor stdout/stderr 大文件和二进制产物需要分片/压缩上传协议。
 
 ## Go / No-Go 决策
 

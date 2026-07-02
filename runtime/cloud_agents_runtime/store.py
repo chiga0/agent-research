@@ -295,6 +295,7 @@ class RunStore:
         worker_id: str,
         capacity: int,
         lease_ttl_seconds: int,
+        metadata: dict[str, Any] | None = None,
     ) -> WorkerState:
         with self._lock:
             now = utc_now()
@@ -308,6 +309,8 @@ class RunStore:
                     created_at=now,
                     updated_at=now,
                 )
+            if metadata is not None:
+                worker.metadata = {**worker.metadata, **metadata}
             worker.status = "active"
             worker.capacity = capacity
             worker.lease_ttl_seconds = lease_ttl_seconds
@@ -323,9 +326,15 @@ class RunStore:
         worker_id: str,
         capacity: int,
         lease_ttl_seconds: int,
+        metadata: dict[str, Any] | None = None,
     ) -> WorkerState:
         with self._lock:
-            worker = self.register_worker(worker_id, capacity, lease_ttl_seconds)
+            worker = self.register_worker(
+                worker_id,
+                capacity,
+                lease_ttl_seconds,
+                metadata=metadata,
+            )
             now = utc_now()
             lease_expires_at = utc_now_plus(lease_ttl_seconds)
             for job in self._jobs.values():
@@ -350,6 +359,10 @@ class RunStore:
     def queued_job_count(self) -> int:
         with self._lock:
             return sum(1 for job in self._jobs.values() if job.status == "queued")
+
+    def get_job(self, run_id: str) -> RunJob | None:
+        with self._lock:
+            return self._jobs.get(run_id)
 
     def claim_next_job(
         self,
@@ -720,6 +733,14 @@ class RunStore:
         path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
         return path
 
+    def write_text(self, run_id: str, name: str, content: str) -> Path:
+        with self._lock:
+            self._require_run(run_id)
+            path = safe_child_file(self.run_dir(run_id), name)
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text(content, encoding="utf-8")
+            return path
+
     def events_since(self, run_id: str, last_sequence: int = 0) -> list[RuntimeEvent]:
         with self._lock:
             self._require_run(run_id)
@@ -883,7 +904,8 @@ class RunStore:
               lease_ttl_seconds integer not null,
               heartbeat_at text not null,
               created_at text not null,
-              updated_at text not null
+              updated_at text not null,
+              metadata_json text not null
             );
             create table if not exists executor_leases (
               executor_id text primary key,
@@ -979,7 +1001,16 @@ class RunStore:
             );
             """
         )
+        self._ensure_column("workers", "metadata_json", "text not null default '{}'")
         self._db.commit()
+
+    def _ensure_column(self, table: str, column: str, definition: str) -> None:
+        columns = {
+            row["name"]
+            for row in self._db.execute(f"pragma table_info({table})").fetchall()
+        }
+        if column not in columns:
+            self._db.execute(f"alter table {table} add column {column} {definition}")
 
     def _load_from_db(self) -> None:
         with self._lock:
@@ -1041,6 +1072,7 @@ class RunStore:
                     heartbeat_at=row["heartbeat_at"],
                     created_at=row["created_at"],
                     updated_at=row["updated_at"],
+                    metadata=json.loads(row["metadata_json"]),
                 )
             for row in self._db.execute("select * from executor_leases order by started_at"):
                 self._executor_leases[row["executor_id"]] = ExecutorLease(
@@ -1207,15 +1239,16 @@ class RunStore:
             """
             insert into workers(
               worker_id, status, capacity, active_count, lease_ttl_seconds,
-              heartbeat_at, created_at, updated_at
-            ) values (?, ?, ?, ?, ?, ?, ?, ?)
+              heartbeat_at, created_at, updated_at, metadata_json
+            ) values (?, ?, ?, ?, ?, ?, ?, ?, ?)
             on conflict(worker_id) do update set
               status=excluded.status,
               capacity=excluded.capacity,
               active_count=excluded.active_count,
               lease_ttl_seconds=excluded.lease_ttl_seconds,
               heartbeat_at=excluded.heartbeat_at,
-              updated_at=excluded.updated_at
+              updated_at=excluded.updated_at,
+              metadata_json=excluded.metadata_json
             """,
             (
                 worker.worker_id,
@@ -1226,6 +1259,7 @@ class RunStore:
                 worker.heartbeat_at,
                 worker.created_at,
                 worker.updated_at,
+                json.dumps(worker.metadata, ensure_ascii=False, sort_keys=True),
             ),
         )
         self._db.commit()
@@ -1567,6 +1601,7 @@ def worker_with_stale_status(
         heartbeat_at=worker.heartbeat_at,
         created_at=worker.created_at,
         updated_at=worker.updated_at,
+        metadata=worker.metadata,
     )
     return copy
 

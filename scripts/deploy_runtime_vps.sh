@@ -71,6 +71,8 @@ RUNTIME_MEMORY_MAX="${RUNTIME_MEMORY_MAX:-1G}"
 RUNTIME_TASKS_MAX="${RUNTIME_TASKS_MAX:-512}"
 DEPLOY_SSH_SERVER_ALIVE_INTERVAL="${DEPLOY_SSH_SERVER_ALIVE_INTERVAL:-30}"
 DEPLOY_SSH_SERVER_ALIVE_COUNT_MAX="${DEPLOY_SSH_SERVER_ALIVE_COUNT_MAX:-60}"
+DEPLOY_COMMAND_TIMEOUT_SECONDS="${DEPLOY_COMMAND_TIMEOUT_SECONDS:-900}"
+DEPLOY_DOCKER_BUILD_TIMEOUT_SECONDS="${DEPLOY_DOCKER_BUILD_TIMEOUT_SECONDS:-1800}"
 DEPLOY_RUNTIME_PRINT_SECRETS="${DEPLOY_RUNTIME_PRINT_SECRETS:-1}"
 
 case "$PUBLIC_HOST" in
@@ -183,31 +185,56 @@ append_remote_env QWEN_CONTAINER_BASE_IMAGE "$QWEN_CONTAINER_BASE_IMAGE"
 append_remote_env QWEN_CONTAINER_NODE_PACKAGE "$QWEN_CONTAINER_NODE_PACKAGE"
 append_remote_env DEPLOY_RUNTIME_PRINT_SECRETS "$DEPLOY_RUNTIME_PRINT_SECRETS"
 append_remote_env BASIC_AUTH_FORCE_ROTATE "$BASIC_AUTH_FORCE_ROTATE"
+append_remote_env DEPLOY_COMMAND_TIMEOUT_SECONDS "$DEPLOY_COMMAND_TIMEOUT_SECONDS"
+append_remote_env DEPLOY_DOCKER_BUILD_TIMEOUT_SECONDS "$DEPLOY_DOCKER_BUILD_TIMEOUT_SECONDS"
 
 ssh_cmd "${REMOTE_ENV[*]} bash -s" <<'REMOTE'
 set -euo pipefail
 
 export DEBIAN_FRONTEND=noninteractive
 
+log_step() {
+  printf '[deploy] %s\n' "$*"
+}
+
+run_timeout() {
+  local label="$1"
+  local timeout_seconds="$2"
+  shift 2
+  log_step "$label"
+  timeout "$timeout_seconds" "$@"
+}
+
 if ! command -v git >/dev/null \
   || ! command -v python3 >/dev/null \
   || ! command -v npm >/dev/null \
   || ! command -v nginx >/dev/null; then
-  apt-get update
-  apt-get install -y git python3 npm nginx
+  run_timeout "apt-get update" "$DEPLOY_COMMAND_TIMEOUT_SECONDS" apt-get update
+  run_timeout \
+    "install host packages" \
+    "$DEPLOY_COMMAND_TIMEOUT_SECONDS" \
+    apt-get install -y git python3 npm nginx
 fi
 
-npm install -g "$NODE_PACKAGE"
+run_timeout \
+  "install node package $NODE_PACKAGE" \
+  "$DEPLOY_COMMAND_TIMEOUT_SECONDS" \
+  npm install -g "$NODE_PACKAGE"
 
 if [[ "$QWEN_EXECUTOR_STRATEGY" == "container" ]]; then
   if ! command -v docker >/dev/null; then
-    apt-get update
-    apt-get install -y docker.io
+    run_timeout "apt-get update for docker" "$DEPLOY_COMMAND_TIMEOUT_SECONDS" apt-get update
+    run_timeout \
+      "install docker" \
+      "$DEPLOY_COMMAND_TIMEOUT_SECONDS" \
+      apt-get install -y docker.io
   fi
+  log_step "enable docker service"
   systemctl enable --now docker
 fi
 
 if ! id cloudagents >/dev/null 2>&1; then
+  log_step "create cloudagents user"
   useradd --system --create-home --shell /usr/sbin/nologin cloudagents
 fi
 if [[ "$QWEN_EXECUTOR_STRATEGY" == "container" ]]; then
@@ -237,21 +264,36 @@ if [[ "$QWEN_EXECUTOR_STRATEGY" == "container" && "$HAS_QWEN_SETTINGS" == "1" ]]
 fi
 
 if [[ ! -d "$APP_DIR/.git" ]]; then
-  git clone "$REPO_URL" "$APP_DIR"
+  run_timeout \
+    "clone runtime repository" \
+    "$DEPLOY_COMMAND_TIMEOUT_SECONDS" \
+    git clone "$REPO_URL" "$APP_DIR"
 else
-  git -C "$APP_DIR" fetch origin main
-  git -C "$APP_DIR" reset --hard origin/main
+  run_timeout \
+    "fetch runtime repository" \
+    "$DEPLOY_COMMAND_TIMEOUT_SECONDS" \
+    git -C "$APP_DIR" fetch origin main
+  run_timeout \
+    "reset runtime repository" \
+    "$DEPLOY_COMMAND_TIMEOUT_SECONDS" \
+    git -C "$APP_DIR" reset --hard origin/main
 fi
 if [[ "$QWEN_EXECUTOR_STRATEGY" == "container" ]]; then
   if [[ "$QWEN_CONTAINER_BUILD" == "1" ]]; then
-    docker build \
+    run_timeout \
+      "build qwen executor image $QWEN_CONTAINER_IMAGE" \
+      "$DEPLOY_DOCKER_BUILD_TIMEOUT_SECONDS" \
+      docker build \
       --build-arg "BASE_IMAGE=$QWEN_CONTAINER_BASE_IMAGE" \
       --build-arg "NODE_PACKAGE=$QWEN_CONTAINER_NODE_PACKAGE" \
       -t "$QWEN_CONTAINER_IMAGE" \
       -f "$APP_DIR/deploy/Dockerfile.qwen-executor" \
       "$APP_DIR"
   elif [[ -n "$QWEN_CONTAINER_IMAGE" ]]; then
-    docker pull "$QWEN_CONTAINER_IMAGE"
+    run_timeout \
+      "pull qwen executor image $QWEN_CONTAINER_IMAGE" \
+      "$DEPLOY_DOCKER_BUILD_TIMEOUT_SECONDS" \
+      docker pull "$QWEN_CONTAINER_IMAGE"
   elif [[ -z "$QWEN_CONTAINER_COMMAND" ]]; then
     echo "container executor requires QWEN_CONTAINER_IMAGE or QWEN_CONTAINER_COMMAND" >&2
     exit 2
