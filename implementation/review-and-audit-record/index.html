@@ -1310,12 +1310,45 @@ qwen 第一实现: qwen serve HTTP/SSE + ACP bridge，后续优先 `/acp` Stream
 <li><code>scripts/deploy_runtime_vps.sh</code> 增加统一 <code>SSH_OPTIONS</code>，用于 deploy SSH 和 qwen settings scp。</li>
 <li>默认启用 <code>ServerAliveInterval=30</code>、<code>ServerAliveCountMax=60</code>、<code>TCPKeepAlive=yes</code>，允许慢 VPS 上的静默构建保持连接。</li>
 <li>keepalive 参数可通过 <code>DEPLOY_SSH_SERVER_ALIVE_INTERVAL</code> 和 <code>DEPLOY_SSH_SERVER_ALIVE_COUNT_MAX</code> 覆盖。</li>
+<li>远端 deploy 脚本增加 <code>[deploy] ...</code> 阶段日志，并为 apt/npm/git/docker build/pull 增加命令级 timeout。</li>
+<li>普通命令 timeout 默认 <code>900s</code>，Docker build/pull 默认 <code>1800s</code>，可通过 <code>DEPLOY_COMMAND_TIMEOUT_SECONDS</code> 和 <code>DEPLOY_DOCKER_BUILD_TIMEOUT_SECONDS</code> 覆盖。</li>
 </ul>
 <h3 id="_59">审计结论<a class="headerlink" href="#_59" title="Permanent link">&para;</a></h3>
 <ul>
 <li>第三轮没有触达 qwen runtime 层，当前下一步应先重跑默认 stable deploy 确认 VPS 状态恢复，再重跑 container workflow。</li>
 <li>Container executor 的 qwen single-run 验收状态仍为 <code>pending</code>，不是 failed by qwen。</li>
-<li>后续若 Docker build 仍超过 SSH keepalive 窗口，应改为远端 <code>systemd-run</code>/后台 build job + poll 日志，或预构建/发布 executor image，减少小 VPS 在线构建压力。</li>
+<li>后续若 Docker build 仍超过命令 timeout，应改为远端 <code>systemd-run</code>/后台 build job + poll 日志，或预构建/发布 executor image，减少小 VPS 在线构建压力。</li>
+</ul>
+<h2 id="2026-07-02-remote-worker-registry-foundation">2026-07-02 Remote Worker Registry Foundation 审计<a class="headerlink" href="#2026-07-02-remote-worker-registry-foundation" title="Permanent link">&para;</a></h2>
+<h3 id="_60">目标<a class="headerlink" href="#_60" title="Permanent link">&para;</a></h3>
+<ul>
+<li>支持未来多 VPS worker：控制面保存 run/job/lease/audit，远程 worker 通过中心 API 注册、抢占任务、执行本地 SAEU，并回传事件与 artifact。</li>
+<li>保持当前单 VPS 本地 worker 兼容：默认 push 部署仍可使用同进程 worker，不强制引入第二台机器。</li>
+</ul>
+<h3 id="_61">已实现<a class="headerlink" href="#_61" title="Permanent link">&para;</a></h3>
+<ul>
+<li><code>WorkerState</code> 增加 <code>metadata</code>，持久化到 SQLite <code>workers.metadata_json</code>，并对既有 DB 自动补列。</li>
+<li>远程 worker metadata 支持 <code>kind</code>、<code>endpoint</code>、<code>hostname</code>、<code>version</code>、<code>region</code>、<code>zone</code>、<code>labels</code>、<code>capabilities</code>、<code>resources</code>、<code>executor</code>、<code>sandbox</code>。</li>
+<li>新增控制面 API：</li>
+<li><code>POST /workers/{worker_id}/heartbeat</code></li>
+<li><code>POST /workers/{worker_id}/claim</code></li>
+<li><code>POST /workers/{worker_id}/runs/{run_id}/events</code></li>
+<li><code>POST /workers/{worker_id}/runs/{run_id}/artifacts</code></li>
+<li><code>GET /workers/{worker_id}</code></li>
+<li><code>claim</code> 复用现有 <code>run_jobs</code> lease；中心 <code>worker_capacity=0</code> 时不会本地抢占任务，适合纯 control-plane 模式。</li>
+<li>远程 worker 回传 event/artifact 前会校验 run lease 属于该 worker，防止跨 worker 写入。</li>
+</ul>
+<h3 id="_62">测试覆盖<a class="headerlink" href="#_62" title="Permanent link">&para;</a></h3>
+<ul>
+<li><code>test_remote_worker_registry_claims_events_and_artifacts</code> 覆盖 manager 级 heartbeat、claim、metadata 合并、event 回传、artifact 写入、跨 worker 越权拒绝和 terminal 后 capacity 释放。</li>
+<li><code>test_remote_worker_http_registry_claims_and_reports_run</code> 覆盖 HTTP API 级注册、worker 查询、claim、event、artifact 和 run completion。</li>
+</ul>
+<h3 id="_63">审计结论<a class="headerlink" href="#_63" title="Permanent link">&para;</a></h3>
+<ul>
+<li>当前实现已经具备多 VPS worker registry 的控制面基础，但还不是完整 worker daemon。</li>
+<li>下一步必须实现独立 worker pull-loop：携带 worker token 调 <code>/claim</code>，在本机执行 fake/qwen/container adapter，再把 events/artifacts 上传回控制面。</li>
+<li>能力匹配目前仍是声明与可视化基础；调度尚未按 labels/adapters/resources 过滤任务，不能把异构 worker 池视为已完成。</li>
+<li>Artifact API 当前适合轻量 JSON/text；executor stdout/stderr 大文件和二进制产物需要分片/压缩上传协议。</li>
 </ul>
 <h2 id="go-no-go">Go / No-Go 决策<a class="headerlink" href="#go-no-go" title="Permanent link">&para;</a></h2>
 <h3 id="go">Go<a class="headerlink" href="#go" title="Permanent link">&para;</a></h3>
@@ -1338,7 +1371,7 @@ qwen 第一实现: qwen serve HTTP/SSE + ACP bridge，后续优先 `/acp` Stream
 <li>把所有 SubAgent 都强制拆成独立 daemon。</li>
 <li>从头实现 coding agent core。</li>
 </ul>
-<h2 id="_60">最终可实施判断<a class="headerlink" href="#_60" title="Permanent link">&para;</a></h2>
+<h2 id="_64">最终可实施判断<a class="headerlink" href="#_64" title="Permanent link">&para;</a></h2>
 <p>方案可行，且适合 1-2 台 VPS 起步。推荐第一阶段只实现一个 qwen serve SAEU adapter，把审计、权限、事件、artifact 和恢复做扎实；第二阶段再抽象 ACP-compatible runtime adapter；第三阶段再做常驻 Supervisor + SubAgent + SAEU 的多 Agent 编排。</p>
 <p>只要不跳过单 Agent 单元稳定性，多 Agent 编排不会建立在松散 CLI 进程上，而是建立在可管理、可恢复、可审计的执行单元上。</p>
   </div>
@@ -2121,6 +2154,40 @@ qwen 第一实现: qwen serve HTTP/SSE + ACP bridge，后续优先 `/acp` Stream
         
 
         
+        <a href="#2026-07-02-remote-worker-registry-foundation"
+            class="text-muted-foreground hover:text-foreground data-[active=true]:text-foreground text-[0.8rem] no-underline transition-colors data-[depth=3]:pl-4 data-[depth=4]:pl-6"
+            data-active="false" data-depth="2" onClick="deferSetActiveTocLink('#2026-07-02-remote-worker-registry-foundation');">
+            2026-07-02 Remote Worker Registry Foundation 审计
+        </a>
+        
+        
+        <a href="#_60"
+            class="text-muted-foreground hover:text-foreground data-[active=true]:text-foreground text-[0.8rem] no-underline transition-colors data-[depth=3]:pl-4 data-[depth=4]:pl-6"
+            data-active="false" data-depth="3" onClick="deferSetActiveTocLink('#_60');">
+            目标
+        </a>
+        
+        <a href="#_61"
+            class="text-muted-foreground hover:text-foreground data-[active=true]:text-foreground text-[0.8rem] no-underline transition-colors data-[depth=3]:pl-4 data-[depth=4]:pl-6"
+            data-active="false" data-depth="3" onClick="deferSetActiveTocLink('#_61');">
+            已实现
+        </a>
+        
+        <a href="#_62"
+            class="text-muted-foreground hover:text-foreground data-[active=true]:text-foreground text-[0.8rem] no-underline transition-colors data-[depth=3]:pl-4 data-[depth=4]:pl-6"
+            data-active="false" data-depth="3" onClick="deferSetActiveTocLink('#_62');">
+            测试覆盖
+        </a>
+        
+        <a href="#_63"
+            class="text-muted-foreground hover:text-foreground data-[active=true]:text-foreground text-[0.8rem] no-underline transition-colors data-[depth=3]:pl-4 data-[depth=4]:pl-6"
+            data-active="false" data-depth="3" onClick="deferSetActiveTocLink('#_63');">
+            审计结论
+        </a>
+        
+        
+
+        
         <a href="#go-no-go"
             class="text-muted-foreground hover:text-foreground data-[active=true]:text-foreground text-[0.8rem] no-underline transition-colors data-[depth=3]:pl-4 data-[depth=4]:pl-6"
             data-active="false" data-depth="2" onClick="deferSetActiveTocLink('#go-no-go');">
@@ -2143,9 +2210,9 @@ qwen 第一实现: qwen serve HTTP/SSE + ACP bridge，后续优先 `/acp` Stream
         
 
         
-        <a href="#_60"
+        <a href="#_64"
             class="text-muted-foreground hover:text-foreground data-[active=true]:text-foreground text-[0.8rem] no-underline transition-colors data-[depth=3]:pl-4 data-[depth=4]:pl-6"
-            data-active="false" data-depth="2" onClick="deferSetActiveTocLink('#_60');">
+            data-active="false" data-depth="2" onClick="deferSetActiveTocLink('#_64');">
             最终可实施判断
         </a>
         

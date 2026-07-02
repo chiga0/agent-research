@@ -1515,6 +1515,11 @@
 <td><code>compat_done</code></td>
 <td>ACP JSON-RPC 增加 capabilities/executor/permission/access/cost 方法；A2A card 增加 protocolVersion/endpoints/security/capabilities</td>
 </tr>
+<tr>
+<td>远程 Worker Registry</td>
+<td><code>foundation_done</code></td>
+<td>Worker metadata 持久化；<code>/workers/{id}/heartbeat</code>、<code>/claim</code>、run event 回传和轻量 artifact 上传 API；lease 归属校验防止跨 worker 写入</td>
+</tr>
 </tbody>
 </table></div>
 <p>Executor isolation 决策：</p>
@@ -1531,7 +1536,7 @@
 <li><code>QWEN_CONTAINER_COMMAND</code> 自定义命令模板。</li>
 <li><code>QWEN_CONTAINER_IMAGE</code> 默认 Docker foreground worker，自动注入 <code>--cpus</code>、<code>--memory</code>、<code>--pids-limit</code>、端口映射、workspace mount、qwen token env 名称，并在 VPS deploy 时把宿主 <code>.qwen/settings.json</code> 凭据只读挂进容器。</li>
 <li><code>Deploy Runtime</code> workflow_dispatch 已支持选择 executor strategy、container image/local build、container resource limit，并可打开真实 qwen single-run + bounded mission acceptance。</li>
-<li>Container 第一轮实机验收 run <code>28592133076</code> 已证明部署脚本、Docker build、service reload 和 fake smoke 可用，并暴露诊断不足和 token argv 风险；第二轮实机验收 run <code>28593133445</code> 通过新增 artifact 证明容器内 <code>qwen serve</code> 已启动监听，失败点收敛为 runtime readiness probe 对瞬时 TCP reset 的误判；第三轮 run <code>28593787794</code> 阻塞在远端 deploy SSH broken pipe，尚未进入 qwen acceptance；当前已补 health auth、reset retry、deploy SSH keepalive 和回归测试，下一步恢复 stable deploy 后重跑真实 Docker image 验收。</li>
+<li>Container 第一轮实机验收 run <code>28592133076</code> 已证明部署脚本、Docker build、service reload 和 fake smoke 可用，并暴露诊断不足和 token argv 风险；第二轮实机验收 run <code>28593133445</code> 通过新增 artifact 证明容器内 <code>qwen serve</code> 已启动监听，失败点收敛为 runtime readiness probe 对瞬时 TCP reset 的误判；第三轮 run <code>28593787794</code> 阻塞在远端 deploy SSH broken pipe，尚未进入 qwen acceptance；当前已补 health auth、reset retry、deploy SSH keepalive、远端 deploy 阶段日志/timeout 和回归测试，下一步恢复 stable deploy 后重跑真实 Docker image 验收。</li>
 <li>下一步仍必须在 VPS 上用真实镜像或 <code>qwen_container_build=true</code> 做到 Docker/cgroup/network qwen acceptance 验收通过；当前自动 push 部署仍保持 shared strategy 以降低生产风险。</li>
 </ul>
 <p>P7 当前判断：</p>
@@ -1571,7 +1576,62 @@
 <li>ACP/A2A：当前是兼容 facade，不声明完全实现某一官方 SDK；已覆盖管理、通信、状态、权限、executor、成本查询。</li>
 </ol>
 </li>
+<li>
+<ol>
+<li>Remote worker：控制面 API foundation 已落地，下一步需要实现独立 worker daemon CLI，在第二台 VPS 上以 token 注册、poll claim、启动本地 qwen/container SAEU、回传 events/artifacts。</li>
+</ol>
+</li>
 </ul>
+<h2 id="p8-worker-vps">P8：远程 Worker 与多 VPS 调度<a class="headerlink" href="#p8-worker-vps" title="Permanent link">&para;</a></h2>
+<p>状态：<code>planned</code></p>
+<p>目标：</p>
+<ul>
+<li>把单进程本地 worker 拆成 control-plane + remote worker。</li>
+<li>支持 1-2 台 VPS 场景：主 VPS 跑控制面和 UI，第二台或同台不同进程跑 worker。</li>
+<li>Worker 可以声明 adapter/executor/resource/sandbox 能力，中心只分配符合能力的 run。</li>
+</ul>
+<p>任务：</p>
+<div class="table-wrapper"><table>
+<thead>
+<tr>
+<th>任务</th>
+<th>状态</th>
+<th>验收</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Worker Registry API</td>
+<td><code>foundation_done</code></td>
+<td>远程 worker 可 heartbeat、claim run、回传 run events、上传轻量 artifact；worker metadata 可在 <code>/workers</code> 查询</td>
+</tr>
+<tr>
+<td>Worker Daemon CLI</td>
+<td><code>next</code></td>
+<td><code>python -m cloud_agents_runtime.worker --control-url ... --token ...</code> 可长期 poll claim 并执行 fake/qwen adapter</td>
+</tr>
+<tr>
+<td>能力匹配调度</td>
+<td><code>next</code></td>
+<td>run metadata 可指定 required adapters/labels/resources；claim 只返回匹配 worker 的任务</td>
+</tr>
+<tr>
+<td>Artifact streaming</td>
+<td><code>next</code></td>
+<td>worker 端 executor stdout/stderr/events 可分片上传，中心 artifacts 完整可审计</td>
+</tr>
+<tr>
+<td>多 VPS deploy</td>
+<td><code>next</code></td>
+<td>新增 <code>deploy_worker_vps.sh</code> 或 workflow_dispatch，第二台 VPS 可注册到主控制面</td>
+</tr>
+<tr>
+<td>安全边界</td>
+<td><code>next</code></td>
+<td>worker token scope、per-worker revoke、mTLS/Basic Auth/Nginx allowlist 策略明确</td>
+</tr>
+</tbody>
+</table></div>
   </div>
   
   <script>
@@ -1886,6 +1946,14 @@
             class="text-muted-foreground hover:text-foreground data-[active=true]:text-foreground text-[0.8rem] no-underline transition-colors data-[depth=3]:pl-4 data-[depth=4]:pl-6"
             data-active="false" data-depth="2" onClick="deferSetActiveTocLink('#p7');">
             P7：产品化控制台与企业基础
+        </a>
+        
+
+        
+        <a href="#p8-worker-vps"
+            class="text-muted-foreground hover:text-foreground data-[active=true]:text-foreground text-[0.8rem] no-underline transition-colors data-[depth=3]:pl-4 data-[depth=4]:pl-6"
+            data-active="false" data-depth="2" onClick="deferSetActiveTocLink('#p8-worker-vps');">
+            P8：远程 Worker 与多 VPS 调度
         </a>
         
 
